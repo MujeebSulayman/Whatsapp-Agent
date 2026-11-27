@@ -1,5 +1,5 @@
 'use client';
-import { AlertCircle, CheckCircle2, Loader2, Moon, Sun, X } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Loader2, Moon, Search, Sun, X } from 'lucide-react';
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 import { cn, initials } from '@/lib/utils';
 
@@ -26,6 +26,15 @@ export function Button({ variant = 'primary', size = 'md', loading, className, c
   );
 }
 
+export function IconButton({ label, className, children, tone = 'default', ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { label: string; tone?: 'default' | 'danger' }) {
+  return (
+    <button type="button" aria-label={label} title={label}
+      className={cn('inline-flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 [&_svg]:size-4',
+        tone === 'danger' ? 'hover:bg-danger-bg hover:text-danger' : 'hover:bg-muted hover:text-foreground', className)}
+      {...props}>{children}</button>
+  );
+}
+
 /* ---------- Form controls ---------- */
 const control = 'w-full rounded-md border bg-card px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:bg-muted disabled:opacity-70';
 export const Input = ({ className, ...p }: InputHTMLAttributes<HTMLInputElement>) => <input className={cn(control, 'h-9', className)} {...p} />;
@@ -33,6 +42,27 @@ export const Textarea = ({ className, ...p }: TextareaHTMLAttributes<HTMLTextAre
 export const Select = ({ className, children, ...p }: SelectHTMLAttributes<HTMLSelectElement>) => (
   <select className={cn(control, 'h-9 pr-8', className)} {...p}>{children}</select>
 );
+export function SearchInput({ className, ...p }: InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <div className={cn('relative', className)}>
+      <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" strokeWidth={1.75} />
+      <input type="search" className={cn(control, 'h-9 pl-8')} {...p} />
+    </div>
+  );
+}
+/* Pill filter group for switching a list's view (statuses). Underline Tabs stay for page sections. */
+export function Segmented<T extends string>({ options, value, onChange, className }: { options: { id: T; label: string; count?: number }[]; value: T; onChange: (v: T) => void; className?: string }) {
+  return (
+    <div role="tablist" className={cn('inline-flex max-w-full items-center gap-0.5 overflow-x-auto rounded-lg border bg-card p-0.5', className)}>
+      {options.map((o) => (
+        <button key={o.id} role="tab" aria-selected={value === o.id} onClick={() => onChange(o.id)}
+          className={cn('h-7 shrink-0 whitespace-nowrap rounded-md px-2.5 text-[13px] font-medium transition-colors', value === o.id ? 'bg-muted text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}>
+          {o.label}{o.count !== undefined && <span className="ml-1.5 text-xs text-muted-foreground tabular-nums">{o.count}</span>}
+        </button>
+      ))}
+    </div>
+  );
+}
 export function Field({ label, hint, error, children, className }: { label: string; hint?: string; error?: string | null; children: ReactNode; className?: string }) {
   return (
     <label className={cn('block space-y-1.5', className)}>
@@ -81,6 +111,22 @@ export function CardHeader({ title, description, action }: { title: string; desc
 /* A body right under a CardHeader needs only a little top padding: the header already has its own. */
 export const CardBody = ({ className, ...p }: React.HTMLAttributes<HTMLDivElement>) => <div className={cn('p-5 not-first:pt-1', className)} {...p} />;
 
+export const CardFooter = ({ className, ...p }: React.HTMLAttributes<HTMLDivElement>) => (
+  <div className={cn('flex items-center justify-end gap-2 border-t px-5 py-3', className)} {...p} />
+);
+/* Settings layout: what this is about on the left, the controls in a card on the right. Stacks on small screens. */
+export function Section({ title, description, children, className }: { title: string; description?: ReactNode; children: ReactNode; className?: string }) {
+  return (
+    <section className={cn('grid gap-4 border-t py-8 first:border-t-0 first:pt-0 lg:grid-cols-[minmax(0,15rem)_1fr] lg:gap-10', className)}>
+      <div>
+        <h2 className="text-sm font-medium">{title}</h2>
+        {description && <p className="mt-1 text-[13px] text-muted-foreground">{description}</p>}
+      </div>
+      <div className="min-w-0">{children}</div>
+    </section>
+  );
+}
+
 type StatProps = { label: string; value: ReactNode; hint?: string; icon?: typeof Loader2 };
 function StatContent({ label, value, hint, icon: Icon }: StatProps) {
   return (
@@ -109,8 +155,15 @@ const tones = {
   warning: 'bg-warning-bg text-warning',
   danger: 'bg-danger-bg text-danger'
 };
+const dots = { neutral: 'bg-muted-foreground', dark: 'bg-foreground', success: 'bg-success', warning: 'bg-warning', danger: 'bg-danger' };
 export const Badge = ({ tone = 'neutral', children, className }: { tone?: keyof typeof tones; children: ReactNode; className?: string }) => (
-  <span className={cn('inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium', tones[tone], className)}>{children}</span>
+  <span className={cn('inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-medium', tones[tone], className)}>{children}</span>
+);
+/* Status: a coloured dot and plain text. Calmer than a filled pill when a table has many of them. */
+export const StatusDot = ({ tone = 'neutral', children, className }: { tone?: keyof typeof tones; children: ReactNode; className?: string }) => (
+  <span className={cn('inline-flex items-center gap-1.5 whitespace-nowrap text-[13px]', tone === 'neutral' ? 'text-muted-foreground' : 'text-foreground', className)}>
+    <span className={cn('size-1.5 shrink-0 rounded-full', dots[tone])} />{children}
+  </span>
 );
 export const Avatar = ({ name, className }: { name?: string | null; className?: string }) => (
   <span className={cn('inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground', className)}>{initials(name)}</span>
@@ -120,12 +173,12 @@ export const Avatar = ({ name, className }: { name?: string | null; className?: 
 export const Table = ({ children }: { children: ReactNode }) => (
   <div className="overflow-x-auto"><table className="w-full text-left text-sm">{children}</table></div>
 );
-export const THead = ({ children }: { children: ReactNode }) => <thead className="border-b text-xs font-medium text-muted-foreground">{children}</thead>;
-export const TH = ({ className, ...p }: React.ThHTMLAttributes<HTMLTableCellElement>) => <th className={cn('px-5 py-2.5 font-medium', className)} {...p} />;
+export const THead = ({ children }: { children: ReactNode }) => <thead className="border-b text-xs text-muted-foreground">{children}</thead>;
+export const TH = ({ className, ...p }: React.ThHTMLAttributes<HTMLTableCellElement>) => <th className={cn('h-10 px-4 font-medium first:pl-5 last:pr-5', className)} {...p} />;
 export const TR = ({ className, onClick, ...p }: React.HTMLAttributes<HTMLTableRowElement>) => (
-  <tr onClick={onClick} className={cn('border-b last:border-0', onClick && 'cursor-pointer hover:bg-muted/50', className)} {...p} />
+  <tr onClick={onClick} className={cn('border-b border-border/60 transition-colors last:border-0 hover:bg-muted/30', onClick && 'cursor-pointer', className)} {...p} />
 );
-export const TD = ({ className, ...p }: React.TdHTMLAttributes<HTMLTableCellElement>) => <td className={cn('px-5 py-3 align-middle', className)} {...p} />;
+export const TD = ({ className, ...p }: React.TdHTMLAttributes<HTMLTableCellElement>) => <td className={cn('px-4 py-3 align-middle first:pl-5 last:pr-5', className)} {...p} />;
 
 /* ---------- Tabs ---------- */
 export function Tabs<T extends string>({ tabs, value, onChange }: { tabs: { id: T; label: string; count?: number }[]; value: T; onChange: (v: T) => void }) {
@@ -152,18 +205,18 @@ export function Dialog({ open, onClose, title, description, children, footer, wi
   }, [open]);
   return (
     <dialog ref={ref} onClose={onClose} onClick={(e) => e.target === ref.current && onClose()}
-      className={cn('m-auto w-full rounded-lg border bg-card p-0 text-foreground shadow-xl', wide ? 'max-w-2xl' : 'max-w-md')}>
+      className={cn('m-auto w-[calc(100%-2rem)] rounded-xl border bg-card p-0 text-foreground shadow-2xl', wide ? 'max-w-2xl' : 'max-w-md')}>
       {open && (
         <div>
-          <div className="flex items-start justify-between gap-4 border-b px-5 py-4">
+          <div className="flex items-start justify-between gap-4 px-5 pt-5 pb-3">
             <div>
-              <h2 className="text-base font-semibold">{title}</h2>
+              <h2 className="text-base font-semibold tracking-tight">{title}</h2>
               {description && <p className="mt-0.5 text-[13px] text-muted-foreground">{description}</p>}
             </div>
             <button onClick={onClose} aria-label="Close" className="rounded-md p-1 text-muted-foreground hover:bg-muted"><X className="size-4" /></button>
           </div>
-          <div className="max-h-[70vh] overflow-y-auto px-5 py-4">{children}</div>
-          {footer && <div className="flex justify-end gap-2 border-t bg-muted/30 px-5 py-3">{footer}</div>}
+          <div className="max-h-[70vh] overflow-y-auto px-5 pt-1 pb-5 empty:hidden">{children}</div>
+          {footer && <div className="flex justify-end gap-2 border-t px-5 py-3">{footer}</div>}
         </div>
       )}
     </dialog>
@@ -176,7 +229,7 @@ export const Loading = () => <div className="flex items-center justify-center py
 export function EmptyState({ icon, title, description, action }: { icon?: ReactNode; title: string; description?: string; action?: ReactNode }) {
   return (
     <div className="flex flex-col items-center justify-center px-6 py-14 text-center">
-      {icon && <div className="mb-3 rounded-full bg-muted p-3 text-muted-foreground">{icon}</div>}
+      {icon && <div className="mb-4 flex size-10 items-center justify-center rounded-xl border bg-muted/50 text-muted-foreground [&_svg]:size-[18px]">{icon}</div>}
       <div className="text-sm font-medium">{title}</div>
       {description && <p className="mt-1 max-w-sm text-[13px] text-muted-foreground">{description}</p>}
       {action && <div className="mt-4">{action}</div>}

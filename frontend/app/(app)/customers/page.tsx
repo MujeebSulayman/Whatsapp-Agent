@@ -3,7 +3,7 @@ import { Users } from 'lucide-react';
 import { useState } from 'react';
 import { mutate } from 'swr';
 import { OrderBadge } from '@/components/badges';
-import { Button, Card, Dialog, EmptyState, ErrorNote, Field, Input, Loading, PageHeader, Switch, Table, TD, TH, THead, Textarea, TR, useToast } from '@/components/ui';
+import { Avatar, Button, Card, Dialog, EmptyState, ErrorNote, Field, Input, Loading, PageHeader, SearchInput, Switch, Table, TD, TH, THead, Textarea, TR, useToast } from '@/components/ui';
 import { api, useApi } from '@/lib/api';
 import type { Customer, CustomerDetail } from '@/lib/types';
 import { formatDateTime, timeAgo } from '@/lib/utils';
@@ -19,21 +19,28 @@ export default function CustomersPage() {
   return (
     <>
       <PageHeader title="Customers" description="Everyone who has messaged your business." />
-      <div className="mb-4"><Input className="max-w-xs" placeholder="Search name or number" value={search} onChange={(e) => setSearch(e.target.value)} /></div>
-      <Card>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <SearchInput className="w-full sm:w-72" placeholder="Search name or number" value={search} onChange={(e) => setSearch(e.target.value)} />
+        {customers && customers.length > 0 && <span className="text-xs text-muted-foreground tabular-nums">{customers.length} {customers.length === 1 ? 'customer' : 'customers'}</span>}
+      </div>
+      <Card className="overflow-hidden">
         {isLoading ? <Loading /> : !customers?.length ? (
-          <EmptyState icon={<Users className="size-5" />} title="No customers yet" description="Customers are added automatically the first time they message you." />
+          <EmptyState icon={<Users />} title="No customers yet" description="Customers are added automatically the first time they message you." />
         ) : (
           <Table>
-            <THead><tr><TH>Customer</TH><TH>WhatsApp</TH><TH>Orders</TH><TH>Total spent</TH><TH>Last order</TH></tr></THead>
+            <THead><tr><TH>Customer</TH><TH>Last order</TH><TH className="text-right">Orders</TH><TH className="text-right">Total spent</TH></tr></THead>
             <tbody>
               {customers.map((c) => (
                 <TR key={c.id} onClick={() => setOpenId(c.id)}>
-                  <TD className="font-medium">{c.name ?? '—'}</TD>
-                  <TD className="text-muted-foreground">+{c.waId}</TD>
-                  <TD className="tabular-nums">{c._count?.orders ?? 0}</TD>
-                  <TD className="tabular-nums">{money.fmt(c.totalSpentMinor)}</TD>
-                  <TD className="text-muted-foreground">{c.lastOrderAt ? timeAgo(c.lastOrderAt) : '—'}</TD>
+                  <TD>
+                    <div className="flex items-center gap-3">
+                      <Avatar name={c.name ?? c.waId} className="size-8" />
+                      <div className="min-w-0"><div className="truncate font-medium">{c.name ?? 'Unknown name'}</div><div className="text-xs text-muted-foreground">+{c.waId}</div></div>
+                    </div>
+                  </TD>
+                  <TD className="text-[13px] text-muted-foreground">{c.lastOrderAt ? timeAgo(c.lastOrderAt) : '—'}</TD>
+                  <TD className="text-right tabular-nums">{c._count?.orders ?? 0}</TD>
+                  <TD className="text-right font-medium tabular-nums">{money.fmt(c.totalSpentMinor)}</TD>
                 </TR>
               ))}
             </tbody>
@@ -76,9 +83,9 @@ function CustomerDialog({ id, onClose, listKey }: { id: string | null; onClose: 
           </div>
           <Field label="Notes" hint="Private to your team. Also visible to the assistant."><Textarea rows={3} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></Field>
           <div>
-            <h3 className="mb-2 text-sm font-semibold">Order history</h3>
+            <h3 className="mb-2 text-sm font-medium">Order history</h3>
             {c.orders.length === 0 ? <p className="text-[13px] text-muted-foreground">No orders yet.</p> : (
-              <div className="rounded-md border"><Table><tbody>
+              <div className="overflow-hidden rounded-lg border"><Table><tbody>
                 {c.orders.map((o) => (
                   <TR key={o.id}><TD className="py-2 font-mono text-xs">#{o.id.slice(-6).toUpperCase()}</TD><TD className="py-2 text-muted-foreground">{formatDateTime(o.createdAt)}</TD><TD className="py-2 tabular-nums">{money.fmt(o.totalMinor)}</TD><TD className="py-2"><OrderBadge status={o.status} /></TD></TR>
                 ))}
