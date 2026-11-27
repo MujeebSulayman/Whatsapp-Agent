@@ -109,16 +109,16 @@ export default function LandingPage() {
 
             <div className="relative mx-auto mt-10 flex max-w-4xl justify-center sm:mt-14 lg:mt-16">
               {/* What happens on your side while the customer chats */}
-              <Widget className="animate-rise-lg left-0 top-[22%] [animation-delay:4.1s]" icon={<ShoppingBag className="size-4" strokeWidth={1.75} />} title="New order #ABYKZ9" line="Party Pack × 1 · ₦14,000" />
+              <Widget className="animate-rise-lg left-0 top-[22%] [animation-delay:4.1s]" icon={<ShoppingBag className="size-4" strokeWidth={1.75} />} title="New order #K7T2Q4" line="Air Runner, size 44 × 1 · ₦48,000" />
               <Widget className="animate-rise-lg right-0 top-[48%] [animation-delay:1.9s]" icon={<Clock className="size-4" strokeWidth={1.75} />} title="Replied in 3 seconds" line="9:41 PM, after closing time" />
               <div className="phone-rise pb-12 sm:pb-24">
-                <WhatsAppPhone animate shop="Mama Put" initials="MP" messages={[
-                  { from: 'customer', time: '9:41 PM', children: 'Good evening, how much be party pack?' },
-                  { from: 'shop', time: '9:41 PM', children: <>Good evening! 👋 The Party Pack (serves 10) is <b className="font-semibold">₦12,000</b>: puff puff, samosa, spring rolls and wings. Should I add one for you?</> },
-                  { from: 'customer', time: '9:42 PM', children: 'Yes abeg. Deliver to Lekki Phase 1' },
-                  { from: 'shop', time: '9:42 PM', children: <>Delivery to Lekki Phase 1 is <b className="font-semibold">₦2,000</b>, about 45–60 minutes. Your total is <b className="font-semibold">₦14,000</b>. What’s your full address?</> },
-                  { from: 'customer', time: '9:43 PM', children: '12 Admiralty Way' },
-                  { from: 'shop', time: '9:43 PM', children: <>Done ✅ Order <b className="font-semibold">#ABYKZ9</b> is confirmed. We’ll message you when it’s on the way.</> }
+                <WhatsAppPhone animate shop="Urban Sole" initials="US" messages={[
+                  { from: 'customer', time: '9:41 PM', children: 'Good evening, do you have the Air Runner in size 43?' },
+                  { from: 'shop', time: '9:41 PM', children: <>Good evening! 👋 Size 43 is sold out, but I have 42 and 44 in stock, both <b className="font-semibold">₦45,000</b>. Want to see the black one in 44?</> },
+                  { from: 'customer', time: '9:42 PM', children: 'Yes abeg, 44. Deliver to Ikeja' },
+                  { from: 'shop', time: '9:42 PM', children: <>Delivery to Ikeja is <b className="font-semibold">₦3,000</b>, about 1–2 days. Your total is <b className="font-semibold">₦48,000</b>. What’s your full address?</> },
+                  { from: 'customer', time: '9:43 PM', children: '14 Allen Avenue' },
+                  { from: 'shop', time: '9:43 PM', children: <>Done ✅ Order <b className="font-semibold">#K7T2Q4</b> is placed. Send the transfer and we’ll confirm it right away.</> }
                 ]} />
               </div>
             </div>

@@ -12,7 +12,7 @@ import { useMoney } from '@/lib/use-money';
 
 const KEY = 'products';
 let optId = 0;
-const TEMPLATE = 'name,description,price,stock,variants\nParty Pack,Serves 10,12000,20,\nSamosa Box,20 pieces,3000,40,Beef|Chicken\n';
+const TEMPLATE = 'name,description,price,stock,variants\nAir Runner Sneaker,Lightweight running shoe,45000,12,42|43|44\nAnkara Maxi Dress,Made to order,18000,8,S|M|L\nPhone Case,Shockproof,3500,40,\n';
 
 export default function ProductsPage() {
   const money = useMoney();

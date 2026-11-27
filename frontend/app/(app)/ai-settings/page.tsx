@@ -65,7 +65,7 @@ export default function AiSettingsPage() {
               </div>
               <Field label="Hand over to you when a customer says…" hint="Separate with commas. A chat containing these words is flagged for you."><Input value={f.escalate} onChange={set('escalate')} disabled={!owner} placeholder="refund, complaint, lawyer" /></Field>
               <Field label="Topics the assistant must avoid" hint="Separate with commas."><Input value={f.forbidden} onChange={set('forbidden')} disabled={!owner} placeholder="politics, religion" /></Field>
-              <Field label="Extra instructions" hint="Anything specific to your business, e.g. “Party packs need 24 hours notice.”"><Textarea rows={4} value={f.instructions} onChange={set('instructions')} disabled={!owner} maxLength={1500} />{owner && <SuggestButton field="instructions" text={f.instructions} onUse={(v) => setF({ ...f, instructions: v.slice(0, 1500) })} />}</Field>
+              <Field label="Extra instructions" hint="Anything specific to your business, e.g. “Custom orders need 7 days notice.”"><Textarea rows={4} value={f.instructions} onChange={set('instructions')} disabled={!owner} maxLength={1500} />{owner && <SuggestButton field="instructions" text={f.instructions} onUse={(v) => setF({ ...f, instructions: v.slice(0, 1500) })} />}</Field>
             </CardBody>
             {owner && <CardFooter><Button type="submit" loading={busy}>Save changes</Button></CardFooter>}
           </Card>

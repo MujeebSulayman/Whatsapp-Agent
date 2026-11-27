@@ -13,12 +13,12 @@ export function NoGuessingVisual() {
   return (
     <Panel className="bg-[#0b141a]">
       <div className="flex items-center gap-2.5 border-b border-black/40 bg-[#1f2c34] px-4 py-3">
-        <span className="grid size-8 place-items-center rounded-full bg-[#d97706] text-[12px] font-semibold text-white">MP</span>
-        <span className="leading-tight"><span className="block text-[14px] font-medium text-[#e9edef]">Mama Put</span><span className="text-[11px] text-[#8696a0]">Business account</span></span>
+        <span className="grid size-8 place-items-center rounded-full bg-[#2563eb] text-[12px] font-semibold text-white">CB</span>
+        <span className="leading-tight"><span className="block text-[14px] font-medium text-[#e9edef]">CoolBreeze AC</span><span className="text-[11px] text-[#8696a0]">Business account</span></span>
       </div>
       <div className="flex flex-col gap-1.5 px-4 py-5" style={{ backgroundImage: wallpaper }}>
-        <Bubble from="customer" time="8:15 PM">Do you do a 50-piece small chops tray for a wedding?</Bubble>
-        <Bubble from="shop" time="8:15 PM">Good question! A 50-piece tray isn’t on our menu yet, so I won’t guess a price. I’ve asked the owner and they’ll reply here shortly 🙏</Bubble>
+        <Bubble from="customer" time="8:15 PM">How much to install a 2HP split unit in my office? It is on the 4th floor.</Bubble>
+        <Bubble from="shop" time="8:15 PM">Installs start from ₦45,000, but a 2HP unit on the 4th floor depends on the pipe run, so I won’t guess a price. I’ve asked our technician and he’ll reply here shortly 🙏</Bubble>
       </div>
     </Panel>
   );
@@ -38,17 +38,17 @@ export function HandoverVisual() {
         <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
           <div className="flex items-center gap-3">
             <span className="relative grid size-9 place-items-center rounded-full bg-white/10 text-[12px] text-muted-foreground">
-              TB<span className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full border-2 border-[#0e0e10] bg-warning" />
+              AE<span className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full border-2 border-[#0e0e10] bg-warning" />
             </span>
             <span className="min-w-0 flex-1 leading-tight">
-              <span className="block text-[14px] font-medium">Tunde Bakare</span>
-              <span className="text-[12px] text-muted-foreground">Asked for a refund · 2 min ago</span>
+              <span className="block text-[14px] font-medium">Amaka Eze</span>
+              <span className="text-[12px] text-muted-foreground">Wants an exchange · 2 min ago</span>
             </span>
             <span className="rounded-full bg-warning-bg px-2 py-0.5 text-[11.5px] text-warning">Needs you</span>
           </div>
           <p className="mt-3 rounded-lg bg-black/40 p-3 text-[13px] leading-relaxed text-muted-foreground">
             <span className="mb-1 flex items-center gap-1.5 text-[12px] text-foreground"><Bot className="size-3.5" />Summary from the assistant</span>
-            Order #1H9ZH7 arrived with one item missing. Customer wants a refund for the spring rolls (₦3,500). I have paused and told him you will reply.
+            Order #K7T2Q4 arrived in size 43 instead of 44. She wants to exchange the Air Runner (₦45,000). I have paused and told her you will reply.
           </p>
           <div className="mt-3 flex gap-2">
             <span className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-primary px-3 text-[13px] font-medium text-primary-foreground"><Hand className="size-3.5" />Take over</span>
@@ -79,7 +79,7 @@ export function LimitsVisual() {
         </div>
         <div>
           <div>Standing instructions</div>
-          <p className="mt-2 rounded-lg border border-white/10 bg-black/40 p-3 text-[12.5px] leading-relaxed text-muted-foreground">“Orders after 9 PM are delivered the next morning. Always mention it.”</p>
+          <p className="mt-2 rounded-lg border border-white/10 bg-black/40 p-3 text-[12.5px] leading-relaxed text-muted-foreground">“Orders paid after 6 PM go out the next morning. Always say so.”</p>
         </div>
       </div>
     </Panel>
