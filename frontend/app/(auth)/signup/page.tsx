@@ -2,11 +2,11 @@
 import { Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { Button, ErrorNote, Field, Input, Select } from '@/components/ui';
 import { api } from '@/lib/api';
 import { ALL_CATEGORIES, CATEGORY_GROUPS, CUSTOM_CATEGORY, KIND_OPTIONS, kindFor, type Kind } from '@/lib/categories';
-import { COUNTRIES, autoTimezone, guessCountry } from '@/lib/countries';
+import { COUNTRIES, autoTimezone } from '@/lib/countries';
 import { cn } from '@/lib/utils';
 
 function strength(pw: string): { score: number; label: string } {
@@ -19,7 +19,7 @@ function strength(pw: string): { score: number; label: string } {
 
 export default function SignupPage() {
   const router = useRouter();
-  const [f, setF] = useState({ name: '', businessName: '', city: '', country: '', email: '', password: '' });
+  const [f, setF] = useState({ name: '', businessName: '', city: '', country: 'NG', email: '', password: '' });
   const [show, setShow] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -30,11 +30,6 @@ export default function SignupPage() {
   const pw = strength(f.password);
   const category = categoryChoice === CUSTOM_CATEGORY ? customCategory.trim() : categoryChoice;
 
-  // Pre-select the visitor's country from their browser language; they can change it.
-  useEffect(() => {
-    const guess = guessCountry();
-    if (guess) setF((s) => ({ ...s, country: guess }));
-  }, []);
 
   function pickCountry(code: string) {
     setF((s) => ({ ...s, country: code }));
@@ -88,7 +83,7 @@ export default function SignupPage() {
                 {COUNTRIES.map((c) => <option key={c.code} value={c.code}>{c.flag} {c.name}</option>)}
               </Select>
             </Field>
-            <Field label="City"><Input required minLength={2} value={f.city} onChange={set('city')} placeholder="e.g. Accra" /></Field>
+            <Field label="City"><Input required minLength={2} value={f.city} onChange={set('city')} placeholder="e.g. Lagos" /></Field>
           </div>
         </fieldset>
 
