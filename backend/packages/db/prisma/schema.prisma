@@ -91,6 +91,7 @@ model Business {
   customers        Customer[]
   conversations    Conversation[]
   orders           Order[]
+  waitlistEntries WaitlistEntry[]
   broadcasts       Broadcast[]
   usageLedger      UsageLedger[]
   auditLogs        AuditLog[]
@@ -150,10 +151,15 @@ model Product {
   /// false for services and made-to-order items: availability is never limited by stock
   trackStock  Boolean  @default(true) @map("track_stock")
   imageUrls   String[] @map("image_urls")
+  /// Owner-written note shown when sold out, e.g. "Back around 20 Dec". The AI may only repeat this, never invent a date.
+  restockNote String?  @map("restock_note")
+  /// Customers may order a sold-out item; it is recorded as a pre-order.
+  allowPreorder Boolean @default(false) @map("allow_preorder")
   active      Boolean  @default(true)
   embedding   Unsupported("vector(1536)")?
   createdAt   DateTime @default(now()) @map("created_at")
   business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  waitlist    WaitlistEntry[]
 
   @@index([businessId, active])
   @@map("products")
@@ -209,6 +215,7 @@ model Customer {
   business           Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
   conversations      Conversation[]
   orders             Order[]
+  waitlist           WaitlistEntry[]
 
   @@unique([businessId, waId])
   @@map("customers")
@@ -364,4 +371,24 @@ model AuthIdentity {
   @@unique([provider, subject])
   @@index([userId])
   @@map("auth_identities")
+}
+
+/// A customer who asked to be told when a sold-out item (or one of its variants) is back.
+model WaitlistEntry {
+  id         String    @id @default(cuid())
+  businessId String    @map("business_id")
+  productId  String    @map("product_id")
+  /// null = the product as a whole; otherwise a variant name (size, colour)
+  variant    String?
+  customerId String    @map("customer_id")
+  /// waiting | notified | cancelled. A customer can have only one waiting entry per product+variant.
+  status     String    @default("waiting")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  notifiedAt DateTime? @map("notified_at")
+  business   Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  product    Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  customer   Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([businessId, productId, status])
+  @@map("waitlist_entries")
 }

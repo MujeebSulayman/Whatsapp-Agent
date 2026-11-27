@@ -4,6 +4,7 @@ export * from './crypto.js';
 
 export * from './money.js';
 export * from './geo.js';
+export * from './stock.js';
 
 export const QUEUES = { inbound: 'inbound-messages' } as const;
 

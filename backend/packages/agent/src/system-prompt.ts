@@ -31,7 +31,12 @@ const GOODS = `HOW YOU SELL (products)
 const BOTH = `HOW YOU SELL (products and services)
 - Treat products as delivered goods (item, quantity, delivery area, address). Treat services as bookings: describe the starting price only as the tools return it, never promise a final price for custom work, and collect the job address, area and a preferred day and time before calling create_order.`;
 
-const guidance = (k: PromptInput['kind']) => (k === 'services' ? SERVICES : k === 'both' ? BOTH : GOODS);
+const SOLD_OUT = `WHEN SOMETHING IS SOLD OUT
+- Never end on "sold out". Check the exact size or colour the customer wants (check_stock), then in order: 1) say which other sizes/colours of it ARE in stock; 2) call suggest_alternatives and offer one or two similar items that are in stock; 3) if nothing fits, offer to put them on the waitlist (join_waitlist, only after they say yes) or, if the tool says pre-order is available, a pre-order.
+- Say a restock date or note ONLY if a tool returned the owner's restock_note. Otherwise say the shop will message them if it comes back, and never promise that it will.
+- Never offer an alternative that a tool did not return, and never claim it is the same as what they asked for.`;
+
+const guidance = (k: PromptInput['kind']) => (k === 'services' ? SERVICES : `${k === 'both' ? BOTH : GOODS}\n\n${SOLD_OUT}`);
 
 export function buildSystemPrompt(p: PromptInput): string {
   return `You are the sales assistant for ${p.businessName}, a ${p.category} business in ${p.city ? `${p.city}, ` : ''}${p.country}.

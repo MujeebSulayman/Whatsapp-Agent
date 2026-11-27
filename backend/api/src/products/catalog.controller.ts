@@ -6,6 +6,8 @@ import { parse } from '../common/validate.js';
 import { EmbeddingService } from '../common/embedding.js';
 import { PRISMA } from '../infra.module.js';
 import { parseCsv, productsFromCsv } from './csv.js';
+import { WaitlistService } from './waitlist.service.js';
+import { normaliseStock } from './stock-input.js';
 
 const ProductInput = z.object({
   name: z.string().min(1).max(120),
@@ -14,7 +16,11 @@ const ProductInput = z.object({
   stockQty: z.number().int().min(0).max(1_000_000),
   /** false for services and made-to-order items. Defaults from the business type when omitted. */
   trackStock: z.boolean().optional(),
-  variants: z.array(z.object({ name: z.string().min(1).max(60) })).max(30).nullable().optional(),
+  /** Name only (all sizes share the stock number), or name + stockQty on EVERY variant (stock is held per size/colour). */
+  variants: z.array(z.object({ name: z.string().min(1).max(60), stockQty: z.number().int().min(0).max(1_000_000).optional() })).max(30).nullable().optional(),
+  /** Owner-written note for sold-out items. The assistant may repeat it, never invent a date. */
+  restockNote: z.string().trim().max(120).nullable().optional(),
+  allowPreorder: z.boolean().optional(),
   imageUrls: z.array(z.string().url()).max(10).optional(),
   active: z.boolean().optional()
 });
@@ -26,7 +32,8 @@ const FaqInput = z.object({ question: z.string().min(3).max(200), answer: z.stri
 export class CatalogController {
   constructor(
     @Inject(PRISMA) private readonly db: PrismaClient,
-    @Inject(EmbeddingService) private readonly embeddings: EmbeddingService
+    @Inject(EmbeddingService) private readonly embeddings: EmbeddingService,
+    @Inject(WaitlistService) private readonly waitlist: WaitlistService
   ) {}
 
   /** Services never run out of stock; goods do. A mixed business tracks stock unless told otherwise. */
@@ -49,7 +56,7 @@ export class CatalogController {
   @Post('products')
   @HttpCode(201)
   async createProduct(@Auth() a: AuthCtx, @Body() body: unknown) {
-    const d = parse(ProductInput, body);
+    const d = normaliseStock(parse(ProductInput, body));
     const trackStock = d.trackStock ?? (await this.defaultTrackStock(a.businessId));
     const created = await this.db.product.create({
       data: { businessId: a.businessId, ...d, trackStock, variants: (d.variants ?? undefined) as Prisma.InputJsonValue | undefined, description: d.description ?? null }
@@ -60,11 +67,13 @@ export class CatalogController {
 
   @Patch('products/:id')
   async updateProduct(@Auth() a: AuthCtx, @Param('id') id: string, @Body() body: unknown) {
-    const d = parse(ProductInput.partial(), body);
+    const d = normaliseStock(parse(ProductInput.partial(), body));
     const res = await this.db.product.updateMany({ where: { id, businessId: a.businessId }, data: { ...d, variants: (d.variants ?? undefined) as Prisma.InputJsonValue | undefined } });
     if (res.count === 0) throw new NotFoundException();
     this.embeddings.indexProducts(a.businessId, [id]);
-    return this.db.product.findFirstOrThrow({ where: { id, businessId: a.businessId } });
+    const product = await this.db.product.findFirstOrThrow({ where: { id, businessId: a.businessId } });
+    // How many waiting customers can now be told (the dashboard offers to message them).
+    return { ...product, waitingNow: await this.waitlist.notifiableCount(a.businessId, id) };
   }
 
   @Delete('products/:id')

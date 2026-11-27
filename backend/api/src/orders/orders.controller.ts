@@ -1,11 +1,12 @@
 import { Body, ConflictException, Controller, Get, HttpCode, Inject, NotFoundException, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
-import type { PrismaClient } from '@wa/db';
+import type { Prisma, PrismaClient } from '@wa/db';
+import { decrementStock } from '@wa/shared';
 import { z } from 'zod';
 import { Auth, AuthGuard, type AuthCtx } from '../common/auth.guard.js';
 import { parse } from '../common/validate.js';
 import { PRISMA } from '../infra.module.js';
 
-const OrderItems = z.array(z.object({ product_id: z.string(), quantity: z.number().int() })).catch([]);
+const OrderItems = z.array(z.object({ product_id: z.string(), quantity: z.number().int(), variant: z.string().nullish(), preorder: z.boolean().optional() })).catch([]);
 
 @Controller('orders')
 @UseGuards(AuthGuard)
@@ -62,7 +63,12 @@ export class OrdersController {
       });
       if (claimed.count === 0) return;
       for (const it of items) {
-        await tx.product.updateMany({ where: { id: it.product_id, businessId: a.businessId, trackStock: true, stockQty: { gte: it.quantity } }, data: { stockQty: { decrement: it.quantity } } });
+        if (it.preorder) continue; // a pre-order has nothing in stock to take yet
+        const p = await tx.product.findFirst({ where: { id: it.product_id, businessId: a.businessId } });
+        const next = p ? decrementStock(p, it.variant, it.quantity) : null;
+        if (!p || !next) continue;
+        // Guarded on the value we read, so two simultaneous payments can't both take the last item.
+        await tx.product.updateMany({ where: { id: p.id, businessId: a.businessId, stockQty: p.stockQty }, data: { stockQty: next.stockQty, ...(next.variants ? { variants: next.variants as unknown as Prisma.InputJsonValue } : {}) } });
       }
       await tx.customer.updateMany({ where: { id: o.customerId, businessId: a.businessId }, data: { totalSpentMinor: { increment: o.totalMinor }, lastOrderAt: new Date() } });
       await tx.auditLog.create({ data: { businessId: a.businessId, actor: a.userId, action: 'order.mark_paid', payload: { orderId: id, totalMinor: o.totalMinor } } });

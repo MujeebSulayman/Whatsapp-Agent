@@ -67,7 +67,7 @@ describe('service businesses (HVAC, painting, ...)', () => {
   });
 
   it('goods still need stock and a delivery area', async () => {
-    expect(await createOrder.run(ctx(shops.goods), { items: [{ product_id: shops.goods.serviceId, quantity: 1 }], delivery_area: 'Anywhere', address: '1 Some Street' })).toMatchObject({ error: expect.stringContaining('Only 0') });
+    expect(await createOrder.run(ctx(shops.goods), { items: [{ product_id: shops.goods.serviceId, quantity: 1 }], delivery_area: 'Anywhere', address: '1 Some Street' })).toMatchObject({ error: expect.stringMatching(/sold out.*suggest_alternatives/) });
     await prisma.product.update({ where: { id: shops.goods.serviceId }, data: { stockQty: 5 } });
     expect(await createOrder.run(ctx(shops.goods), { items: [{ product_id: shops.goods.serviceId, quantity: 1 }], address: '1 Some Street' })).toMatchObject({ error: expect.stringContaining('delivery area') });
   });

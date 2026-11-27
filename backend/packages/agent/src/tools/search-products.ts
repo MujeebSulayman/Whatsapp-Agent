@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { searchProductsByVector } from '@wa/db';
 import { formatMoney } from '@wa/shared';
+import { loadReserved, stockInfo } from './availability.js';
 import { defineTool } from './types.js';
 
 export const searchProducts = defineTool({
@@ -35,15 +36,14 @@ export const searchProducts = defineTool({
     const byId = new Map([...vectorRows, ...keyword].map((p) => [p.id, p]));
     const order = [...new Set([...vectorIds, ...keyword.map((p) => p.id)])].slice(0, 5);
     const products = order.map((id) => byId.get(id)!).filter(Boolean);
+    const reserved = await loadReserved(ctx.db, ctx.businessId);
     return {
       results: products.map((p) => ({
         product_id: p.id,
         name: p.name,
         description: p.description,
         price: formatMoney(p.priceMinor, ctx.currency),
-        variants: p.variants,
-        in_stock: !p.trackStock || p.stockQty > 0,
-        ...(p.trackStock ? { stock_qty: p.stockQty } : { note: "Not stock-limited (service or made to order)" })
+        ...stockInfo(p, reserved)
       })),
       note: products.length ? undefined : 'No matching products. Do not invent one.'
     };

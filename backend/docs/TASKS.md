@@ -29,6 +29,7 @@ Legend: [x] done and tested · [~] built, needs a live key/account to verify · 
 - [x] Orders (with status actions), Products (CSV import), Customers
 - [x] AI assistant settings, Business settings (profile, delivery, FAQs, WhatsApp, data & privacy)
 - [x] AI setup assistant: import from text or photos, guided interview, practice chat with corrections, "Improve with AI" on fields (live-model quality not yet verified: needs a valid OpenRouter key)
+- [x] Sold-out handling: stock per size/colour, held for unpaid orders, alternatives, waitlist with "tell them it is back", owner restock note, optional pre-orders
 - [x] Analytics, Team
 
 ## Any country, any business

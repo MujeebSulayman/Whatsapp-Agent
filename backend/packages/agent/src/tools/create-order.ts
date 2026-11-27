@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { Prisma } from '@wa/db';
-import { formatMoney } from '@wa/shared';
+import { availableQty, findVariant, formatMoney, isVariantTracked, variantList } from '@wa/shared';
+import { loadReserved } from './availability.js';
 import { defineTool } from './types.js';
 
 export const createOrder = defineTool({
@@ -22,15 +23,34 @@ export const createOrder = defineTool({
     const products = await ctx.db.product.findMany({ where: { id: { in: ids }, businessId: ctx.businessId, active: true } });
     const byId = new Map(products.map((p) => [p.id, p]));
 
+    const reserved = await loadReserved(ctx.db, ctx.businessId);
     const lines = [];
+    const wanted = new Map<string, number>(); // quantity per product+option across lines
     for (const item of args.items) {
       const p = byId.get(item.product_id);
       if (!p) return { error: `Unknown product_id ${item.product_id}. Use search_products to get valid ids.` };
-      const already = args.items.filter((i) => i.product_id === p.id).reduce((s, i) => s + i.quantity, 0);
+      const names = variantList(p.variants).map((v) => v.name);
+      let option: string | null = item.variant ?? null;
+      if (names.length) {
+        const v = findVariant(p, item.variant);
+        if (item.variant && !v) return { error: `No option called "${item.variant}" for "${p.name}". Options: ${names.join(', ')}.` };
+        if (!v && isVariantTracked(p)) return { error: `Ask which option they want for "${p.name}". Options: ${names.join(', ')}.` };
+        option = v?.name ?? null;
+      }
+      const key = `${p.id}::${option ?? ''}`;
+      const already = (wanted.get(key) ?? 0) + item.quantity;
+      wanted.set(key, already);
       // Services and made-to-order items (trackStock = false) are never limited by stock.
-      if (p.trackStock && p.stockQty < already) return { error: `Only ${p.stockQty} of "${p.name}" in stock.` };
-      lines.push({ product_id: p.id, name: p.name, variant: item.variant ?? null, quantity: item.quantity, unit_price_minor: p.priceMinor, line_total_minor: p.priceMinor * item.quantity });
+      const left = availableQty(p, option, reserved);
+      let preorder = false;
+      if (left !== null && left < already) {
+        if (p.allowPreorder) preorder = true;
+        else if (left === 0) return { error: `"${p.name}"${option ? ` (${option})` : ''} is sold out. Do not just refuse: call suggest_alternatives and offer join_waitlist.${p.restockNote ? ` Owner note: "${p.restockNote}".` : ''}` };
+        else return { error: `Only ${left} of "${p.name}"${option ? ` (${option})` : ''} left. Offer that many, or suggest_alternatives for the rest.` };
+      }
+      lines.push({ product_id: p.id, name: p.name, variant: option, quantity: item.quantity, unit_price_minor: p.priceMinor, line_total_minor: p.priceMinor * item.quantity, ...(preorder ? { preorder: true } : {}) });
     }
+    const preorderLines = lines.filter((l) => 'preorder' in l);
 
     const zones = await ctx.db.deliveryZone.findMany({ where: { businessId: ctx.businessId } });
     const isService = ctx.kind === 'services';
@@ -47,7 +67,7 @@ export const createOrder = defineTool({
     const feeMinor = zone?.feeMinor ?? 0;
     const subtotalMinor = lines.reduce((s, l) => s + l.line_total_minor, 0);
     const totalMinor = subtotalMinor + feeMinor;
-    const notes = [args.preferred_time && `Preferred time: ${args.preferred_time}`, args.notes].filter(Boolean).join('\n') || undefined;
+    const notes = [preorderLines.length && `PRE-ORDER (not in stock yet): ${preorderLines.map((l) => l.name + (l.variant ? ` (${l.variant})` : '')).join(', ')}`, args.preferred_time && `Preferred time: ${args.preferred_time}`, args.notes].filter(Boolean).join('\n') || undefined;
     const order = await ctx.db.order.create({
       data: {
         businessId: ctx.businessId,
@@ -62,6 +82,7 @@ export const createOrder = defineTool({
     });
     return {
       order_id: order.id,
+      ...(preorderLines.length ? { preorder_items: preorderLines.map((l) => l.name + (l.variant ? ` (${l.variant})` : '')) } : {}),
       status: isService ? 'booking request recorded, awaiting confirmation' : 'draft, awaiting payment',
       items: lines.map((l) => `${l.quantity} x ${l.name}${l.variant ? ` (${l.variant})` : ''} = ${formatMoney(l.line_total_minor, ctx.currency)}`),
       subtotal: formatMoney(subtotalMinor, ctx.currency),
@@ -69,7 +90,9 @@ export const createOrder = defineTool({
       total: formatMoney(totalMinor, ctx.currency),
       ...(args.preferred_time ? { preferred_time: args.preferred_time } : {}),
       ...(zone ? { eta: zone.etaText } : {}),
-      next: isService
+      next: preorderLines.length
+        ? 'This is a PRE-ORDER: tell the customer the item is not in stock yet and the shop will confirm when it is ready. Do not promise a date.'
+        : isService
         ? 'Tell the customer their request is recorded and that the team will confirm the time and the final price. Do not promise a fixed final price for custom work.'
         : 'Tell the customer the total. Payment link comes in a later step.'
     };

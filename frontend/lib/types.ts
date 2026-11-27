@@ -10,7 +10,7 @@ export interface BusinessDetail {
   setup: { whatsapp: boolean; products: boolean; zones: boolean; faqs: boolean };
 }
 
-export interface Product { id: string; name: string; description: string | null; priceMinor: number; stockQty: number; trackStock: boolean; variants: { name: string }[] | null; imageUrls: string[]; active: boolean }
+export interface Product { id: string; name: string; description: string | null; priceMinor: number; stockQty: number; trackStock: boolean; variants: { name: string; stockQty?: number | null }[] | null; restockNote: string | null; allowPreorder: boolean; imageUrls: string[]; active: boolean }
 export interface Zone { id: string; areaName: string; feeMinor: number; etaText: string }
 export interface Faq { id: string; question: string; answer: string }
 
@@ -28,7 +28,7 @@ export interface ConversationDetail {
 }
 
 export type OrderStatus = 'pending' | 'paid' | 'dispatched' | 'delivered' | 'cancelled';
-export interface OrderItem { product_id: string; name: string; variant: string | null; quantity: number; unit_price_minor: number; line_total_minor: number }
+export interface OrderItem { product_id: string; name: string; variant: string | null; quantity: number; unit_price_minor: number; line_total_minor: number; preorder?: boolean }
 export interface Order {
   id: string; status: OrderStatus; paymentStatus: 'unpaid' | 'pending' | 'paid' | 'failed' | 'refunded';
   items: OrderItem[]; subtotalMinor: number; deliveryFeeMinor: number; discountMinor: number; totalMinor: number;
@@ -54,3 +54,5 @@ export interface InterviewDraft {
   customInstructions: string | null; escalateKeywords: string[]; forbiddenTopics: string[];
 }
 export interface PracticeReply { reply: string; handedOff: boolean; actions: { name: string; failed: boolean }[] }
+
+export interface WaitGroup { productId: string; name: string; variant: string | null; inStock: boolean; people: { id: string; name: string | null; waId: string; since: string }[] }

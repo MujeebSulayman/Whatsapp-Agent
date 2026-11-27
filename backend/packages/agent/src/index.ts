@@ -12,3 +12,5 @@ export { handoffToHuman } from './tools/handoff-to-human.js';
 export { saveCustomerDetail } from './tools/save-customer-detail.js';
 export { searchProducts } from './tools/search-products.js';
 export { sendProductImage } from './tools/send-product-image.js';
+export { suggestAlternatives } from './tools/suggest-alternatives.js';
+export { joinWaitlist } from './tools/join-waitlist.js';

@@ -15,6 +15,8 @@ import { SetupAiController } from './setup-ai/setup-ai.controller.js';
 import { LLM_CLIENT, QUERY_EMBEDDER, SetupAiService } from './setup-ai/setup-ai.service.js';
 import { OrdersController } from './orders/orders.controller.js';
 import { CatalogController } from './products/catalog.controller.js';
+import { WaitlistController } from './products/waitlist.controller.js';
+import { WaitlistService } from './products/waitlist.service.js';
 import { TeamController } from './team/team.controller.js';
 import { WhatsappController } from './webhooks/whatsapp.controller.js';
 import { WhatsappService } from './webhooks/whatsapp.service.js';
@@ -29,8 +31,8 @@ class HealthController {
 
 @Module({
   imports: [InfraModule],
-  controllers: [HealthController, WhatsappController, AuthController, SocialAuthController, SetupAiController, BusinessController, CatalogController, ConversationsController, OrdersController, CustomersController, AnalyticsController, TeamController],
-  providers: [WhatsappService, Messenger, EmbeddingService, AccountsService, { provide: GOOGLE_CLIENT, useFactory: () => new GoogleClient() },
+  controllers: [HealthController, WhatsappController, AuthController, SocialAuthController, SetupAiController, BusinessController, CatalogController, WaitlistController, ConversationsController, OrdersController, CustomersController, AnalyticsController, TeamController],
+  providers: [WhatsappService, Messenger, WaitlistService, EmbeddingService, AccountsService, { provide: GOOGLE_CLIENT, useFactory: () => new GoogleClient() },
     SetupAiService,
     { provide: LLM_CLIENT, useFactory: () => createOpenRouterClient({ apiKey: process.env.OPENROUTER_API_KEY ?? '', appTitle: 'Converso' }) },
     {
