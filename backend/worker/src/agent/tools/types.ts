@@ -6,8 +6,10 @@ export interface ToolContext {
   businessId: string;
   conversationId: string;
   customerId: string;
+  /** Optional: lets a tool send a product photo into the chat. */
+  sendImage?: (o: { url: string; caption?: string }) => Promise<void>;
   /** Mutable per-run state the tools can flag for the loop/handler. */
-  state: { handedOff: boolean };
+  state: { handedOff: boolean; handoff?: { reason: string; summary: string } };
 }
 
 export interface Tool<S extends z.ZodType = z.ZodType> {

@@ -3,7 +3,7 @@ import { Redis } from 'ioredis';
 import { createOpenRouterClient, modelConfigFromEnv } from '@wa/ai';
 import { createPrisma } from '@wa/db';
 import { InboundJob, QUEUES, maskPhone } from '@wa/shared';
-import { sendText } from '@wa/whatsapp';
+import { sendImage, sendText } from '@wa/whatsapp';
 import { handleInbound } from './jobs/handle-inbound.js';
 import { redisLocker, redisRateLimiter } from './lock.js';
 
@@ -25,7 +25,7 @@ const worker = new Worker(
     const data = InboundJob.parse(job.data);
     console.log(`[worker] inbound ${data.waMessageId} from ${maskPhone(data.from)} type=${data.type}`);
     await handleInbound(
-      { db, llm, models, sendText, encryptionKey: process.env.WHATSAPP_TOKEN_ENCRYPTION_KEY ?? '', dryRun, locker, allow: (c) => limiter(c), batchWaitMs: 3000 },
+      { db, llm, models, sendText, sendImage, encryptionKey: process.env.WHATSAPP_TOKEN_ENCRYPTION_KEY ?? '', dryRun, locker, allow: (c) => limiter(c), batchWaitMs: 3000 },
       data
     );
   },

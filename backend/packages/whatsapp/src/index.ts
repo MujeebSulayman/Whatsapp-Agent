@@ -94,3 +94,15 @@ export async function sendText(opts: { phoneNumberId: string; accessToken: strin
   const json = (await res.json()) as { messages?: { id: string }[] };
   return json.messages?.[0]?.id ?? '';
 }
+
+/** Send an image by public URL through the Cloud API. */
+export async function sendImage(opts: { phoneNumberId: string; accessToken: string; to: string; url: string; caption?: string }): Promise<string> {
+  const res = await fetch(`${GRAPH}/${opts.phoneNumberId}/messages`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${opts.accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messaging_product: 'whatsapp', to: opts.to, type: 'image', image: { link: opts.url, caption: opts.caption } })
+  });
+  if (!res.ok) throw new Error(`WhatsApp image send failed: ${res.status}`);
+  const json = (await res.json()) as { messages?: { id: string }[] };
+  return json.messages?.[0]?.id ?? '';
+}

@@ -6,12 +6,14 @@ import { runAgent } from '../agent/run-agent.js';
 import type { Locker } from '../lock.js';
 
 export type SendText = (o: { phoneNumberId: string; accessToken: string; to: string; body: string }) => Promise<string>;
+export type SendImage = (o: { phoneNumberId: string; accessToken: string; to: string; url: string; caption?: string }) => Promise<string>;
 
 export interface Deps {
   db: PrismaClient;
   llm: LlmClient;
   models: ModelConfig;
   sendText: SendText;
+  sendImage?: SendImage;
   encryptionKey: string;
   dryRun?: boolean;
   locker?: Locker;
@@ -24,6 +26,8 @@ export interface Deps {
 
 export const FALLBACK_TEXT = "Give me one moment, I'll get back to you.";
 export const MEDIA_TEXT = 'Please type your message for now, abeg. Voice notes and pictures are coming soon.';
+
+const period = () => new Date().toISOString().slice(0, 7);
 
 export async function handleInbound(deps: Deps, job: InboundJob): Promise<void> {
   const log = deps.log ?? console.log;
@@ -47,6 +51,11 @@ async function turn(deps: Deps, job: InboundJob, tokenEnc: string, log: (m: stri
   const { db } = deps;
   const scope = { businessId: job.businessId, conversationId: job.conversationId };
 
+  const business = await db.business.findUnique({ where: { id: job.businessId } });
+  if (!business) return;
+  // The owner's AI on/off switch is respected before anything else.
+  if (!business.aiEnabled) return log(`[worker] skip ${job.waMessageId}: AI is switched off for this business`);
+
   // Owner may have taken over meanwhile.
   const conversation = await db.conversation.findFirst({ where: { id: job.conversationId, businessId: job.businessId } });
   if (!conversation || conversation.status !== 'ai') return log(`[worker] skip ${job.waMessageId}: not in AI mode`);
@@ -57,28 +66,63 @@ async function turn(deps: Deps, job: InboundJob, tokenEnc: string, log: (m: stri
   const answered = await db.message.findFirst({ where: { ...scope, direction: 'outbound', seq: { gt: latest?.seq ?? 0 } } });
   if (answered) return log(`[worker] skip ${job.waMessageId}: already answered`);
 
-  const send = async (body: string, status = 'sent') => {
+  const accessToken = () => decryptSecret(tokenEnc, deps.encryptionKey);
+
+  const bump = (aiReplies: number) =>
+    db.usageLedger.upsert({
+      where: { businessId_period: { businessId: job.businessId, period: period() } },
+      create: { businessId: job.businessId, period: period(), aiReplies, waMessagesBilled: 1 },
+      update: { aiReplies: { increment: aiReplies }, waMessagesBilled: { increment: 1 } }
+    });
+
+  const send = async (body: string, aiReply = true) => {
     let waId = '';
     if (deps.dryRun) log(`[worker] DRY RUN reply to ${maskPhone(job.from)}: ${body}`);
-    else {
-      const accessToken = decryptSecret(tokenEnc, deps.encryptionKey);
-      waId = await deps.sendText({ phoneNumberId: job.phoneNumberId, accessToken, to: job.from, body });
-    }
+    else waId = await deps.sendText({ phoneNumberId: job.phoneNumberId, accessToken: accessToken(), to: job.from, body });
     await db.message.create({
-      data: { ...scope, direction: 'outbound', type: 'text', body, waMessageId: waId || null, status: deps.dryRun ? 'dry_run' : status, sentBy: 'ai' }
+      data: { ...scope, direction: 'outbound', type: 'text', body, waMessageId: waId || null, status: deps.dryRun ? 'dry_run' : 'sent', sentBy: 'ai' }
     });
+    await bump(aiReply ? 1 : 0);
+  };
+
+  /** Best-effort WhatsApp message to the owner's own number. Never blocks or fails the customer's reply. */
+  const alertOwner = async (text: string) => {
+    if (!business.ownerPhone) return;
+    try {
+      if (deps.dryRun) return log(`[worker] DRY RUN owner alert to ${maskPhone(business.ownerPhone)}: ${text}`);
+      await deps.sendText({ phoneNumberId: job.phoneNumberId, accessToken: accessToken(), to: business.ownerPhone, body: text });
+    } catch (e) {
+      log(`[worker] owner alert failed: ${(e as Error).message}`);
+    }
   };
 
   if (deps.allow && !(await deps.allow(job.customerId))) return log(`[worker] rate limited ${maskPhone(job.from)}`);
-  if (job.type === 'audio' || job.type === 'image') return send(MEDIA_TEXT);
+  if (job.type === 'audio' || job.type === 'image') return send(MEDIA_TEXT, false);
+
+  // Per-business daily AI spend cap, so one noisy or abusive chat can't run up the bill.
+  const startOfDay = new Date(new Date().toISOString().slice(0, 10) + 'T00:00:00Z');
+  const spent = await db.agentRun.aggregate({ where: { businessId: job.businessId, createdAt: { gte: startOfDay } }, _sum: { costUsd: true } });
+  if (Number(spent._sum.costUsd ?? 0) >= Number(business.aiDailyCapUsd)) {
+    await db.conversation.updateMany({ where: { id: job.conversationId, businessId: job.businessId }, data: { status: 'human' } });
+    await db.auditLog.create({ data: { businessId: job.businessId, actor: 'system', action: 'ai_cap_reached', payload: { capUsd: String(business.aiDailyCapUsd) } } });
+    await send(FALLBACK_TEXT, false);
+    return alertOwner(`AI paused: today's AI spend limit was reached. A customer (${maskPhone(job.from)}) is waiting in your inbox.`);
+  }
 
   const started = Date.now();
   try {
     const ctx = await buildContext(db, { businessId: job.businessId, conversationId: job.conversationId, customerId: job.customerId });
     const model = pickModel(deps.models, { lastMessage: ctx.lastCustomerText, hasOpenOrder: ctx.hasOpenOrder });
+    const sendImage = deps.sendImage
+      ? async (o: { url: string; caption?: string }) => {
+          if (deps.dryRun) return log(`[worker] DRY RUN image to ${maskPhone(job.from)}: ${o.url}`);
+          await deps.sendImage!({ phoneNumberId: job.phoneNumberId, accessToken: accessToken(), to: job.from, url: o.url, caption: o.caption });
+          await db.message.create({ data: { ...scope, direction: 'outbound', type: 'image', body: o.caption ?? null, mediaUrl: o.url, status: 'sent', sentBy: 'ai' } });
+        }
+      : undefined;
     const result = await runAgent({
       llm: deps.llm, model, system: ctx.system, history: ctx.history,
-      ctx: { db, businessId: job.businessId, conversationId: job.conversationId, customerId: job.customerId }
+      ctx: { db, businessId: job.businessId, conversationId: job.conversationId, customerId: job.customerId, sendImage }
     });
 
     await db.agentRun.create({
@@ -89,15 +133,20 @@ async function turn(deps: Deps, job: InboundJob, tokenEnc: string, log: (m: stri
       }
     });
 
+    let handoffNote: string | null = null;
     if (result.hitStepCap && !result.handedOff) {
       await db.conversation.updateMany({ where: { id: job.conversationId, businessId: job.businessId }, data: { status: 'human' } });
-      log(`[handoff] step cap hit business=${job.businessId}`);
+      handoffNote = 'The assistant got stuck on a conversation';
+    } else if (result.handedOff) {
+      const h = result.toolCalls.find((t) => t.name === 'handoff_to_human')?.args as { reason?: string; summary?: string } | undefined;
+      handoffNote = `Customer needs you: ${h?.reason ?? 'handoff'}. ${h?.summary ?? ''}`.trim();
     }
     await send(result.reply || FALLBACK_TEXT);
+    if (handoffNote) await alertOwner(`${handoffNote} (${maskPhone(job.from)}). Open your dashboard inbox to reply.`);
   } catch (err) {
-    // AI failed: fallback to the customer and alert the owner (owner alerts are wired in the dashboard phase).
     log(`[worker] agent failed for ${job.waMessageId}: ${(err as Error).message}`);
     await db.auditLog.create({ data: { businessId: job.businessId, actor: 'system', action: 'agent_failure', payload: { error: (err as Error).message } } });
-    await send(FALLBACK_TEXT);
+    await send(FALLBACK_TEXT, false);
+    await alertOwner(`The assistant had a problem replying to a customer (${maskPhone(job.from)}). Please check your inbox.`);
   }
 }

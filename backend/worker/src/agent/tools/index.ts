@@ -1,12 +1,19 @@
 import { z } from 'zod';
 import type { ToolDef } from '@wa/ai';
+import { applyDiscount } from './apply-discount.js';
+import { checkOrderStatus } from './check-order-status.js';
+import { checkStock } from './check-stock.js';
 import { createOrder } from './create-order.js';
 import { getDeliveryFee } from './get-delivery-fee.js';
 import { handoffToHuman } from './handoff-to-human.js';
+import { saveCustomerDetail } from './save-customer-detail.js';
 import { searchProducts } from './search-products.js';
+import { sendProductImage } from './send-product-image.js';
 import type { Tool } from './types.js';
 
-export const TOOLS: Tool[] = [searchProducts, getDeliveryFee, createOrder, handoffToHuman] as Tool[];
+export const TOOLS: Tool[] = [
+  searchProducts, checkStock, getDeliveryFee, createOrder, checkOrderStatus, applyDiscount, sendProductImage, saveCustomerDetail, handoffToHuman
+] as Tool[];
 
 export const toolDefs = (tools: Tool[] = TOOLS): ToolDef[] =>
   tools.map((t) => ({

@@ -13,6 +13,7 @@ export const handoffToHuman = defineTool({
       data: { businessId: ctx.businessId, actor: 'ai', action: 'handoff', payload: { conversationId: ctx.conversationId, ...args } as Prisma.InputJsonValue }
     });
     ctx.state.handedOff = true;
+    ctx.state.handoff = args;
     // Owner notification (email/WhatsApp) is wired up with the dashboard phase; for now it is logged + audited.
     console.log(`[handoff] business=${ctx.businessId} reason=${args.reason}`);
     return { handed_off: true, note: 'Tell the customer a team member will reply shortly. Do not promise a time.' };
