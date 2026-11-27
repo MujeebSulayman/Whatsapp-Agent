@@ -25,7 +25,7 @@ export function Logo() {
   return (
     <div className="flex items-center gap-2.5">
       <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground"><MessageCircle className="size-4" /></span>
-      <span className="text-[15px] font-semibold tracking-tight">{process.env.NEXT_PUBLIC_APP_NAME ?? 'WA Sales Agent'}</span>
+      <span className="text-[15px] font-semibold tracking-tight">{process.env.NEXT_PUBLIC_APP_NAME ?? 'Tradeline'}</span>
     </div>
   );
 }

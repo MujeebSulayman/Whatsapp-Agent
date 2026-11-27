@@ -1,4 +1,4 @@
-# WhatsApp AI Sales Agent — Build Spec (condensed from the PDF, Nov 27 2026)
+# Tradeline: WhatsApp AI Sales Agent, Build Spec (condensed from the PDF, Nov 27 2026)
 
 AI salesperson for Nigerian WhatsApp vendors: English/Pidgin, takes orders, collects payment (Paystack), hands hard chats to a human. Dashboard for the business. First customer: owner's small-chops business in Lekki.
 

@@ -1,5 +1,5 @@
 {
-  "name": "wa-sales-agent-backend",
+  "name": "tradeline-backend",
   "private": true,
   "packageManager": "pnpm@12.23.0",
   "engines": {

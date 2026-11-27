@@ -1,4 +1,4 @@
-# WhatsApp AI Sales Agent
+# Tradeline (WhatsApp AI sales agent)
 Spec: docs/SPEC.md (this file lives in backend/). Read it before starting any task.
 
 ## Stack

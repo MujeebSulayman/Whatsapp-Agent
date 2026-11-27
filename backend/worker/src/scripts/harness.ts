@@ -31,7 +31,7 @@ export async function createHarness(opts: { llm?: LlmClient; slug?: string } = {
   }
 
   const apiKey = process.env.OPENROUTER_API_KEY ?? '';
-  const llm = opts.llm ?? createOpenRouterClient({ apiKey, appTitle: 'WA Sales Agent (harness)' });
+  const llm = opts.llm ?? createOpenRouterClient({ apiKey, appTitle: 'Tradeline (harness)' });
   const embedder = apiKey ? createOpenRouterEmbedder({ apiKey, model: embeddingModelFromEnv() }) : null;
   const deps: Deps = {
     db, llm, models: modelConfigFromEnv(), encryptionKey: KEY, dryRun: true, batchWaitMs: 0, log: () => {},
