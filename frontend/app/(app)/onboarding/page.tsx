@@ -1,5 +1,5 @@
 'use client';
-import { ArrowRight, Check } from 'lucide-react';
+import { ArrowRight, Check, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { Badge, Button, Card, Loading, PageHeader } from '@/components/ui';
 import { useApi } from '@/lib/api';
@@ -27,6 +27,14 @@ export default function OnboardingPage() {
         <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary transition-all" style={{ width: `${(done / steps.length) * 100}%` }} /></div>
         <span className="text-xs text-muted-foreground">{done} of {steps.length} done</span>
       </div>
+      <Link href="/setup" className="mb-4 flex items-center gap-4 rounded-xl border bg-card p-5 transition-colors hover:bg-muted/40">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border bg-muted"><Sparkles className="size-4" /></span>
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-medium">Set up with AI</div>
+          <p className="mt-0.5 text-[13px] text-muted-foreground">Paste a price list or snap a photo, answer a few questions, and review what it drafts. Nothing is saved until you approve.</p>
+        </div>
+        <ArrowRight className="size-4 text-muted-foreground" />
+      </Link>
       <Card className="divide-y">
         {steps.map((s, i) => (
           <div key={s.title} className="flex items-center gap-4 p-5">

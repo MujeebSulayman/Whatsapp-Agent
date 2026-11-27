@@ -2,7 +2,8 @@
 import { Download, Package, Pencil, Plus, Trash2, Upload } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { mutate } from 'swr';
-import { Badge, Button, Card, Dialog, EmptyState, ErrorNote, Field, Input, Loading, PageHeader, Switch, Table, TD, TH, THead, Textarea, TR, useToast } from '@/components/ui';
+import { Button, Card, Dialog, EmptyState, ErrorNote, Field, IconButton, Input, Loading, PageHeader, SearchInput, StatusDot, Switch, Table, TD, TH, THead, Textarea, TR, useToast } from '@/components/ui';
+import { SuggestButton } from '@/components/setup/suggest-button';
 import { api, useApi } from '@/lib/api';
 import type { Product } from '@/lib/types';
 import { useLabels } from '@/lib/use-labels';
@@ -35,26 +36,36 @@ export default function ProductsPage() {
     <>
       <PageHeader title={labels.items} description={labels.kind === 'services' ? 'The assistant only quotes the services and starting prices you set here.' : 'The assistant only quotes the prices and stock you set here.'}
         actions={<><Button variant="secondary" onClick={() => setImporting(true)}><Upload className="size-4" />Import CSV</Button><Button onClick={() => setEditing('new')}><Plus className="size-4" />{labels.addItem}</Button></>} />
-      <div className="mb-4"><Input className="max-w-xs" placeholder={`Search ${labels.items.toLowerCase()}`} value={search} onChange={(e) => setSearch(e.target.value)} /></div>
-      <Card>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <SearchInput className="w-full sm:w-72" placeholder={`Search ${labels.items.toLowerCase()}`} value={search} onChange={(e) => setSearch(e.target.value)} />
+        {products && products.length > 0 && <span className="text-xs text-muted-foreground tabular-nums">{products.filter((p) => p.active).length} of {products.length} available</span>}
+      </div>
+      <Card className="overflow-hidden">
         {isLoading ? <Loading /> : !products?.length ? (
-          <EmptyState icon={<Package className="size-5" />} title={`No ${labels.items.toLowerCase()} yet`} description={`Add your first ${labels.item}, or import many at once from a spreadsheet.`}
+          <EmptyState icon={<Package />} title={`No ${labels.items.toLowerCase()} yet`} description={`Add your first ${labels.item}, or import many at once from a spreadsheet.`}
             action={<div className="flex gap-2"><Button variant="secondary" onClick={() => setImporting(true)}>Import CSV</Button><Button onClick={() => setEditing('new')}>{labels.addItem}</Button></div>} />
         ) : (
           <Table>
-            <THead><tr><TH>{labels.kind === 'services' ? 'Service' : 'Name'}</TH><TH>{labels.priceLabel}</TH>{labels.showStock && <TH>Stock</TH>}<TH>Options</TH><TH>Available</TH><TH className="w-24"><span className="sr-only">Actions</span></TH></tr></THead>
+            <THead><tr><TH>{labels.kind === 'services' ? 'Service' : 'Name'}</TH>{labels.showStock && <TH>Stock</TH>}<TH>Options</TH><TH className="text-right">{labels.priceLabel}</TH><TH>Available</TH><TH className="w-20"><span className="sr-only">Actions</span></TH></tr></THead>
             <tbody>
               {list.map((p) => (
-                <TR key={p.id}>
-                  <TD><div className="font-medium">{p.name}</div>{p.description && <div className="max-w-xs truncate text-xs text-muted-foreground">{p.description}</div>}</TD>
-                  <TD className="tabular-nums">{money.fmt(p.priceMinor)}</TD>
-                  {labels.showStock && <TD>{!p.trackStock ? <span className="text-muted-foreground">Not tracked</span> : p.stockQty === 0 ? <Badge tone="danger">Out of stock</Badge> : p.stockQty <= 3 ? <Badge tone="warning">{p.stockQty} left</Badge> : <span className="tabular-nums">{p.stockQty}</span>}</TD>}
-                  <TD className="text-muted-foreground">{p.variants?.map((v) => v.name).join(', ') || '—'}</TD>
+                <TR key={p.id} className="group">
+                  <TD>
+                    <div className="flex items-center gap-3">
+                      {p.imageUrls[0]
+                        ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={p.imageUrls[0]} alt="" className="size-9 shrink-0 rounded-lg border object-cover" />
+                        : <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border bg-muted/50 text-muted-foreground"><Package className="size-4" strokeWidth={1.75} /></span>}
+                      <div className="min-w-0"><div className="truncate font-medium">{p.name}</div>{p.description && <div className="max-w-xs truncate text-xs text-muted-foreground">{p.description}</div>}</div>
+                    </div>
+                  </TD>
+                  {labels.showStock && <TD>{!p.trackStock ? <span className="text-[13px] text-muted-foreground">Not tracked</span> : p.stockQty === 0 ? <StatusDot tone="danger">Out of stock</StatusDot> : p.stockQty <= 3 ? <StatusDot tone="warning">{p.stockQty} left</StatusDot> : <span className="tabular-nums">{p.stockQty}</span>}</TD>}
+                  <TD className="text-[13px] text-muted-foreground">{p.variants?.map((v) => v.name).join(', ') || '—'}</TD>
+                  <TD className="text-right font-medium tabular-nums">{money.fmt(p.priceMinor)}</TD>
                   <TD><Switch checked={p.active} onChange={(v) => toggle(p, v)} label={`${p.name} available`} /></TD>
                   <TD>
-                    <div className="flex justify-end gap-1">
-                      <Button size="sm" variant="ghost" aria-label={`Edit ${p.name}`} onClick={() => setEditing(p)}><Pencil className="size-4" /></Button>
-                      <Button size="sm" variant="ghost" aria-label={`Delete ${p.name}`} onClick={() => setDeleting(p)}><Trash2 className="size-4" /></Button>
+                    <div className="flex justify-end gap-0.5 opacity-60 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                      <IconButton label={`Edit ${p.name}`} onClick={() => setEditing(p)}><Pencil /></IconButton>
+                      <IconButton label={`Delete ${p.name}`} tone="danger" onClick={() => setDeleting(p)}><Trash2 /></IconButton>
                     </div>
                   </TD>
                 </TR>
@@ -113,7 +124,7 @@ function ProductDialog({ target, onClose }: { target: Product | 'new' | null; on
       <form id="product-form" onSubmit={submit} className="space-y-4">
         {err && <ErrorNote>{err}</ErrorNote>}
         <Field label="Name"><Input required value={f.name} onChange={set('name')} /></Field>
-        <Field label="Description" hint={`Shown to the assistant so it can describe the ${labels.item}.`}><Textarea rows={2} value={f.description} onChange={set('description')} /></Field>
+        <Field label="Description" hint={`Shown to the assistant so it can describe the ${labels.item}.`}><Textarea rows={2} value={f.description} onChange={set('description')} /><SuggestButton field="product_description" text={f.description || f.name} context={f.name} onUse={(v) => setF({ ...f, description: v })} /></Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label={`${labels.priceLabel} (${money.currency})`} hint={labels.kind === 'services' ? 'The "from" price. The final price can be confirmed after the job is assessed.' : undefined}><Input required inputMode="decimal" placeholder={money.example} value={f.price} onChange={set('price')} /></Field>
           {track && <Field label="In stock"><Input required inputMode="numeric" value={f.stock} onChange={set('stock')} /></Field>}

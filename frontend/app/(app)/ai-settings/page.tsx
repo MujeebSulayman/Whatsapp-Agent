@@ -2,6 +2,7 @@
 import { useState, type FormEvent } from 'react';
 import { Button, Card, CardBody, CardHeader, ErrorNote, Field, Input, Loading, PageHeader, Select, Stat, Switch, Textarea, useToast } from '@/components/ui';
 import { api, useApi, useMe } from '@/lib/api';
+import { SuggestButton } from '@/components/setup/suggest-button';
 import type { BusinessDetail } from '@/lib/types';
 
 const list = (s: string) => s.split(',').map((x) => x.trim()).filter(Boolean);
@@ -60,7 +61,7 @@ export default function AiSettingsPage() {
               </div>
               <Field label="Hand over to you when a customer says…" hint="Separate with commas. A chat containing these words is flagged for you."><Input value={f.escalate} onChange={set('escalate')} disabled={!owner} placeholder="refund, complaint, lawyer" /></Field>
               <Field label="Topics the assistant must avoid" hint="Separate with commas."><Input value={f.forbidden} onChange={set('forbidden')} disabled={!owner} placeholder="politics, religion" /></Field>
-              <Field label="Extra instructions" hint="Anything specific to your business, e.g. “Party packs need 24 hours notice.”"><Textarea rows={4} value={f.instructions} onChange={set('instructions')} disabled={!owner} maxLength={1500} /></Field>
+              <Field label="Extra instructions" hint="Anything specific to your business, e.g. “Party packs need 24 hours notice.”"><Textarea rows={4} value={f.instructions} onChange={set('instructions')} disabled={!owner} maxLength={1500} />{owner && <SuggestButton field="instructions" text={f.instructions} onUse={(v) => setF({ ...f, instructions: v.slice(0, 1500) })} />}</Field>
             </CardBody>
             {owner && <div className="flex justify-end border-t bg-muted/30 px-5 py-3"><Button type="submit" loading={busy}>Save changes</Button></div>}
           </Card>

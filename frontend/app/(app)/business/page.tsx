@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { Suspense, useMemo, useState, type FormEvent } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { mutate } from 'swr';
+import { SuggestButton } from '@/components/setup/suggest-button';
 import { Badge, Button, Card, CardBody, CardHeader, Dialog, EmptyState, ErrorNote, Field, Input, Loading, PageHeader, Select, Table, Tabs, TD, TH, THead, Textarea, TR, useToast } from '@/components/ui';
 import { api, useApi, useMe } from '@/lib/api';
 import type { BusinessDetail, Faq, Zone } from '@/lib/types';
@@ -210,7 +211,7 @@ function Faqs() {
         <form id="faq-form" onSubmit={submit} className="space-y-4">
           {err && <ErrorNote>{err}</ErrorNote>}
           <Field label="Question"><Input required minLength={3} value={f.question} onChange={(e) => setF({ ...f, question: e.target.value })} /></Field>
-          <Field label="Answer"><Textarea required rows={4} value={f.answer} onChange={(e) => setF({ ...f, answer: e.target.value })} /></Field>
+          <Field label="Answer"><Textarea required rows={4} value={f.answer} onChange={(e) => setF({ ...f, answer: e.target.value })} /><SuggestButton field="faq_answer" text={f.answer} context={f.question} onUse={(v) => setF({ ...f, answer: v })} /></Field>
         </form>
       </Dialog>
     </Card>

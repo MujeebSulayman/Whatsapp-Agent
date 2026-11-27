@@ -28,6 +28,7 @@ Legend: [x] done and tested · [~] built, needs a live key/account to verify · 
 - [x] Inbox: live refresh (4s), takeover, hand back, reply, customer panel
 - [x] Orders (with status actions), Products (CSV import), Customers
 - [x] AI assistant settings, Business settings (profile, delivery, FAQs, WhatsApp, data & privacy)
+- [x] AI setup assistant: import from text or photos, guided interview, practice chat with corrections, "Improve with AI" on fields (live-model quality not yet verified: needs a valid OpenRouter key)
 - [x] Analytics, Team
 
 ## Any country, any business
