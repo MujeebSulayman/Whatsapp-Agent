@@ -52,9 +52,9 @@ async function turn(deps: Deps, job: InboundJob, tokenEnc: string, log: (m: stri
   if (!conversation || conversation.status !== 'ai') return log(`[worker] skip ${job.waMessageId}: not in AI mode`);
 
   // Only the newest unanswered customer message triggers a reply (it sees the whole batch in history).
-  const latest = await db.message.findFirst({ where: { ...scope, direction: 'inbound' }, orderBy: { createdAt: 'desc' } });
+  const latest = await db.message.findFirst({ where: { ...scope, direction: 'inbound' }, orderBy: { seq: 'desc' } });
   if (latest && latest.id !== job.messageId) return log(`[worker] skip ${job.waMessageId}: newer message will answer`);
-  const answered = await db.message.findFirst({ where: { ...scope, direction: 'outbound', createdAt: { gt: latest?.createdAt ?? new Date(0) } } });
+  const answered = await db.message.findFirst({ where: { ...scope, direction: 'outbound', seq: { gt: latest?.seq ?? 0 } } });
   if (answered) return log(`[worker] skip ${job.waMessageId}: already answered`);
 
   const send = async (body: string, status = 'sent') => {

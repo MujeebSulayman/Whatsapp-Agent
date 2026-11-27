@@ -8,3 +8,5 @@ dist
 .vite
 # generated Prisma client (run `pnpm --filter @wa/db db:generate`)
 packages/db/src/generated
+.turbo
+.DS_Store

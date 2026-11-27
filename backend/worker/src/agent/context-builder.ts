@@ -18,7 +18,7 @@ export async function buildContext(db: PrismaClient, o: { businessId: string; co
     db.aiRules.findUnique({ where: { businessId } }),
     db.faq.findMany({ where: { businessId }, take: 20 }),
     db.customer.findFirst({ where: { id: o.customerId, businessId } }),
-    db.message.findMany({ where: { businessId, conversationId: o.conversationId }, orderBy: { createdAt: 'desc' }, take: 20 }),
+    db.message.findMany({ where: { businessId, conversationId: o.conversationId }, orderBy: { seq: 'desc' }, take: 20 }),
     db.order.findFirst({ where: { businessId, customerId: o.customerId, status: 'pending', paymentStatus: { in: ['unpaid', 'pending'] } }, orderBy: { createdAt: 'desc' } })
   ]);
 

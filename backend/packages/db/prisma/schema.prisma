@@ -217,6 +217,8 @@ model Conversation {
 
 model Message {
   id             String       @id @default(cuid())
+  /// Monotonic insert order. createdAt can tie within a millisecond; seq never does.
+  seq            Int          @unique @default(autoincrement())
   businessId     String       @map("business_id")
   conversationId String       @map("conversation_id")
   direction      Direction
