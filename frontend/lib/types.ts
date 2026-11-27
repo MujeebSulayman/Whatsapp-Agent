@@ -1,7 +1,7 @@
 export interface Me { user: { id: string; email: string; name: string | null }; business: { id: string; name: string; slug: string; plan: string; trialEndsAt: string | null }; role: 'owner' | 'agent' }
 
 export interface BusinessDetail {
-  id: string; name: string; slug: string; category: string; city: string; tone: string; aiEnabled: boolean; plan: string;
+  id: string; name: string; slug: string; category: string; city: string; country: string; currency: string; timezone: string; tone: string; aiEnabled: boolean; plan: string;
   businessHours: Record<string, string> | null; paymentInfo: string | null; returnPolicy: string | null; ownerPhone: string | null;
   trialDaysLeft: number | null; aiDailyCapUsd: string;
   aiRules: { maxDiscountPct: number; escalateKeywords: string[]; forbiddenTopics: string[]; customInstructions: string | null } | null;
@@ -10,8 +10,8 @@ export interface BusinessDetail {
   setup: { whatsapp: boolean; products: boolean; zones: boolean; faqs: boolean };
 }
 
-export interface Product { id: string; name: string; description: string | null; priceKobo: number; stockQty: number; variants: { name: string }[] | null; imageUrls: string[]; active: boolean }
-export interface Zone { id: string; areaName: string; feeKobo: number; etaText: string }
+export interface Product { id: string; name: string; description: string | null; priceMinor: number; stockQty: number; variants: { name: string }[] | null; imageUrls: string[]; active: boolean }
+export interface Zone { id: string; areaName: string; feeMinor: number; etaText: string }
 export interface Faq { id: string; question: string; answer: string }
 
 export type ConvStatus = 'ai' | 'human' | 'closed';
@@ -28,18 +28,18 @@ export interface ConversationDetail {
 }
 
 export type OrderStatus = 'pending' | 'paid' | 'dispatched' | 'delivered' | 'cancelled';
-export interface OrderItem { product_id: string; name: string; variant: string | null; quantity: number; unit_price_kobo: number; line_total_kobo: number }
+export interface OrderItem { product_id: string; name: string; variant: string | null; quantity: number; unit_price_minor: number; line_total_minor: number }
 export interface Order {
   id: string; status: OrderStatus; paymentStatus: 'unpaid' | 'pending' | 'paid' | 'failed' | 'refunded';
-  items: OrderItem[]; subtotalKobo: number; deliveryFeeKobo: number; discountKobo: number; totalKobo: number;
+  items: OrderItem[]; subtotalMinor: number; deliveryFeeMinor: number; discountMinor: number; totalMinor: number;
   address: string | null; notes: string | null; createdAt: string; customer?: { id: string; name: string | null; waId: string };
 }
 
-export interface Customer { id: string; name: string | null; waId: string; notes: string | null; tags: string[]; totalSpentKobo: number; lastOrderAt: string | null; optedInMarketing: boolean; _count?: { orders: number } }
+export interface Customer { id: string; name: string | null; waId: string; notes: string | null; tags: string[]; totalSpentMinor: number; lastOrderAt: string | null; optedInMarketing: boolean; _count?: { orders: number } }
 export interface CustomerDetail extends Customer { orders: Order[]; conversations: { id: string; status: ConvStatus; lastMessageAt: string }[] }
 
 export interface Analytics {
-  days: number; conversations: number; orders: number; paidOrders: number; revenueKobo: number; conversionPct: number | null; aiHandledPct: number | null;
-  aiCostUsd: string; aiRuns: number; series: { date: string; orders: number; revenueKobo: number }[]; topProducts: { name: string; quantity: number; revenueKobo: number }[];
+  days: number; conversations: number; orders: number; paidOrders: number; revenueMinor: number; conversionPct: number | null; aiHandledPct: number | null;
+  aiCostUsd: string; aiRuns: number; series: { date: string; orders: number; revenueMinor: number }[]; topProducts: { name: string; quantity: number; revenueMinor: number }[];
 }
 export interface TeamMember { userId: string; role: 'owner' | 'agent'; email: string; name: string | null }

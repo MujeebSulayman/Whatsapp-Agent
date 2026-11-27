@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { formatNaira } from '@wa/shared';
+import { formatMoney } from '@wa/shared';
 import { defineTool } from './types.js';
 
 export const applyDiscount = defineTool({
@@ -14,9 +14,9 @@ export const applyDiscount = defineTool({
     if (!order) return { error: 'Order not found.' };
     if (order.paymentStatus === 'paid' || order.status === 'cancelled') return { error: 'This order can no longer be discounted.' };
     // Always computed from the subtotal, so repeated calls never stack.
-    const discountKobo = Math.floor((order.subtotalKobo * pct) / 100);
-    const totalKobo = order.subtotalKobo + order.deliveryFeeKobo - discountKobo;
-    await ctx.db.order.updateMany({ where: { id: order.id, businessId: ctx.businessId }, data: { discountKobo, totalKobo } });
-    return { order_id, discount: formatNaira(discountKobo), new_total: formatNaira(totalKobo) };
+    const discountMinor = Math.floor((order.subtotalMinor * pct) / 100);
+    const totalMinor = order.subtotalMinor + order.deliveryFeeMinor - discountMinor;
+    await ctx.db.order.updateMany({ where: { id: order.id, businessId: ctx.businessId }, data: { discountMinor, totalMinor } });
+    return { order_id, discount: formatMoney(discountMinor, ctx.currency), new_total: formatMoney(totalMinor, ctx.currency) };
   }
 });

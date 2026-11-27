@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { Prisma } from '@wa/db';
-import { formatNaira } from '@wa/shared';
+import { formatMoney } from '@wa/shared';
 import { defineTool } from './types.js';
 
 export const createOrder = defineTool({
@@ -25,7 +25,7 @@ export const createOrder = defineTool({
       if (!p) return { error: `Unknown product_id ${item.product_id}. Use search_products to get valid ids.` };
       const already = args.items.filter((i) => i.product_id === p.id).reduce((s, i) => s + i.quantity, 0);
       if (p.stockQty < already) return { error: `Only ${p.stockQty} of "${p.name}" in stock.` };
-      lines.push({ product_id: p.id, name: p.name, variant: item.variant ?? null, quantity: item.quantity, unit_price_kobo: p.priceKobo, line_total_kobo: p.priceKobo * item.quantity });
+      lines.push({ product_id: p.id, name: p.name, variant: item.variant ?? null, quantity: item.quantity, unit_price_minor: p.priceMinor, line_total_minor: p.priceMinor * item.quantity });
     }
 
     const zones = await ctx.db.deliveryZone.findMany({ where: { businessId: ctx.businessId } });
@@ -33,16 +33,16 @@ export const createOrder = defineTool({
     const zone = zones.find((z) => z.areaName.toLowerCase() === q) ?? zones.find((z) => q.includes(z.areaName.toLowerCase()));
     if (!zone) return { error: 'Delivery area not served. Ask the customer for a served area or hand off to the owner.' };
 
-    const subtotalKobo = lines.reduce((s, l) => s + l.line_total_kobo, 0);
-    const totalKobo = subtotalKobo + zone.feeKobo;
+    const subtotalMinor = lines.reduce((s, l) => s + l.line_total_minor, 0);
+    const totalMinor = subtotalMinor + zone.feeMinor;
     const order = await ctx.db.order.create({
       data: {
         businessId: ctx.businessId,
         customerId: ctx.customerId,
         items: lines as unknown as Prisma.InputJsonValue,
-        subtotalKobo,
-        deliveryFeeKobo: zone.feeKobo,
-        totalKobo,
+        subtotalMinor,
+        deliveryFeeMinor: zone.feeMinor,
+        totalMinor,
         address: args.address,
         notes: args.notes
       }
@@ -50,10 +50,10 @@ export const createOrder = defineTool({
     return {
       order_id: order.id,
       status: 'draft, awaiting payment',
-      items: lines.map((l) => `${l.quantity} x ${l.name}${l.variant ? ` (${l.variant})` : ''} = ${formatNaira(l.line_total_kobo)}`),
-      subtotal: formatNaira(subtotalKobo),
-      delivery_fee: formatNaira(zone.feeKobo),
-      total: formatNaira(totalKobo),
+      items: lines.map((l) => `${l.quantity} x ${l.name}${l.variant ? ` (${l.variant})` : ''} = ${formatMoney(l.line_total_minor, ctx.currency)}`),
+      subtotal: formatMoney(subtotalMinor, ctx.currency),
+      delivery_fee: formatMoney(zone.feeMinor, ctx.currency),
+      total: formatMoney(totalMinor, ctx.currency),
       eta: zone.etaText,
       next: 'Tell the customer the total. Payment link comes in a later step.'
     };

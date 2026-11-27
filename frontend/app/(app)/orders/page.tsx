@@ -6,12 +6,14 @@ import { OrderBadge, PaymentBadge } from '@/components/badges';
 import { Button, Card, Dialog, EmptyState, ErrorNote, Input, Loading, PageHeader, Table, Tabs, TD, TH, THead, TR, useToast } from '@/components/ui';
 import { api, useApi } from '@/lib/api';
 import type { Order, OrderStatus } from '@/lib/types';
-import { formatDateTime, formatNaira } from '@/lib/utils';
+import { formatDateTime } from '@/lib/utils';
+import { useMoney } from '@/lib/use-money';
 
 type Filter = 'all' | OrderStatus;
 const tabs: { id: Filter; label: string }[] = [{ id: 'all', label: 'All' }, { id: 'pending', label: 'Pending' }, { id: 'paid', label: 'Paid' }, { id: 'dispatched', label: 'Dispatched' }, { id: 'delivered', label: 'Delivered' }, { id: 'cancelled', label: 'Cancelled' }];
 
 export default function OrdersPage() {
+  const money = useMoney();
   const [filter, setFilter] = useState<Filter>('all');
   const [search, setSearch] = useState('');
   const [openId, setOpenId] = useState<string | null>(null);
@@ -38,7 +40,7 @@ export default function OrdersPage() {
                   <TD className="font-mono text-xs">#{o.id.slice(-6).toUpperCase()}</TD>
                   <TD>{o.customer?.name ?? `+${o.customer?.waId}`}</TD>
                   <TD className="tabular-nums">{o.items.reduce((n, i) => n + i.quantity, 0)}</TD>
-                  <TD className="font-medium tabular-nums">{formatNaira(o.totalKobo)}</TD>
+                  <TD className="font-medium tabular-nums">{money.fmt(o.totalMinor)}</TD>
                   <TD><PaymentBadge status={o.paymentStatus} /></TD>
                   <TD><OrderBadge status={o.status} /></TD>
                   <TD className="text-muted-foreground">{formatDateTime(o.createdAt)}</TD>
@@ -54,6 +56,7 @@ export default function OrdersPage() {
 }
 
 function OrderDialog({ id, onClose, listKey }: { id: string | null; onClose: () => void; listKey: string }) {
+  const money = useMoney();
   const toast = useToast();
   const { data: o, mutate: refresh } = useApi<Order>(id ? `orders/${id}` : null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -100,15 +103,15 @@ function OrderDialog({ id, onClose, listKey }: { id: string | null; onClose: () 
               <THead><tr><TH className="py-2">Item</TH><TH className="py-2 text-right">Qty</TH><TH className="py-2 text-right">Amount</TH></tr></THead>
               <tbody>
                 {o.items.map((i, n) => (
-                  <TR key={n}><TD className="py-2">{i.name}{i.variant ? ` (${i.variant})` : ''}</TD><TD className="py-2 text-right tabular-nums">{i.quantity}</TD><TD className="py-2 text-right tabular-nums">{formatNaira(i.line_total_kobo)}</TD></TR>
+                  <TR key={n}><TD className="py-2">{i.name}{i.variant ? ` (${i.variant})` : ''}</TD><TD className="py-2 text-right tabular-nums">{i.quantity}</TD><TD className="py-2 text-right tabular-nums">{money.fmt(i.line_total_minor)}</TD></TR>
                 ))}
               </tbody>
             </Table>
             <dl className="space-y-1.5 border-t bg-muted/30 px-5 py-3 text-[13px]">
-              <div className="flex justify-between"><dt className="text-muted-foreground">Subtotal</dt><dd className="tabular-nums">{formatNaira(o.subtotalKobo)}</dd></div>
-              <div className="flex justify-between"><dt className="text-muted-foreground">Delivery</dt><dd className="tabular-nums">{formatNaira(o.deliveryFeeKobo)}</dd></div>
-              {o.discountKobo > 0 && <div className="flex justify-between"><dt className="text-muted-foreground">Discount</dt><dd className="tabular-nums">−{formatNaira(o.discountKobo)}</dd></div>}
-              <div className="flex justify-between border-t pt-2 text-sm font-semibold"><dt>Total</dt><dd className="tabular-nums">{formatNaira(o.totalKobo)}</dd></div>
+              <div className="flex justify-between"><dt className="text-muted-foreground">Subtotal</dt><dd className="tabular-nums">{money.fmt(o.subtotalMinor)}</dd></div>
+              <div className="flex justify-between"><dt className="text-muted-foreground">Delivery</dt><dd className="tabular-nums">{money.fmt(o.deliveryFeeMinor)}</dd></div>
+              {o.discountMinor > 0 && <div className="flex justify-between"><dt className="text-muted-foreground">Discount</dt><dd className="tabular-nums">−{money.fmt(o.discountMinor)}</dd></div>}
+              <div className="flex justify-between border-t pt-2 text-sm font-semibold"><dt>Total</dt><dd className="tabular-nums">{money.fmt(o.totalMinor)}</dd></div>
             </dl>
           </div>
         </div>

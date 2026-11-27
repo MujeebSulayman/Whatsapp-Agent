@@ -4,7 +4,7 @@ import { Logo } from '@/components/app-shell';
 import { ThemeToggle } from '@/components/ui';
 
 const points = [
-  { icon: Clock, title: 'Replies in seconds, 24/7', body: 'English or Pidgin, day and night, so no customer waits.' },
+  { icon: Clock, title: 'Replies in seconds, 24/7', body: 'In your customers’ own language, day and night, so no one waits.' },
   { icon: ShieldCheck, title: 'Only your real prices and stock', body: 'It never guesses a price, fee or delivery time.' },
   { icon: HandHelping, title: 'You stay in control', body: 'Tricky chats go to you. Take over any conversation in one click.' }
 ];
@@ -32,8 +32,8 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
         <figure className="max-w-md rounded-xl border bg-background/60 p-4" aria-label="Example conversation">
           <figcaption className="mb-3 text-[11px] uppercase tracking-wider text-muted-foreground">Example chat</figcaption>
           <div className="space-y-2 text-[13px]">
-            <div className="max-w-[85%] rounded-2xl rounded-bl-sm bg-muted px-3 py-2">abeg how much be party pack?</div>
-            <div className="ml-auto max-w-[85%] rounded-2xl rounded-br-sm bg-primary px-3 py-2 text-primary-foreground">The Party Pack (serves 10) na ₦12,000. Delivery to Lekki Phase 1 na ₦2,000. You wan order?</div>
+            <div className="max-w-[85%] rounded-2xl rounded-bl-sm bg-muted px-3 py-2">Hi! How much is the party pack?</div>
+            <div className="ml-auto max-w-[85%] rounded-2xl rounded-br-sm bg-primary px-3 py-2 text-primary-foreground">The Party Pack (serves 10) is $24. Delivery to Downtown is $4. Want me to place the order?</div>
           </div>
         </figure>
       </aside>

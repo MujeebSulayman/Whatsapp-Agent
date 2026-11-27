@@ -12,7 +12,7 @@ beforeAll(async () => {
   await prisma.business.deleteMany({ where: { slug: { in: ['test-a', 'test-b'] } } });
   const A = await prisma.business.create({ data: { name: 'A', slug: 'test-a', category: 'x' } });
   const B = await prisma.business.create({
-    data: { name: 'B', slug: 'test-b', category: 'x', products: { create: { name: 'secret', priceKobo: 100 } } },
+    data: { name: 'B', slug: 'test-b', category: 'x', products: { create: { name: 'secret', priceMinor: 100 } } },
     include: { products: true }
   });
   a = A.id; b = B.id; productOfB = B.products[0]!.id;

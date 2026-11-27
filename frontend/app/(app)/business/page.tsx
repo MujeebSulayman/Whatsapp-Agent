@@ -1,13 +1,14 @@
 'use client';
 import { CheckCircle2, Download, Pencil, Plus, Plug, Trash2, Unplug } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { Suspense, useState, type FormEvent } from 'react';
+import { Suspense, useMemo, useState, type FormEvent } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { mutate } from 'swr';
-import { Badge, Button, Card, CardBody, CardHeader, Dialog, EmptyState, ErrorNote, Field, Input, Loading, PageHeader, Table, Tabs, TD, TH, THead, Textarea, TR, useToast } from '@/components/ui';
+import { Badge, Button, Card, CardBody, CardHeader, Dialog, EmptyState, ErrorNote, Field, Input, Loading, PageHeader, Select, Table, Tabs, TD, TH, THead, Textarea, TR, useToast } from '@/components/ui';
 import { api, useApi, useMe } from '@/lib/api';
 import type { BusinessDetail, Faq, Zone } from '@/lib/types';
-import { formatNaira, koboToInput, nairaToKobo } from '@/lib/utils';
+import { COUNTRIES, currencyOptions, timezoneOptions } from '@/lib/countries';
+import { useMoney } from '@/lib/use-money';
 
 type Tab = 'profile' | 'delivery' | 'faqs' | 'whatsapp' | 'data';
 
@@ -39,10 +40,13 @@ function Inner() {
 /* ---------------- Profile ---------------- */
 function Profile({ biz, owner }: { biz: BusinessDetail; owner: boolean }) {
   const toast = useToast();
-  const [f, setF] = useState({ name: biz.name, category: biz.category, city: biz.city, paymentInfo: biz.paymentInfo ?? '', returnPolicy: biz.returnPolicy ?? '', ownerPhone: biz.ownerPhone ?? '' });
+  const [f, setF] = useState({ name: biz.name, category: biz.category, city: biz.city, country: biz.country, currency: biz.currency, timezone: biz.timezone, paymentInfo: biz.paymentInfo ?? '', returnPolicy: biz.returnPolicy ?? '', ownerPhone: biz.ownerPhone ?? '' });
   const [hours, setHours] = useState<{ label: string; value: string }[]>(Object.entries(biz.businessHours ?? {}).map(([label, value]) => ({ label, value })));
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const currencies = useMemo(() => currencyOptions(), []);
+  const timezones = useMemo(() => timezoneOptions(), []);
+  const currencyLocked = biz.setup.products || biz.setup.zones;
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF((s) => ({ ...s, [k]: e.target.value }));
 
   async function save(e: FormEvent) {
@@ -50,7 +54,7 @@ function Profile({ biz, owner }: { biz: BusinessDetail; owner: boolean }) {
     try {
       const rows = hours.filter((h) => h.label.trim() && h.value.trim());
       await api.patch('business', {
-        name: f.name.trim(), category: f.category.trim(), city: f.city.trim(),
+        name: f.name.trim(), category: f.category.trim(), city: f.city.trim(), country: f.country, timezone: f.timezone, ...(f.currency !== biz.currency ? { currency: f.currency } : {}),
         paymentInfo: f.paymentInfo.trim() || null, returnPolicy: f.returnPolicy.trim() || null, ownerPhone: f.ownerPhone.trim() || null,
         businessHours: rows.length ? Object.fromEntries(rows.map((h) => [h.label.trim(), h.value.trim()])) : null
       });
@@ -69,6 +73,13 @@ function Profile({ biz, owner }: { biz: BusinessDetail; owner: boolean }) {
             <Field label="Category"><Input required value={f.category} onChange={set('category')} disabled={!owner} /></Field>
             <Field label="City"><Input required value={f.city} onChange={set('city')} disabled={!owner} /></Field>
           </div>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Field label="Country"><Select value={f.country} onChange={set('country')} disabled={!owner}>{COUNTRIES.map((c) => <option key={c.code} value={c.code}>{c.flag} {c.name}</option>)}</Select></Field>
+            <Field label="Currency" hint={currencyLocked ? "Locked: you already have products, delivery fees or orders in this currency." : "Prices are shown in this currency."}>
+              <Select value={f.currency} onChange={set('currency')} disabled={!owner || currencyLocked}>{currencies.map((c) => <option key={c.code} value={c.code}>{c.label}</option>)}</Select>
+            </Field>
+            <Field label="Timezone"><Select value={f.timezone} onChange={set('timezone')} disabled={!owner}>{timezones.map((z) => <option key={z}>{z}</option>)}</Select></Field>
+          </div>
           <div>
             <div className="mb-1.5 text-[13px] font-medium">Opening hours</div>
             <div className="space-y-2">
@@ -82,9 +93,9 @@ function Profile({ biz, owner }: { biz: BusinessDetail; owner: boolean }) {
               {owner && <Button type="button" size="sm" variant="secondary" onClick={() => setHours([...hours, { label: '', value: '' }])}><Plus className="size-3.5" />Add hours</Button>}
             </div>
           </div>
-          <Field label="How customers pay" hint="e.g. Card, bank transfer or USSD."><Input value={f.paymentInfo} onChange={set('paymentInfo')} disabled={!owner} /></Field>
+          <Field label="How customers pay" hint="e.g. Card, bank transfer, mobile money or cash on delivery."><Input value={f.paymentInfo} onChange={set('paymentInfo')} disabled={!owner} /></Field>
           <Field label="Return policy"><Textarea rows={2} value={f.returnPolicy} onChange={set('returnPolicy')} disabled={!owner} /></Field>
-          <Field label="Your WhatsApp number for alerts" hint="Country code, digits only, e.g. 2348012345678. We message you here when a chat needs you. Message your business number first so WhatsApp allows it."><Input inputMode="numeric" value={f.ownerPhone} onChange={set('ownerPhone')} disabled={!owner} /></Field>
+          <Field label="Your WhatsApp number for alerts" hint="Country code, digits only, e.g. 14155550123. We message you here when a chat needs you. Message your business number first so WhatsApp allows it."><Input inputMode="numeric" value={f.ownerPhone} onChange={set('ownerPhone')} disabled={!owner} /></Field>
         </CardBody>
         {owner && <div className="flex justify-end border-t bg-muted/30 px-5 py-3"><Button type="submit" loading={busy}>Save changes</Button></div>}
       </Card>
@@ -94,6 +105,7 @@ function Profile({ biz, owner }: { biz: BusinessDetail; owner: boolean }) {
 
 /* ---------------- Delivery zones ---------------- */
 function Delivery() {
+  const money = useMoney();
   const toast = useToast();
   const { data: zones, isLoading } = useApi<Zone[]>('delivery-zones');
   const [target, setTarget] = useState<Zone | 'new' | null>(null);
@@ -102,15 +114,15 @@ function Delivery() {
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const z = target && target !== 'new' ? target : null;
-  if (target !== seed) { setSeed(target); setErr(null); setF(z ? { areaName: z.areaName, fee: koboToInput(z.feeKobo), etaText: z.etaText } : { areaName: '', fee: '', etaText: '' }); }
+  if (target !== seed) { setSeed(target); setErr(null); setF(z ? { areaName: z.areaName, fee: money.toInput(z.feeMinor), etaText: z.etaText } : { areaName: '', fee: '', etaText: '' }); }
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    const feeKobo = nairaToKobo(f.fee);
-    if (feeKobo === null) return setErr('Enter a valid fee, e.g. 2000');
+    const feeMinor = money.parse(f.fee);
+    if (feeMinor === null) return setErr(`Enter a valid fee in ${money.currency}, e.g. ${money.example}`);
     setBusy(true); setErr(null);
     try {
-      const body = { areaName: f.areaName.trim(), feeKobo, etaText: f.etaText.trim() };
+      const body = { areaName: f.areaName.trim(), feeMinor, etaText: f.etaText.trim() };
       if (z) await api.patch(`delivery-zones/${z.id}`, body); else await api.post('delivery-zones', body);
       await Promise.all([mutate('delivery-zones'), mutate('business')]); toast('Delivery area saved'); setTarget(null);
     } catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
@@ -128,7 +140,7 @@ function Delivery() {
           <tbody>
             {zones.map((x) => (
               <TR key={x.id}>
-                <TD className="font-medium">{x.areaName}</TD><TD className="tabular-nums">{formatNaira(x.feeKobo)}</TD><TD className="text-muted-foreground">{x.etaText}</TD>
+                <TD className="font-medium">{x.areaName}</TD><TD className="tabular-nums">{money.fmt(x.feeMinor)}</TD><TD className="text-muted-foreground">{x.etaText}</TD>
                 <TD><div className="flex justify-end gap-1"><Button size="sm" variant="ghost" aria-label={`Edit ${x.areaName}`} onClick={() => setTarget(x)}><Pencil className="size-4" /></Button><Button size="sm" variant="ghost" aria-label={`Delete ${x.areaName}`} onClick={() => remove(x.id)}><Trash2 className="size-4" /></Button></div></TD>
               </TR>
             ))}
@@ -139,9 +151,9 @@ function Delivery() {
         footer={<><Button variant="ghost" onClick={() => setTarget(null)}>Cancel</Button><Button type="submit" form="zone-form" loading={busy}>Save</Button></>}>
         <form id="zone-form" onSubmit={submit} className="space-y-4">
           {err && <ErrorNote>{err}</ErrorNote>}
-          <Field label="Area"><Input required value={f.areaName} onChange={(e) => setF({ ...f, areaName: e.target.value })} placeholder="e.g. Lekki Phase 1" /></Field>
+          <Field label="Area"><Input required value={f.areaName} onChange={(e) => setF({ ...f, areaName: e.target.value })} placeholder="e.g. Downtown" /></Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Fee (₦)"><Input required inputMode="decimal" value={f.fee} onChange={(e) => setF({ ...f, fee: e.target.value })} /></Field>
+            <Field label={`Fee (${money.currency})`}><Input required inputMode="decimal" value={f.fee} onChange={(e) => setF({ ...f, fee: e.target.value })} /></Field>
             <Field label="Delivery time"><Input required value={f.etaText} onChange={(e) => setF({ ...f, etaText: e.target.value })} placeholder="45–60 minutes" /></Field>
           </div>
         </form>
@@ -238,7 +250,7 @@ function Whatsapp({ biz, owner }: { biz: BusinessDetail; owner: boolean }) {
                 <Field label="WhatsApp Business Account ID"><Input required value={f.wabaId} onChange={(e) => setF({ ...f, wabaId: e.target.value })} /></Field>
                 <Field label="Phone number ID"><Input required value={f.phoneNumberId} onChange={(e) => setF({ ...f, phoneNumberId: e.target.value })} /></Field>
               </div>
-              <Field label="Phone number" hint="With country code, digits only."><Input required inputMode="numeric" value={f.displayNumber} onChange={(e) => setF({ ...f, displayNumber: e.target.value })} placeholder="2348012345678" /></Field>
+              <Field label="Phone number" hint="With country code, digits only."><Input required inputMode="numeric" value={f.displayNumber} onChange={(e) => setF({ ...f, displayNumber: e.target.value })} placeholder="14155550123" /></Field>
               <Field label="Access token" hint="Stored encrypted. It is never shown again."><Input required type="password" autoComplete="off" value={f.accessToken} onChange={(e) => setF({ ...f, accessToken: e.target.value })} /></Field>
             </CardBody>
             <div className="flex justify-end border-t bg-muted/30 px-5 py-3"><Button type="submit" loading={busy}><Plug className="size-4" />Connect number</Button></div>

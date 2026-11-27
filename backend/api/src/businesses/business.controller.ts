@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, Controller, Delete, Get, HttpCode, Inject, Patch, Put, Body, UseGuards } from '@nestjs/common';
 import type { PrismaClient } from '@wa/db';
-import { encryptSecret, maskPhone } from '@wa/shared';
+import { encryptSecret, isCountryCode, isCurrencyCode, isTimezone, maskPhone } from '@wa/shared';
 import { z } from 'zod';
 import { Auth, AuthGuard, requireOwner, type AuthCtx } from '../common/auth.guard.js';
 import { parse } from '../common/validate.js';
@@ -10,6 +10,9 @@ const UpdateBusiness = z.object({
   name: z.string().min(2).max(100),
   category: z.string().min(2).max(60),
   city: z.string().min(2).max(60),
+  country: z.string().refine(isCountryCode, "Choose a valid country"),
+  currency: z.string().refine(isCurrencyCode, "Choose a valid currency"),
+  timezone: z.string().refine(isTimezone, "Invalid timezone"),
   tone: z.string().min(2).max(40),
   aiEnabled: z.boolean(),
   businessHours: z.record(z.string(), z.string().max(60)).nullable(),
@@ -65,6 +68,15 @@ export class BusinessController {
   async update(@Auth() auth: AuthCtx, @Body() body: unknown) {
     requireOwner(auth);
     const data = parse(UpdateBusiness, body);
+    if (data.currency) {
+      // Amounts are stored in minor units of the business currency, so it can only change while nothing is priced yet.
+      const current = await this.db.business.findUniqueOrThrow({ where: { id: auth.businessId }, select: { currency: true } });
+      if (data.currency !== current.currency) {
+        const where = { businessId: auth.businessId };
+        const [p, z, o] = await Promise.all([this.db.product.count({ where }), this.db.deliveryZone.count({ where }), this.db.order.count({ where })]);
+        if (p + z + o > 0) throw new ConflictException("The currency can't be changed once you have products, delivery fees or orders. Contact support if you need this.");
+      }
+    }
     const { businessHours, ...rest } = data;
     const updated = await this.db.business.update({
       where: { id: auth.businessId },

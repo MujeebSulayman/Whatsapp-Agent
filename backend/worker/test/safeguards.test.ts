@@ -16,19 +16,19 @@ const KEY = 'f'.repeat(64);
 const prisma = createPrisma();
 const ids = { biz: '', other: '', ada: '', bola: '', adaOrder: '', bolaOrder: '', product: '', otherProduct: '', photoProduct: '' };
 const ctxFor = (customerId: string, extra: Partial<ToolContext> = {}): ToolContext => ({
-  db: prisma, businessId: ids.biz, conversationId: 'c', customerId, state: { handedOff: false }, ...extra
+  db: prisma, businessId: ids.biz, currency: 'NGN', conversationId: 'c', customerId, state: { handedOff: false }, ...extra
 });
 
 beforeAll(async () => {
   await prisma.business.deleteMany({ where: { slug: { in: ['guard-test', 'guard-other'] } } });
-  const other = await prisma.business.create({ data: { name: 'Other', slug: 'guard-other', category: 'x', products: { create: { name: 'Secret', priceKobo: 100, stockQty: 1 } } }, include: { products: true } });
+  const other = await prisma.business.create({ data: { name: 'Other', slug: 'guard-other', category: 'x', products: { create: { name: 'Secret', priceMinor: 100, stockQty: 1 } } }, include: { products: true } });
   ids.other = other.id; ids.otherProduct = other.products[0]!.id;
   const b = await prisma.business.create({
     data: {
       name: 'Guard Test', slug: 'guard-test', category: 'chops', ownerPhone: '2348077770000',
       whatsappAccounts: { create: { wabaId: 'WABA', phoneNumberId: 'GUARD-PNID', displayNumber: '1', accessTokenEncrypted: encryptSecret('TOK', KEY) } },
       aiRules: { create: { maxDiscountPct: 10 } },
-      products: { create: [{ name: 'Party Pack', priceKobo: 1_000_000, stockQty: 4 }, { name: 'Photo Item', priceKobo: 100, stockQty: 1, imageUrls: ['https://img.example/a.jpg'] }] },
+      products: { create: [{ name: 'Party Pack', priceMinor: 1_000_000, stockQty: 4 }, { name: 'Photo Item', priceMinor: 100, stockQty: 1, imageUrls: ['https://img.example/a.jpg'] }] },
       customers: { create: [{ waId: '2348011110001', name: 'Ada' }, { waId: '2348011110002', name: 'Bola' }] }
     },
     include: { products: true, customers: true }
@@ -38,7 +38,7 @@ beforeAll(async () => {
   ids.photoProduct = b.products.find((p) => p.name === 'Photo Item')!.id;
   ids.ada = b.customers.find((c) => c.name === 'Ada')!.id;
   ids.bola = b.customers.find((c) => c.name === 'Bola')!.id;
-  const mk = (customerId: string) => prisma.order.create({ data: { businessId: b.id, customerId, items: [], subtotalKobo: 1_000_000, deliveryFeeKobo: 200_000, totalKobo: 1_200_000 } });
+  const mk = (customerId: string) => prisma.order.create({ data: { businessId: b.id, customerId, items: [], subtotalMinor: 1_000_000, deliveryFeeMinor: 200_000, totalMinor: 1_200_000 } });
   ids.adaOrder = (await mk(ids.ada)).id;
   ids.bolaOrder = (await mk(ids.bola)).id;
 });
@@ -57,7 +57,7 @@ describe('tools only act for the current customer in the current business', () =
     expect(await applyDiscount.run(ctxFor(ids.ada), { order_id: ids.adaOrder, pct: 15 })).toMatchObject({ error: expect.stringContaining('maximum discount is 10%') });
     expect(await applyDiscount.run(ctxFor(ids.ada), { order_id: ids.adaOrder, pct: 10 })).toMatchObject({ new_total: '₦11,000' });
     expect(await applyDiscount.run(ctxFor(ids.ada), { order_id: ids.adaOrder, pct: 10 })).toMatchObject({ new_total: '₦11,000' }); // same, not 20%
-    expect((await prisma.order.findUniqueOrThrow({ where: { id: ids.adaOrder } })).totalKobo).toBe(1_100_000);
+    expect((await prisma.order.findUniqueOrThrow({ where: { id: ids.adaOrder } })).totalMinor).toBe(1_100_000);
     expect(await applyDiscount.run(ctxFor(ids.ada), { order_id: ids.bolaOrder, pct: 5 })).toMatchObject({ error: 'Order not found.' });
     await prisma.order.update({ where: { id: ids.bolaOrder }, data: { paymentStatus: 'paid' } });
     expect(await applyDiscount.run(ctxFor(ids.bola), { order_id: ids.bolaOrder, pct: 5 })).toMatchObject({ error: expect.stringContaining('no longer') });

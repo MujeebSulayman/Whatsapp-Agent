@@ -6,9 +6,11 @@ import { OrderBadge } from '@/components/badges';
 import { Button, Card, Dialog, EmptyState, ErrorNote, Field, Input, Loading, PageHeader, Switch, Table, TD, TH, THead, Textarea, TR, useToast } from '@/components/ui';
 import { api, useApi } from '@/lib/api';
 import type { Customer, CustomerDetail } from '@/lib/types';
-import { formatDateTime, formatNaira, timeAgo } from '@/lib/utils';
+import { formatDateTime, timeAgo } from '@/lib/utils';
+import { useMoney } from '@/lib/use-money';
 
 export default function CustomersPage() {
+  const money = useMoney();
   const [search, setSearch] = useState('');
   const [openId, setOpenId] = useState<string | null>(null);
   const key = `customers${search ? `?search=${encodeURIComponent(search)}` : ''}`;
@@ -30,7 +32,7 @@ export default function CustomersPage() {
                   <TD className="font-medium">{c.name ?? '—'}</TD>
                   <TD className="text-muted-foreground">+{c.waId}</TD>
                   <TD className="tabular-nums">{c._count?.orders ?? 0}</TD>
-                  <TD className="tabular-nums">{formatNaira(c.totalSpentKobo)}</TD>
+                  <TD className="tabular-nums">{money.fmt(c.totalSpentMinor)}</TD>
                   <TD className="text-muted-foreground">{c.lastOrderAt ? timeAgo(c.lastOrderAt) : '—'}</TD>
                 </TR>
               ))}
@@ -44,6 +46,7 @@ export default function CustomersPage() {
 }
 
 function CustomerDialog({ id, onClose, listKey }: { id: string | null; onClose: () => void; listKey: string }) {
+  const money = useMoney();
   const toast = useToast();
   const { data: c, mutate: refresh } = useApi<CustomerDetail>(id ? `customers/${id}` : null);
   const [form, setForm] = useState<{ name: string; notes: string } | null>(null);
@@ -62,7 +65,7 @@ function CustomerDialog({ id, onClose, listKey }: { id: string | null; onClose: 
   }
 
   return (
-    <Dialog open={!!id} onClose={() => { setForm(null); setErr(null); onClose(); }} wide title={c?.name ?? (c ? `+${c.waId}` : 'Customer')} description={c ? `+${c.waId} · ${formatNaira(c.totalSpentKobo)} spent` : undefined}
+    <Dialog open={!!id} onClose={() => { setForm(null); setErr(null); onClose(); }} wide title={c?.name ?? (c ? `+${c.waId}` : 'Customer')} description={c ? `+${c.waId} · ${money.fmt(c.totalSpentMinor)} spent` : undefined}
       footer={<Button onClick={save} loading={busy}>Save changes</Button>}>
       {!c || !form ? <Loading /> : (
         <div className="space-y-5">
@@ -77,7 +80,7 @@ function CustomerDialog({ id, onClose, listKey }: { id: string | null; onClose: 
             {c.orders.length === 0 ? <p className="text-[13px] text-muted-foreground">No orders yet.</p> : (
               <div className="rounded-md border"><Table><tbody>
                 {c.orders.map((o) => (
-                  <TR key={o.id}><TD className="py-2 font-mono text-xs">#{o.id.slice(-6).toUpperCase()}</TD><TD className="py-2 text-muted-foreground">{formatDateTime(o.createdAt)}</TD><TD className="py-2 tabular-nums">{formatNaira(o.totalKobo)}</TD><TD className="py-2"><OrderBadge status={o.status} /></TD></TR>
+                  <TR key={o.id}><TD className="py-2 font-mono text-xs">#{o.id.slice(-6).toUpperCase()}</TD><TD className="py-2 text-muted-foreground">{formatDateTime(o.createdAt)}</TD><TD className="py-2 tabular-nums">{money.fmt(o.totalMinor)}</TD><TD className="py-2"><OrderBadge status={o.status} /></TD></TR>
                 ))}
               </tbody></Table></div>
             )}

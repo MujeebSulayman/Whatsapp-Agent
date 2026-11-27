@@ -124,7 +124,7 @@ async function turn(deps: Deps, job: InboundJob, tokenEnc: string, log: (m: stri
       : undefined;
     const result = await runAgent({
       llm: deps.llm, model, system: ctx.system, history: ctx.history,
-      ctx: { db, businessId: job.businessId, conversationId: job.conversationId, customerId: job.customerId, sendImage, embed: deps.embedQuery }
+      ctx: { db, businessId: job.businessId, currency: business.currency, conversationId: job.conversationId, customerId: job.customerId, sendImage, embed: deps.embedQuery }
     });
 
     await db.agentRun.create({

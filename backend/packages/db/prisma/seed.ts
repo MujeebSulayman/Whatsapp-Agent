@@ -39,23 +39,23 @@ async function main() {
       },
       products: {
         create: [
-          { name: 'Party Pack (serves 10)', description: 'Puff puff, samosa, spring rolls, chicken wings, fish rolls', priceKobo: naira(12000), stockQty: 20 },
-          { name: 'Mini Pack (serves 4)', description: 'Puff puff, samosa, spring rolls, chicken wings', priceKobo: naira(5500), stockQty: 30 },
-          { name: 'Puff Puff (box of 30)', description: 'Soft, fluffy and freshly fried', priceKobo: naira(2500), stockQty: 50 },
-          { name: 'Samosa (box of 20)', description: 'Beef or chicken filling', priceKobo: naira(3000), stockQty: 40, variants: [{ name: 'Beef' }, { name: 'Chicken' }] },
-          { name: 'Spring Rolls (box of 20)', description: 'Crispy vegetable and chicken rolls', priceKobo: naira(3000), stockQty: 40 },
-          { name: 'Peppered Chicken Wings (12 pcs)', description: 'Spicy grilled wings', priceKobo: naira(4500), stockQty: 25 },
-          { name: 'Fish Rolls (box of 15)', description: 'Golden pastry with spiced fish filling', priceKobo: naira(3500), stockQty: 30 },
-          { name: 'Chapman (1 litre)', description: 'Classic Nigerian Chapman cocktail (non-alcoholic)', priceKobo: naira(2000), stockQty: 20 }
+          { name: 'Party Pack (serves 10)', description: 'Puff puff, samosa, spring rolls, chicken wings, fish rolls', priceMinor: naira(12000), stockQty: 20 },
+          { name: 'Mini Pack (serves 4)', description: 'Puff puff, samosa, spring rolls, chicken wings', priceMinor: naira(5500), stockQty: 30 },
+          { name: 'Puff Puff (box of 30)', description: 'Soft, fluffy and freshly fried', priceMinor: naira(2500), stockQty: 50 },
+          { name: 'Samosa (box of 20)', description: 'Beef or chicken filling', priceMinor: naira(3000), stockQty: 40, variants: [{ name: 'Beef' }, { name: 'Chicken' }] },
+          { name: 'Spring Rolls (box of 20)', description: 'Crispy vegetable and chicken rolls', priceMinor: naira(3000), stockQty: 40 },
+          { name: 'Peppered Chicken Wings (12 pcs)', description: 'Spicy grilled wings', priceMinor: naira(4500), stockQty: 25 },
+          { name: 'Fish Rolls (box of 15)', description: 'Golden pastry with spiced fish filling', priceMinor: naira(3500), stockQty: 30 },
+          { name: 'Chapman (1 litre)', description: 'Classic Nigerian Chapman cocktail (non-alcoholic)', priceMinor: naira(2000), stockQty: 20 }
         ]
       },
       deliveryZones: {
         create: [
-          { areaName: 'Lekki Phase 1', feeKobo: naira(2000), etaText: '45-60 minutes' },
-          { areaName: 'Lekki Phase 2', feeKobo: naira(2500), etaText: '60 minutes' },
-          { areaName: 'Victoria Island', feeKobo: naira(3000), etaText: '60-90 minutes' },
-          { areaName: 'Ikoyi', feeKobo: naira(3500), etaText: '75-90 minutes' },
-          { areaName: 'Ajah', feeKobo: naira(3500), etaText: '75-90 minutes' }
+          { areaName: 'Lekki Phase 1', feeMinor: naira(2000), etaText: '45-60 minutes' },
+          { areaName: 'Lekki Phase 2', feeMinor: naira(2500), etaText: '60 minutes' },
+          { areaName: 'Victoria Island', feeMinor: naira(3000), etaText: '60-90 minutes' },
+          { areaName: 'Ikoyi', feeMinor: naira(3500), etaText: '75-90 minutes' },
+          { areaName: 'Ajah', feeMinor: naira(3500), etaText: '75-90 minutes' }
         ]
       },
       faqs: {
@@ -90,7 +90,7 @@ async function main() {
   });
   const products = await prisma.product.findMany({ where: { businessId: biz.id } });
   const pp = (n: string) => products.find((p) => p.name.startsWith(n))!;
-  const mkItem = (name: string, qty: number) => { const p = pp(name); return { product_id: p.id, name: p.name, variant: null, quantity: qty, unit_price_kobo: p.priceKobo, line_total_kobo: p.priceKobo * qty }; };
+  const mkItem = (name: string, qty: number) => { const p = pp(name); return { product_id: p.id, name: p.name, variant: null, quantity: qty, unit_price_minor: p.priceMinor, line_total_minor: p.priceMinor * qty }; };
   const people = [
     { waId: '2348031112222', name: 'Chioma Okafor' }, { waId: '2348054443333', name: 'Tunde Bakare' }, { waId: '2347065554444', name: 'Amaka Eze' }, { waId: '2349012223333', name: null }
   ];
@@ -108,8 +108,8 @@ async function main() {
   await chat(customers[2]!.id, 'closed', [['customer', 'Do you deliver to Ikoyi?', 2900], ['ai', 'Yes! Delivery to Ikoyi is ₦3,500 (75-90 minutes).', 2899], ['customer', 'Thanks', 2890]]);
   await chat(customers[3]!.id, 'ai', [['customer', 'hello', 9]]);
   const mkOrder = (customerId: string, items: ReturnType<typeof mkItem>[], fee: number, status: 'pending' | 'paid' | 'dispatched' | 'delivered' | 'cancelled', pay: 'unpaid' | 'paid', days: number, address: string) => {
-    const sub = items.reduce((n, i) => n + i.line_total_kobo, 0);
-    return prisma.order.create({ data: { businessId: biz.id, customerId, items, subtotalKobo: sub, deliveryFeeKobo: fee, totalKobo: sub + fee, status, paymentStatus: pay, address, createdAt: new Date(Date.now() - days * 86_400_000) } });
+    const sub = items.reduce((n, i) => n + i.line_total_minor, 0);
+    return prisma.order.create({ data: { businessId: biz.id, customerId, items, subtotalMinor: sub, deliveryFeeMinor: fee, totalMinor: sub + fee, status, paymentStatus: pay, address, createdAt: new Date(Date.now() - days * 86_400_000) } });
   };
   await mkOrder(customers[0]!.id, [mkItem('Party Pack', 1)], naira(2000), 'pending', 'unpaid', 0, '12 Admiralty Way, Lekki Phase 1');
   await mkOrder(customers[1]!.id, [mkItem('Mini Pack', 2), mkItem('Chapman', 1)], naira(2500), 'dispatched', 'paid', 1, '5 Freedom Way, Lekki Phase 2');

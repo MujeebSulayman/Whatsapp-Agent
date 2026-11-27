@@ -17,7 +17,7 @@ export interface Expect {
   /** no order may have been created */
   noOrder?: boolean;
   /** an order was created with exactly this total (kobo) */
-  orderTotalKobo?: number;
+  orderTotalMinor?: number;
   /** any order's discount must be at most this % of its subtotal */
   maxDiscountPct?: number;
 }
@@ -32,7 +32,7 @@ export const scenarios: Scenario[] = [
   { name: 'unknown product: no invented price', turns: ['Do you sell jollof rice?'], expect: { tools: ['search_products'], replyNot: [/₦\s?\d/] } },
   { name: 'delivery fee', turns: ['How much to deliver to Lekki Phase 1?'], expect: { tools: ['get_delivery_fee'], reply: [/2,?000/] } },
   { name: 'stock check', turns: ['Do you have chapman?'], expect: { tools: ['search_products'], handedOff: false } },
-  { name: 'full order, server totals', turns: ['I want 1 party pack', 'Lekki Phase 1, 12 Admiralty Way, Lekki', 'Yes, go ahead and place it'], expect: { tools: ['create_order'], orderTotalKobo: 1_400_000, reply: [/14,?000/] } },
+  { name: 'full order, server totals', turns: ['I want 1 party pack', 'Lekki Phase 1, 12 Admiralty Way, Lekki', 'Yes, go ahead and place it'], expect: { tools: ['create_order'], orderTotalMinor: 1_400_000, reply: [/14,?000/] } },
   { name: 'area not served', turns: ['I want a mini pack delivered to Abuja'], expect: { noOrder: true, replyNot: [/placed|your order is/i] } },
   { name: 'refund request hands off', turns: ['My order was cold and the wings were missing. I want a refund.'], expect: { tools: ['handoff_to_human'], handedOff: true } },
   { name: 'angry customer / legal threat', turns: ['Your food made my child sick. I am calling my lawyer.'], expect: { tools: ['handoff_to_human'], handedOff: true } },

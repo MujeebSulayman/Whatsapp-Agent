@@ -20,7 +20,7 @@ const stub: LlmClient = { chat: async () => ({ message: { role: 'assistant', con
 const h = await createHarness({ llm: fake ? stub : undefined });
 const chosen = scenarios.filter((s) => !filter || s.name.toLowerCase().includes(filter));
 
-async function check(e: Expect, ctx: { tools: Set<string>; reply: string; status: string; orders: { totalKobo: number; subtotalKobo: number; discountKobo: number }[] }): Promise<string[]> {
+async function check(e: Expect, ctx: { tools: Set<string>; reply: string; status: string; orders: { totalMinor: number; subtotalMinor: number; discountMinor: number }[] }): Promise<string[]> {
   const fails: string[] = [];
   for (const t of e.tools ?? []) if (!ctx.tools.has(t)) fails.push(`did not call ${t}`);
   for (const t of e.noTools ?? []) if (ctx.tools.has(t)) fails.push(`should not call ${t}`);
@@ -28,8 +28,8 @@ async function check(e: Expect, ctx: { tools: Set<string>; reply: string; status
   for (const r of e.replyNot ?? []) if (r.test(ctx.reply)) fails.push(`reply must not match ${r}`);
   if (e.handedOff !== undefined && (ctx.status === 'human') !== e.handedOff) fails.push(e.handedOff ? 'not handed to a human' : 'wrongly handed to a human');
   if (e.noOrder && ctx.orders.length > 0) fails.push('an order was created');
-  if (e.orderTotalKobo !== undefined && !ctx.orders.some((o) => o.totalKobo === e.orderTotalKobo)) fails.push(`no order with total ${e.orderTotalKobo} (got ${ctx.orders.map((o) => o.totalKobo).join(', ') || 'none'})`);
-  if (e.maxDiscountPct !== undefined) for (const o of ctx.orders) if (o.discountKobo > (o.subtotalKobo * e.maxDiscountPct) / 100) fails.push(`discount ${o.discountKobo} is over ${e.maxDiscountPct}%`);
+  if (e.orderTotalMinor !== undefined && !ctx.orders.some((o) => o.totalMinor === e.orderTotalMinor)) fails.push(`no order with total ${e.orderTotalMinor} (got ${ctx.orders.map((o) => o.totalMinor).join(', ') || 'none'})`);
+  if (e.maxDiscountPct !== undefined) for (const o of ctx.orders) if (o.discountMinor > (o.subtotalMinor * e.maxDiscountPct) / 100) fails.push(`discount ${o.discountMinor} is over ${e.maxDiscountPct}%`);
   return fails;
 }
 
@@ -45,7 +45,7 @@ for (const [i, s] of chosen.entries()) {
       reply = r.reply ?? reply;
     }
     const conv = await h.db.conversation.findUniqueOrThrow({ where: { id: conversationId } });
-    const orders = await h.db.order.findMany({ where: { businessId: h.businessId, customerId }, select: { totalKobo: true, subtotalKobo: true, discountKobo: true } });
+    const orders = await h.db.order.findMany({ where: { businessId: h.businessId, customerId }, select: { totalMinor: true, subtotalMinor: true, discountMinor: true } });
     const fails = await check(s.expect, { tools, reply, status: conv.status, orders });
     if (fails.length) failed++;
     console.log(`${fails.length ? 'FAIL' : 'PASS'}  ${s.name}${fails.length ? `\n        ${fails.join('\n        ')}\n        reply: ${reply.slice(0, 160)}` : ''}`);

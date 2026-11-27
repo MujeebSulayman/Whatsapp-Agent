@@ -2,12 +2,8 @@ import { z } from 'zod';
 
 export * from './crypto.js';
 
-/** Money is always integer kobo. Never floats. */
-export const Kobo = z.number().int().nonnegative();
-export type Kobo = z.infer<typeof Kobo>;
-
-export const formatNaira = (kobo: number): string =>
-  `₦${(kobo / 100).toLocaleString('en-NG', { minimumFractionDigits: 0 })}`;
+export * from './money.js';
+export * from './geo.js';
 
 export const QUEUES = { inbound: 'inbound-messages' } as const;
 

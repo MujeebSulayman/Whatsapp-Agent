@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { formatNaira } from '@wa/shared';
+import { formatMoney } from '@wa/shared';
 import { defineTool } from './types.js';
 
 /** Only ever returns the CURRENT customer's orders: the customer id comes from the conversation, never from the model. */
@@ -20,7 +20,7 @@ export const checkOrderStatus = defineTool({
         order_id: o.id,
         status: o.status,
         payment: o.paymentStatus,
-        total: formatNaira(o.totalKobo),
+        total: formatMoney(o.totalMinor, ctx.currency),
         placed: o.createdAt.toISOString().slice(0, 10)
       }))
     };

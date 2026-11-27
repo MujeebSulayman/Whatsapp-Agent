@@ -4,6 +4,8 @@ import type { z } from 'zod';
 export interface ToolContext {
   db: PrismaClient;
   businessId: string;
+  /** ISO 4217 code of the business; every amount shown to a customer uses it. */
+  currency: string;
   conversationId: string;
   customerId: string;
   /** Optional: embeds a search query (enables vector search; keyword search is always the fallback). */

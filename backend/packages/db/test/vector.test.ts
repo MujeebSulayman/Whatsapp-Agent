@@ -10,8 +10,8 @@ const ids = { a: '', b: '', p1: '', p2: '', p3: '', other: '' };
 
 beforeAll(async () => {
   await prisma.business.deleteMany({ where: { slug: { in: ['vec-a', 'vec-b'] } } });
-  const a = await prisma.business.create({ data: { name: 'A', slug: 'vec-a', category: 'x', products: { create: [{ name: 'Jollof', priceKobo: 1, stockQty: 1 }, { name: 'Samosa', priceKobo: 1, stockQty: 1 }, { name: 'Hidden', priceKobo: 1, stockQty: 1, active: false }] } }, include: { products: true } });
-  const b = await prisma.business.create({ data: { name: 'B', slug: 'vec-b', category: 'x', products: { create: { name: 'Other tenant jollof', priceKobo: 1, stockQty: 1 } } }, include: { products: true } });
+  const a = await prisma.business.create({ data: { name: 'A', slug: 'vec-a', category: 'x', products: { create: [{ name: 'Jollof', priceMinor: 1, stockQty: 1 }, { name: 'Samosa', priceMinor: 1, stockQty: 1 }, { name: 'Hidden', priceMinor: 1, stockQty: 1, active: false }] } }, include: { products: true } });
+  const b = await prisma.business.create({ data: { name: 'B', slug: 'vec-b', category: 'x', products: { create: { name: 'Other tenant jollof', priceMinor: 1, stockQty: 1 } } }, include: { products: true } });
   ids.a = a.id; ids.b = b.id;
   ids.p1 = a.products.find((p) => p.name === 'Jollof')!.id; ids.p2 = a.products.find((p) => p.name === 'Samosa')!.id; ids.p3 = a.products.find((p) => p.name === 'Hidden')!.id;
   ids.other = b.products[0]!.id;

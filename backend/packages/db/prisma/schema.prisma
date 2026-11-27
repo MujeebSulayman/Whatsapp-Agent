@@ -52,14 +52,16 @@ enum PaymentProvider {
   flutterwave
 }
 
-// Prices are integer kobo (BigInt-free: Int is enough up to ₦21M per value). Never floats.
+// Money is an integer count of the currency minor unit (cents, kobo, pence...), never floats. Each business has one currency.
 
 model Business {
   id            String   @id @default(cuid())
   name          String
   slug          String   @unique
   category      String
-  city          String   @default("Lagos")
+  city          String   @default("")
+  country       String   @default("NG")
+  currency      String   @default("NGN")
   timezone      String   @default("Africa/Lagos")
   plan          String   @default("trial")
   aiEnabled     Boolean  @default(true) @map("ai_enabled")
@@ -133,7 +135,7 @@ model Product {
   businessId  String   @map("business_id")
   name        String
   description String?
-  priceKobo   Int      @map("price_kobo")
+  priceMinor   Int      @map("price_minor")
   variants    Json?
   stockQty    Int      @default(0) @map("stock_qty")
   imageUrls   String[] @map("image_urls")
@@ -162,7 +164,7 @@ model DeliveryZone {
   id         String   @id @default(cuid())
   businessId String   @map("business_id")
   areaName   String   @map("area_name")
-  feeKobo    Int      @map("fee_kobo")
+  feeMinor    Int      @map("fee_minor")
   etaText    String   @map("eta_text")
   business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
@@ -190,7 +192,7 @@ model Customer {
   phone              String?
   tags               String[]
   notes              String?
-  totalSpentKobo     Int       @default(0) @map("total_spent_kobo")
+  totalSpentMinor     Int       @default(0) @map("total_spent_minor")
   lastOrderAt        DateTime? @map("last_order_at")
   optedInMarketing   Boolean   @default(false) @map("opted_in_marketing")
   business           Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
@@ -245,10 +247,10 @@ model Order {
   businessId      String        @map("business_id")
   customerId      String        @map("customer_id")
   items           Json
-  subtotalKobo    Int           @map("subtotal_kobo")
-  deliveryFeeKobo Int           @default(0) @map("delivery_fee_kobo")
-  discountKobo    Int           @default(0) @map("discount_kobo")
-  totalKobo       Int           @map("total_kobo")
+  subtotalMinor    Int           @map("subtotal_minor")
+  deliveryFeeMinor Int           @default(0) @map("delivery_fee_minor")
+  discountMinor    Int           @default(0) @map("discount_minor")
+  totalMinor       Int           @map("total_minor")
   address         String?
   notes           String?
   status          OrderStatus   @default(pending)
@@ -268,7 +270,7 @@ model Payment {
   orderId     String          @map("order_id")
   provider    PaymentProvider @default(paystack)
   reference   String          @unique
-  amountKobo  Int             @map("amount_kobo")
+  amountMinor  Int             @map("amount_minor")
   status      PaymentStatus   @default(pending)
   paidAt      DateTime?       @map("paid_at")
   rawWebhook  Json?           @map("raw_webhook")
@@ -285,7 +287,7 @@ model Broadcast {
   audienceFilter   Json?     @map("audience_filter")
   scheduledAt      DateTime? @map("scheduled_at")
   sentCount        Int       @default(0) @map("sent_count")
-  costEstimateKobo Int       @default(0) @map("cost_estimate_kobo")
+  costEstimateMinor Int       @default(0) @map("cost_estimate_minor")
   business         Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   @@index([businessId])

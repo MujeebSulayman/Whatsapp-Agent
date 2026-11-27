@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { formatNaira } from '@wa/shared';
+import { formatMoney } from '@wa/shared';
 import { defineTool } from './types.js';
 
 export const getDeliveryFee = defineTool({
@@ -13,6 +13,6 @@ export const getDeliveryFee = defineTool({
     if (!zone) {
       return { found: false, served_areas: zones.map((z) => z.areaName), note: 'Area not served or unknown. Tell the customer the served areas, or hand off to the owner.' };
     }
-    return { found: true, area: zone.areaName, fee: formatNaira(zone.feeKobo), eta: zone.etaText };
+    return { found: true, area: zone.areaName, fee: formatMoney(zone.feeMinor, ctx.currency), eta: zone.etaText };
   }
 });

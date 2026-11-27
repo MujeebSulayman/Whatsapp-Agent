@@ -5,12 +5,13 @@ import { mutate } from 'swr';
 import { Badge, Button, Card, Dialog, EmptyState, ErrorNote, Field, Input, Loading, PageHeader, Switch, Table, TD, TH, THead, Textarea, TR, useToast } from '@/components/ui';
 import { api, useApi } from '@/lib/api';
 import type { Product } from '@/lib/types';
-import { formatNaira, koboToInput, nairaToKobo } from '@/lib/utils';
+import { useMoney } from '@/lib/use-money';
 
 const KEY = 'products';
 const TEMPLATE = 'name,description,price,stock,variants\nParty Pack,Serves 10,12000,20,\nSamosa Box,20 pieces,3000,40,Beef|Chicken\n';
 
 export default function ProductsPage() {
+  const money = useMoney();
   const toast = useToast();
   const [search, setSearch] = useState('');
   const { data: products, isLoading } = useApi<Product[]>(KEY);
@@ -44,7 +45,7 @@ export default function ProductsPage() {
               {list.map((p) => (
                 <TR key={p.id}>
                   <TD><div className="font-medium">{p.name}</div>{p.description && <div className="max-w-xs truncate text-xs text-muted-foreground">{p.description}</div>}</TD>
-                  <TD className="tabular-nums">{formatNaira(p.priceKobo)}</TD>
+                  <TD className="tabular-nums">{money.fmt(p.priceMinor)}</TD>
                   <TD>{p.stockQty === 0 ? <Badge tone="danger">Out of stock</Badge> : p.stockQty <= 3 ? <Badge tone="warning">{p.stockQty} left</Badge> : <span className="tabular-nums">{p.stockQty}</span>}</TD>
                   <TD className="text-muted-foreground">{p.variants?.map((v) => v.name).join(', ') || '—'}</TD>
                   <TD><Switch checked={p.active} onChange={(v) => toggle(p, v)} label={`${p.name} available`} /></TD>
@@ -69,6 +70,7 @@ export default function ProductsPage() {
 }
 
 function ProductDialog({ target, onClose }: { target: Product | 'new' | null; onClose: () => void }) {
+  const money = useMoney();
   const toast = useToast();
   const p = target && target !== 'new' ? target : null;
   const [f, setF] = useState({ name: '', description: '', price: '', stock: '', variants: '', image: '' });
@@ -78,18 +80,18 @@ function ProductDialog({ target, onClose }: { target: Product | 'new' | null; on
   if (target !== seed) {
     setSeed(target);
     setErr(null);
-    setF(p ? { name: p.name, description: p.description ?? '', price: koboToInput(p.priceKobo), stock: String(p.stockQty), variants: p.variants?.map((v) => v.name).join(', ') ?? '', image: p.imageUrls[0] ?? '' } : { name: '', description: '', price: '', stock: '0', variants: '', image: '' });
+    setF(p ? { name: p.name, description: p.description ?? '', price: money.toInput(p.priceMinor), stock: String(p.stockQty), variants: p.variants?.map((v) => v.name).join(', ') ?? '', image: p.imageUrls[0] ?? '' } : { name: '', description: '', price: '', stock: '0', variants: '', image: '' });
   }
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF((s) => ({ ...s, [k]: e.target.value }));
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    const priceKobo = nairaToKobo(f.price);
+    const priceMinor = money.parse(f.price);
     const stockQty = Number(f.stock);
-    if (priceKobo === null) return setErr('Enter a valid price, e.g. 12500 or 12,500.50');
+    if (priceMinor === null) return setErr(`Enter a valid price in ${money.currency}, e.g. ${money.example}`);
     if (!Number.isInteger(stockQty) || stockQty < 0) return setErr('Stock must be a whole number, 0 or more');
     const variants = f.variants.split(',').map((v) => v.trim()).filter(Boolean).map((name) => ({ name }));
-    const body = { name: f.name.trim(), description: f.description.trim() || null, priceKobo, stockQty, variants: variants.length ? variants : null, imageUrls: f.image.trim() ? [f.image.trim()] : [] };
+    const body = { name: f.name.trim(), description: f.description.trim() || null, priceMinor, stockQty, variants: variants.length ? variants : null, imageUrls: f.image.trim() ? [f.image.trim()] : [] };
     setBusy(true); setErr(null);
     try {
       if (p) await api.patch(`products/${p.id}`, body); else await api.post('products', body);
@@ -107,7 +109,7 @@ function ProductDialog({ target, onClose }: { target: Product | 'new' | null; on
         <Field label="Name"><Input required value={f.name} onChange={set('name')} /></Field>
         <Field label="Description" hint="Shown to the assistant so it can describe the product."><Textarea rows={2} value={f.description} onChange={set('description')} /></Field>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Price (₦)"><Input required inputMode="decimal" placeholder="12,500" value={f.price} onChange={set('price')} /></Field>
+          <Field label={`Price (${money.currency})`}><Input required inputMode="decimal" placeholder={money.example} value={f.price} onChange={set('price')} /></Field>
           <Field label="In stock"><Input required inputMode="numeric" value={f.stock} onChange={set('stock')} /></Field>
         </div>
         <Field label="Options (optional)" hint="Separate with commas, e.g. Beef, Chicken"><Input value={f.variants} onChange={set('variants')} /></Field>
@@ -118,6 +120,7 @@ function ProductDialog({ target, onClose }: { target: Product | 'new' | null; on
 }
 
 function ImportDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const money = useMoney();
   const toast = useToast();
   const [csv, setCsv] = useState('');
   const [fileName, setFileName] = useState('');
@@ -143,7 +146,7 @@ function ImportDialog({ open, onClose }: { open: boolean; onClose: () => void })
           </div>
         ) : (
           <>
-            <p className="text-[13px] text-muted-foreground">Columns: <code>name</code>, <code>description</code>, <code>price</code> (in naira), <code>stock</code>, <code>variants</code> (separate with |).</p>
+            <p className="text-[13px] text-muted-foreground">Columns: <code>name</code>, <code>description</code>, <code>price</code> (in {money.currency}, use . for decimals), <code>stock</code>, <code>variants</code> (separate with |).</p>
             <a className="inline-flex items-center gap-1.5 text-[13px] font-medium underline-offset-4 hover:underline" href={`data:text/csv;charset=utf-8,${encodeURIComponent(TEMPLATE)}`} download="products-template.csv"><Download className="size-3.5" />Download template</a>
             <label className="flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed px-4 py-8 text-center hover:bg-muted/50">
               <Upload className="size-5 text-muted-foreground" />

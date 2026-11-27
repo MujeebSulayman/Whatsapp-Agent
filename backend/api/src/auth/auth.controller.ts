@@ -4,6 +4,7 @@ import type { PrismaClient } from '@wa/db';
 import type { Redis } from 'ioredis';
 import { z } from 'zod';
 import { Auth, AuthGuard, type AuthCtx } from '../common/auth.guard.js';
+import { isCountryCode, isCurrencyCode, isTimezone } from '@wa/shared';
 import { hashPassword, signToken, verifyPassword } from '../common/security.js';
 import { parse } from '../common/validate.js';
 import { PRISMA, REDIS } from '../infra.module.js';
@@ -14,7 +15,10 @@ const Signup = z.object({
   name: z.string().min(1).max(100),
   businessName: z.string().min(2).max(100),
   category: z.string().min(2).max(60).default('retail'),
-  city: z.string().min(2).max(60).default('Lagos')
+  city: z.string().min(2).max(60),
+  country: z.string().refine(isCountryCode, "Choose a valid country"),
+  currency: z.string().refine(isCurrencyCode, "Choose a valid currency"),
+  timezone: z.string().refine(isTimezone, "Invalid timezone").default("UTC")
 });
 const Login = z.object({ email: z.string().email().max(200), password: z.string().min(1).max(200) });
 
@@ -42,14 +46,14 @@ export class AuthController {
       const user = await tx.user.create({ data: { email, name: input.name, passwordHash } });
       const business = await tx.business.create({
         data: {
-          name: input.businessName, slug, category: input.category, city: input.city, trialEndsAt, plan: 'trial',
+          name: input.businessName, slug, category: input.category, city: input.city, country: input.country, currency: input.currency, timezone: input.timezone, trialEndsAt, plan: 'trial',
           aiRules: { create: { maxDiscountPct: 0, escalateKeywords: ['refund', 'complaint', 'lawyer', 'police'], forbiddenTopics: [] } },
           memberships: { create: { userId: user.id, role: 'owner' } }
         }
       });
       return { user, business };
     });
-    return { token: await signToken(user.id, business.id), user: { id: user.id, email, name: user.name }, business: { id: business.id, name: business.name } };
+    return { token: await signToken(user.id, business.id), user: { id: user.id, email, name: user.name }, business: { id: business.id, name: business.name, country: business.country, currency: business.currency } };
   }
 
   @Post('login')

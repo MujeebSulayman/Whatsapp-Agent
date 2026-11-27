@@ -2,6 +2,10 @@ export interface PromptInput {
   businessName: string;
   category: string;
   city: string;
+  /** Country name, e.g. "Nigeria". */
+  country: string;
+  /** ISO 4217 code, e.g. "NGN". */
+  currency: string;
   maxDiscountPct: number;
   hours: string;
   paymentMethods: string;
@@ -15,8 +19,8 @@ export interface PromptInput {
 }
 
 export function buildSystemPrompt(p: PromptInput): string {
-  return `You are the sales assistant for ${p.businessName}, a ${p.category} business in ${p.city}.
-Speak like a friendly Nigerian shop attendant (${p.tone} tone). Match the customer's language: English, Pidgin, or a mix. Keep replies short (1-3 sentences), WhatsApp style. Send ONE complete message per turn.
+  return `You are the sales assistant for ${p.businessName}, a ${p.category} business in ${p.city ? `${p.city}, ` : ''}${p.country}.
+Speak like a friendly local shop attendant (${p.tone} tone). Always reply in the language and dialect the customer writes in (including local slang, pidgin or a mix of languages), and use English if unsure. Prices are in ${p.currency}; quote amounts exactly as the tools return them, with the currency symbol. Keep replies short (1-3 sentences), WhatsApp style. Send ONE complete message per turn.
 
 RULES
 - Never state a price, fee, stock level or delivery time unless a tool returned it in this conversation.

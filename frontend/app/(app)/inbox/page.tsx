@@ -6,7 +6,8 @@ import { ConvBadge, OrderBadge } from '@/components/badges';
 import { Avatar, Badge, Button, EmptyState, ErrorNote, Input, Loading, Tabs, Textarea, useToast } from '@/components/ui';
 import { api, useApi } from '@/lib/api';
 import type { ConversationDetail, ConversationRow, ConvStatus, Message } from '@/lib/types';
-import { cn, formatDateTime, formatNaira, timeAgo } from '@/lib/utils';
+import { cn, formatDateTime, timeAgo } from '@/lib/utils';
+import { useMoney } from '@/lib/use-money';
 
 type Filter = 'all' | ConvStatus;
 
@@ -81,6 +82,7 @@ function Bubble({ m }: { m: Message }) {
 }
 
 function Thread({ id, listKey, onBack }: { id: string; listKey: string; onBack: () => void }) {
+  const money = useMoney();
   const toast = useToast();
   const key = `conversations/${id}`;
   const { data, error } = useApi<ConversationDetail>(key, { refreshInterval: 3000 });
@@ -167,7 +169,7 @@ function Thread({ id, listKey, onBack }: { id: string; listKey: string; onBack: 
           <ul className="space-y-2">
             {orders.map((o) => (
               <li key={o.id} className="rounded-md border p-3">
-                <div className="flex items-center justify-between"><span className="text-sm font-medium tabular-nums">{formatNaira(o.totalKobo)}</span><OrderBadge status={o.status} /></div>
+                <div className="flex items-center justify-between"><span className="text-sm font-medium tabular-nums">{money.fmt(o.totalMinor)}</span><OrderBadge status={o.status} /></div>
                 <div className="mt-1 text-xs text-muted-foreground">{formatDateTime(o.createdAt)} · {o.items.reduce((n, i) => n + i.quantity, 0)} items</div>
               </li>
             ))}

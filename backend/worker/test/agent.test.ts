@@ -56,15 +56,15 @@ async function newTurn(text: string, type: InboundJob['type'] = 'text') {
 
 beforeAll(async () => {
   await prisma.business.deleteMany({ where: { slug: { in: ['agent-test', 'agent-other'] } } });
-  const other = await prisma.business.create({ data: { name: 'Other', slug: 'agent-other', category: 'x', products: { create: { name: 'Secret Cake', priceKobo: 100, stockQty: 5 } } }, include: { products: true } });
+  const other = await prisma.business.create({ data: { name: 'Other', slug: 'agent-other', category: 'x', products: { create: { name: 'Secret Cake', priceMinor: 100, stockQty: 5 } } }, include: { products: true } });
   otherBizProductId = other.products[0]!.id;
   const b = await prisma.business.create({
     data: {
       name: 'Agent Test Chops', slug: 'agent-test', category: 'small chops',
       whatsappAccounts: { create: { wabaId: 'W', phoneNumberId: 'AGENT-PNID', displayNumber: '1', accessTokenEncrypted: encryptSecret('T', KEY) } },
       aiRules: { create: { maxDiscountPct: 5 } },
-      deliveryZones: { create: { areaName: 'Lekki Phase 1', feeKobo: 200_000, etaText: '45 minutes' } },
-      products: { create: [{ name: 'Party Pack', description: 'serves 10', priceKobo: 1_200_000, stockQty: 3 }] }
+      deliveryZones: { create: { areaName: 'Lekki Phase 1', feeMinor: 200_000, etaText: '45 minutes' } },
+      products: { create: [{ name: 'Party Pack', description: 'serves 10', priceMinor: 1_200_000, stockQty: 3 }] }
     },
     include: { products: true }
   });
@@ -91,7 +91,7 @@ describe('agent loop', () => {
 
     expect(sent).toEqual(['Done! Total na ₦14,000.']);
     const order = await prisma.order.findFirstOrThrow({ where: { businessId: bizId, customerId: job.customerId }, orderBy: { createdAt: 'desc' } });
-    expect([order.subtotalKobo, order.deliveryFeeKobo, order.totalKobo]).toEqual([1_200_000, 200_000, 1_400_000]);
+    expect([order.subtotalMinor, order.deliveryFeeMinor, order.totalMinor]).toEqual([1_200_000, 200_000, 1_400_000]);
     const run = await prisma.agentRun.findFirstOrThrow({ where: { conversationId: convId } });
     expect([run.inputTokens, run.outputTokens]).toEqual([300, 60]);
     expect(run.model).toBe('smart-m');

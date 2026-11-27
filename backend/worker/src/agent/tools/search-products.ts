@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { searchProductsByVector } from '@wa/db';
-import { formatNaira } from '@wa/shared';
+import { formatMoney } from '@wa/shared';
 import { defineTool } from './types.js';
 
 export const searchProducts = defineTool({
@@ -40,7 +40,7 @@ export const searchProducts = defineTool({
         product_id: p.id,
         name: p.name,
         description: p.description,
-        price: formatNaira(p.priceKobo),
+        price: formatMoney(p.priceMinor, ctx.currency),
         variants: p.variants,
         in_stock: p.stockQty > 0,
         stock_qty: p.stockQty

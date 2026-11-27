@@ -1,3 +1,5 @@
+import { parseMoney } from '@wa/shared';
+
 /** Minimal RFC-4180 CSV parser (quoted fields, escaped quotes, CRLF). */
 export function parseCsv(text: string): string[][] {
   const rows: string[][] = [];
@@ -25,16 +27,9 @@ export function parseCsv(text: string): string[][] {
   return rows;
 }
 
-/** "12,500.50" -> 1250050 kobo, without floating point. */
-export function nairaToKobo(input: string): number | null {
-  const m = input.replace(/[₦,\s]/g, '').match(/^(\d+)(?:\.(\d{1,2}))?$/);
-  if (!m) return null;
-  return Number(m[1]) * 100 + Number((m[2] ?? '').padEnd(2, '0') || 0);
-}
+export interface CsvProduct { name: string; description: string | null; priceMinor: number; stockQty: number; variants: { name: string }[] | null }
 
-export interface CsvProduct { name: string; description: string | null; priceKobo: number; stockQty: number; variants: { name: string }[] | null }
-
-export function productsFromCsv(rows: string[][]): { rows: CsvProduct[]; errors: { row: number; message: string }[] } {
+export function productsFromCsv(rows: string[][], currency: string): { rows: CsvProduct[]; errors: { row: number; message: string }[] } {
   const [header, ...body] = rows;
   const errors: { row: number; message: string }[] = [];
   const out: CsvProduct[] = [];
@@ -45,14 +40,14 @@ export function productsFromCsv(rows: string[][]): { rows: CsvProduct[]; errors:
   body.forEach((r, idx) => {
     const line = idx + 2;
     const name = (r[iName] ?? '').trim();
-    const priceKobo = nairaToKobo(r[iPrice] ?? '');
+    const priceMinor = parseMoney(r[iPrice] ?? '', currency);
     const stockRaw = iStock >= 0 ? (r[iStock] ?? '').trim() : '0';
     const stock = stockRaw === '' ? 0 : Number(stockRaw);
     if (!name) return void errors.push({ row: line, message: 'Missing name' });
-    if (priceKobo === null) return void errors.push({ row: line, message: `Invalid price "${r[iPrice] ?? ''}"` });
+    if (priceMinor === null) return void errors.push({ row: line, message: `Invalid price "${r[iPrice] ?? ''}"` });
     if (!Number.isInteger(stock) || stock < 0) return void errors.push({ row: line, message: `Invalid stock "${stockRaw}"` });
     const variants = iVar >= 0 ? (r[iVar] ?? '').split('|').map((v) => v.trim()).filter(Boolean).map((name) => ({ name })) : [];
-    out.push({ name, description: iDesc >= 0 ? (r[iDesc] ?? '').trim() || null : null, priceKobo, stockQty: stock, variants: variants.length ? variants : null });
+    out.push({ name, description: iDesc >= 0 ? (r[iDesc] ?? '').trim() || null : null, priceMinor, stockQty: stock, variants: variants.length ? variants : null });
   });
   return { rows: out, errors };
 }

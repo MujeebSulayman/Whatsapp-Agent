@@ -3,17 +3,6 @@ import { twMerge } from 'tailwind-merge';
 
 export const cn = (...inputs: ClassValue[]) => twMerge(clsx(inputs));
 
-/** Money is integer kobo everywhere; format at the edge only. */
-export const formatNaira = (kobo: number): string =>
-  '₦' + (kobo / 100).toLocaleString('en-NG', { minimumFractionDigits: kobo % 100 === 0 ? 0 : 2, maximumFractionDigits: 2 });
-
-/** "12,500.50" -> 1250050. Returns null when the text isn't a valid amount. No floating point. */
-export function nairaToKobo(input: string): number | null {
-  const m = input.replace(/[₦,\s]/g, '').match(/^(\d+)(?:\.(\d{1,2}))?$/);
-  if (!m) return null;
-  return Number(m[1]) * 100 + Number((m[2] ?? '').padEnd(2, '0') || 0);
-}
-export const koboToInput = (kobo: number): string => (kobo / 100).toFixed(kobo % 100 === 0 ? 0 : 2);
 
 export function timeAgo(iso: string): string {
   const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);

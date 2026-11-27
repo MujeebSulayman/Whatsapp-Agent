@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Card, CardBody, CardHeader, EmptyState, Loading, PageHeader, Select, Stat } from '@/components/ui';
 import { useApi } from '@/lib/api';
 import type { Analytics } from '@/lib/types';
-import { formatNaira } from '@/lib/utils';
+import { useMoney } from '@/lib/use-money';
 
 function BarChart({ data, format }: { data: { label: string; value: number }[]; format: (n: number) => string }) {
   const max = Math.max(1, ...data.map((d) => d.value));
@@ -26,6 +26,7 @@ function BarChart({ data, format }: { data: { label: string; value: number }[]; 
 }
 
 export default function AnalyticsPage() {
+  const money = useMoney();
   const [days, setDays] = useState('30');
   const { data, isLoading } = useApi<Analytics>(`analytics/overview?days=${days}`, { refreshInterval: 30000 });
   const label = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
@@ -39,14 +40,14 @@ export default function AnalyticsPage() {
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             <Stat label="Active chats" value={data.conversations} />
             <Stat label="Orders" value={data.orders} hint={data.conversionPct === null ? undefined : `${data.conversionPct}% of chats`} />
-            <Stat label="Revenue (paid)" value={formatNaira(data.revenueKobo)} hint={`${data.paidOrders} paid orders`} />
+            <Stat label="Revenue (paid)" value={money.fmt(data.revenueMinor)} hint={`${data.paidOrders} paid orders`} />
             <Stat label="Handled by AI" value={data.aiHandledPct === null ? '—' : `${data.aiHandledPct}%`} hint="Chats that never needed a human" />
             <Stat label="AI replies" value={data.aiRuns} />
             <Stat label="AI cost" value={`$${Number(data.aiCostUsd).toFixed(2)}`} hint="Model usage in this period" />
           </div>
           <div className="grid gap-6 lg:grid-cols-2">
             <Card><CardHeader title="Orders per day" /><CardBody><BarChart data={data.series.map((s) => ({ label: label(s.date), value: s.orders }))} format={(n) => `${n} orders`} /></CardBody></Card>
-            <Card><CardHeader title="Revenue per day" description="Paid orders only" /><CardBody><BarChart data={data.series.map((s) => ({ label: label(s.date), value: s.revenueKobo }))} format={formatNaira} /></CardBody></Card>
+            <Card><CardHeader title="Revenue per day" description="Paid orders only" /><CardBody><BarChart data={data.series.map((s) => ({ label: label(s.date), value: s.revenueMinor }))} format={money.fmt} /></CardBody></Card>
           </div>
           <Card>
             <CardHeader title="Best sellers" />
@@ -57,7 +58,7 @@ export default function AnalyticsPage() {
                     <span className="w-5 text-sm text-muted-foreground tabular-nums">{i + 1}</span>
                     <span className="flex-1 text-sm font-medium">{p.name}</span>
                     <span className="text-[13px] text-muted-foreground tabular-nums">{p.quantity} sold</span>
-                    <span className="w-28 text-right text-sm font-medium tabular-nums">{formatNaira(p.revenueKobo)}</span>
+                    <span className="w-28 text-right text-sm font-medium tabular-nums">{money.fmt(p.revenueMinor)}</span>
                   </li>
                 ))}
               </ul>

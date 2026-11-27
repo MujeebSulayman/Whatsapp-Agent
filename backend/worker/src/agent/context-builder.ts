@@ -1,6 +1,6 @@
 import type { PrismaClient } from '@wa/db';
 import type { ChatMessage } from '@wa/ai';
-import { formatNaira } from '@wa/shared';
+import { countryName, formatMoney } from '@wa/shared';
 import { buildSystemPrompt } from './system-prompt.js';
 
 export interface AgentContext {
@@ -34,6 +34,8 @@ export async function buildContext(db: PrismaClient, o: { businessId: string; co
     businessName: business.name,
     category: business.category,
     city: business.city,
+    country: countryName(business.country),
+    currency: business.currency,
     maxDiscountPct: rules?.maxDiscountPct ?? 0,
     hours,
     paymentMethods: business.paymentInfo ?? 'Paystack payment link',
@@ -43,7 +45,7 @@ export async function buildContext(db: PrismaClient, o: { businessId: string; co
     forbiddenTopics: rules?.forbiddenTopics ?? [],
     faqs,
     customerName: customer?.name,
-    openOrder: openOrder ? `${openOrder.id} total ${formatNaira(openOrder.totalKobo)} (${openOrder.paymentStatus})` : null
+    openOrder: openOrder ? `${openOrder.id} total ${formatMoney(openOrder.totalMinor, business.currency)} (${openOrder.paymentStatus})` : null
   });
 
   return { system, history, hasOpenOrder: !!openOrder, lastCustomerText };
