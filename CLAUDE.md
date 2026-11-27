@@ -15,5 +15,5 @@ Next.js App Router + Tailwind + shadcn (frontend), Postgres + Prisma (packages/d
 - Write tests for tools, webhooks and tenant isolation. Run `pnpm test` before finishing.
 
 ## Commands
-pnpm dev | pnpm test | pnpm db:migrate | pnpm lint
+pnpm infra:up | pnpm dev | pnpm test | pnpm db:migrate | pnpm lint
 (pnpm lives in ~/.local/bin on this machine: export PATH=~/.local/bin:$PATH)

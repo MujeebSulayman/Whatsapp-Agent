@@ -11,6 +11,8 @@
     "test": "turbo run test",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
+    "infra:up": "docker compose -f backend/docker-compose.yml up -d",
+    "infra:down": "docker compose -f backend/docker-compose.yml down",
     "db:migrate": "pnpm --filter @wa/db db:migrate"
   },
   "devDependencies": {
