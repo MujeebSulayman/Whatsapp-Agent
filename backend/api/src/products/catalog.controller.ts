@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, Inject, NotFoundException, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Inject, NotFoundException, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import type { Prisma, PrismaClient } from '@wa/db';
 import { z } from 'zod';
 import { Auth, AuthGuard, type AuthCtx } from '../common/auth.guard.js';
@@ -6,8 +6,12 @@ import { parse } from '../common/validate.js';
 import { EmbeddingService } from '../common/embedding.js';
 import { PRISMA } from '../infra.module.js';
 import { parseCsv, productsFromCsv } from './csv.js';
+import { MediaService } from '../media/media.service.js';
 import { WaitlistService } from './waitlist.service.js';
 import { normaliseStock } from './stock-input.js';
+
+/** A photo is an uploaded /media/<id> path or an https link. */
+const Photo = z.string().max(500).refine((u) => /^\/media\/[a-z0-9]{20,40}$/.test(u) || /^https?:\/\//.test(u), 'Invalid photo');
 
 const ProductInput = z.object({
   name: z.string().min(1).max(120),
@@ -17,11 +21,11 @@ const ProductInput = z.object({
   /** false for services and made-to-order items. Defaults from the business type when omitted. */
   trackStock: z.boolean().optional(),
   /** Name only (all sizes share the stock number), or name + stockQty on EVERY variant (stock is held per size/colour). */
-  variants: z.array(z.object({ name: z.string().min(1).max(60), stockQty: z.number().int().min(0).max(1_000_000).optional() })).max(30).nullable().optional(),
+  variants: z.array(z.object({ name: z.string().min(1).max(60), stockQty: z.number().int().min(0).max(1_000_000).optional(), image: Photo.nullish() })).max(30).nullable().optional(),
   /** Owner-written note for sold-out items. The assistant may repeat it, never invent a date. */
   restockNote: z.string().trim().max(120).nullable().optional(),
   allowPreorder: z.boolean().optional(),
-  imageUrls: z.array(z.string().url()).max(10).optional(),
+  imageUrls: z.array(Photo).max(8).optional(),
   active: z.boolean().optional()
 });
 const ZoneInput = z.object({ areaName: z.string().min(2).max(80), feeMinor: z.number().int().min(0).max(100_000_000), etaText: z.string().min(1).max(60) });
@@ -33,8 +37,16 @@ export class CatalogController {
   constructor(
     @Inject(PRISMA) private readonly db: PrismaClient,
     @Inject(EmbeddingService) private readonly embeddings: EmbeddingService,
-    @Inject(WaitlistService) private readonly waitlist: WaitlistService
+    @Inject(WaitlistService) private readonly waitlist: WaitlistService,
+    @Inject(MediaService) private readonly media: MediaService
   ) {}
+
+  private photosOf(d: { imageUrls?: string[]; variants?: { image?: string | null }[] | null }): string[] {
+    return [...(d.imageUrls ?? []), ...((d.variants ?? []).map((v) => v.image).filter((x): x is string => !!x))];
+  }
+  private async checkPhotos(businessId: string, d: { imageUrls?: string[]; variants?: { image?: string | null }[] | null }) {
+    if (!(await this.media.ownsAll(businessId, this.photosOf(d)))) throw new BadRequestException('One of the photos is not yours.');
+  }
 
   /** Services never run out of stock; goods do. A mixed business tracks stock unless told otherwise. */
   private async defaultTrackStock(businessId: string): Promise<boolean> {
@@ -57,6 +69,7 @@ export class CatalogController {
   @HttpCode(201)
   async createProduct(@Auth() a: AuthCtx, @Body() body: unknown) {
     const d = normaliseStock(parse(ProductInput, body));
+    await this.checkPhotos(a.businessId, d);
     const trackStock = d.trackStock ?? (await this.defaultTrackStock(a.businessId));
     const created = await this.db.product.create({
       data: { businessId: a.businessId, ...d, trackStock, variants: (d.variants ?? undefined) as Prisma.InputJsonValue | undefined, description: d.description ?? null }
@@ -68,10 +81,13 @@ export class CatalogController {
   @Patch('products/:id')
   async updateProduct(@Auth() a: AuthCtx, @Param('id') id: string, @Body() body: unknown) {
     const d = normaliseStock(parse(ProductInput.partial(), body));
+    await this.checkPhotos(a.businessId, d);
+    const before = await this.db.product.findFirst({ where: { id, businessId: a.businessId }, select: { imageUrls: true, variants: true } });
     const res = await this.db.product.updateMany({ where: { id, businessId: a.businessId }, data: { ...d, variants: (d.variants ?? undefined) as Prisma.InputJsonValue | undefined } });
     if (res.count === 0) throw new NotFoundException();
     this.embeddings.indexProducts(a.businessId, [id]);
     const product = await this.db.product.findFirstOrThrow({ where: { id, businessId: a.businessId } });
+    if (before) await this.media.removeUnused(a.businessId, this.photosOf({ imageUrls: before.imageUrls, variants: before.variants as { image?: string | null }[] | null }), this.photosOf({ imageUrls: product.imageUrls, variants: product.variants as { image?: string | null }[] | null }));
     // How many waiting customers can now be told (the dashboard offers to message them).
     return { ...product, waitingNow: await this.waitlist.notifiableCount(a.businessId, id) };
   }
@@ -79,8 +95,10 @@ export class CatalogController {
   @Delete('products/:id')
   @HttpCode(204)
   async deleteProduct(@Auth() a: AuthCtx, @Param('id') id: string) {
+    const before = await this.db.product.findFirst({ where: { id, businessId: a.businessId }, select: { imageUrls: true, variants: true } });
     const res = await this.db.product.deleteMany({ where: { id, businessId: a.businessId } });
     if (res.count === 0) throw new NotFoundException();
+    if (before) await this.media.removeUnused(a.businessId, this.photosOf({ imageUrls: before.imageUrls, variants: before.variants as { image?: string | null }[] | null }), []);
   }
 
   /** CSV columns: name, description, price (naira), stock, variants (a|b|c). Existing names are updated. */

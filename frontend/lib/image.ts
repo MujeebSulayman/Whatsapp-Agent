@@ -1,5 +1,5 @@
 /** A photo the owner picked, shrunk to something we can safely send to the AI (max ~600k characters as a data URL). */
-const MAX_CHARS = 590_000;
+const DEFAULT_CHARS = 590_000;
 
 function load(file: File): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -11,10 +11,14 @@ function load(file: File): Promise<HTMLImageElement> {
   });
 }
 
-export async function photoToDataUrl(file: File): Promise<string> {
+/** Where the browser loads a stored photo from (uploads are served by the API through the same-origin proxy). */
+export const mediaSrc = (url: string) => (url.startsWith('/media/') ? `/api${url}` : url);
+
+export async function photoToDataUrl(file: File, o: { maxEdge?: number; maxChars?: number } = {}): Promise<string> {
+  const MAX_CHARS = o.maxChars ?? DEFAULT_CHARS;
   if (!/^image\/(jpeg|png|webp|heic|heif)$/i.test(file.type) && !/\.(jpe?g|png|webp)$/i.test(file.name)) throw new Error('Please choose a photo (JPEG, PNG or WebP).');
   const img = await load(file);
-  let scale = Math.min(1, 1600 / Math.max(img.width, img.height));
+  let scale = Math.min(1, (o.maxEdge ?? 1600) / Math.max(img.width, img.height));
   for (let attempt = 0; attempt < 6; attempt++) {
     const canvas = document.createElement('canvas');
     canvas.width = Math.max(1, Math.round(img.width * scale));

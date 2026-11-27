@@ -6,7 +6,7 @@
  *  - a number per variant (size, colour...), when EVERY variant has its own `stockQty`. Then the product total is their sum.
  * Items with `trackStock = false` (services, made to order) are never limited.
  */
-export interface StockVariant { name: string; stockQty?: number | null }
+export interface StockVariant { name: string; stockQty?: number | null; /** Photo of this option (e.g. the red one): a /media/<id> path or a URL. */ image?: string | null }
 export interface StockProduct { id: string; trackStock: boolean; stockQty: number; variants: unknown }
 
 /** Orders that are placed but not yet paid hold their items for a while so two customers can't buy the last one. */
@@ -22,7 +22,8 @@ export function variantList(variants: unknown): StockVariant[] {
   for (const v of variants) {
     if (v && typeof v === 'object' && typeof (v as { name?: unknown }).name === 'string') {
       const q = (v as { stockQty?: unknown }).stockQty;
-      out.push({ name: (v as { name: string }).name, stockQty: typeof q === 'number' ? q : null });
+      const img = (v as { image?: unknown }).image;
+      out.push({ name: (v as { name: string }).name, stockQty: typeof q === 'number' ? q : null, ...(typeof img === 'string' && img ? { image: img } : {}) });
     }
   }
   return out;

@@ -1,10 +1,11 @@
 'use client';
-import { Download, Package, Pencil, Plus, Trash2, Upload } from 'lucide-react';
+import { Camera, Download, Package, Pencil, Plus, Trash2, Upload, X } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { mutate } from 'swr';
 import { Button, Card, Dialog, EmptyState, ErrorNote, Field, IconButton, Input, Loading, PageHeader, SearchInput, StatusDot, Switch, Table, TD, TH, THead, Textarea, TR, useToast } from '@/components/ui';
 import { SuggestButton } from '@/components/setup/suggest-button';
 import { api, useApi } from '@/lib/api';
+import { mediaSrc, photoToDataUrl } from '@/lib/image';
 import type { Product, WaitGroup } from '@/lib/types';
 import { useLabels } from '@/lib/use-labels';
 import { useMoney } from '@/lib/use-money';
@@ -55,7 +56,7 @@ export default function ProductsPage() {
                   <TD>
                     <div className="flex items-center gap-3">
                       {p.imageUrls[0]
-                        ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={p.imageUrls[0]} alt="" className="size-9 shrink-0 rounded-lg border object-cover" />
+                        ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={mediaSrc(p.imageUrls[0])} alt="" className="size-9 shrink-0 rounded-lg border object-cover" />
                         : <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border bg-muted/50 text-muted-foreground"><Package className="size-4" strokeWidth={1.75} /></span>}
                       <div className="min-w-0"><div className="truncate font-medium">{p.name}</div>{p.description && <div className="max-w-xs truncate text-xs text-muted-foreground">{p.description}</div>}</div>
                     </div>
@@ -89,9 +90,11 @@ function ProductDialog({ target, onClose }: { target: Product | 'new' | null; on
   const toast = useToast();
   const labels = useLabels();
   const p = target && target !== 'new' ? target : null;
-  const [f, setF] = useState({ name: '', description: '', price: '', stock: '', image: '', restock: '' });
+  const [f, setF] = useState({ name: '', description: '', price: '', stock: '', restock: '' });
   // Options (sizes, colours): a name each, and optionally their own stock number.
-  const [opts, setOpts] = useState<{ id: number; name: string; qty: string }[]>([]);
+  const [opts, setOpts] = useState<{ id: number; name: string; qty: string; image: string }[]>([]);
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
   const [perOption, setPerOption] = useState(false);
   const [preorder, setPreorder] = useState(false);
   // Services never track stock; mixed businesses choose per item; products always do.
@@ -103,12 +106,38 @@ function ProductDialog({ target, onClose }: { target: Product | 'new' | null; on
     setSeed(target);
     setErr(null);
     setTrack(p ? p.trackStock : labels.kind !== 'services');
-    setF(p ? { name: p.name, description: p.description ?? '', price: money.toInput(p.priceMinor), stock: String(p.stockQty), image: p.imageUrls[0] ?? '', restock: p.restockNote ?? '' } : { name: '', description: '', price: '', stock: '0', image: '', restock: '' });
-    setOpts((p?.variants ?? []).map((v) => ({ id: ++optId, name: v.name, qty: typeof v.stockQty === 'number' ? String(v.stockQty) : '' })));
+    setF(p ? { name: p.name, description: p.description ?? '', price: money.toInput(p.priceMinor), stock: String(p.stockQty), restock: p.restockNote ?? '' } : { name: '', description: '', price: '', stock: '0', restock: '' });
+    setOpts((p?.variants ?? []).map((v) => ({ id: ++optId, name: v.name, qty: typeof v.stockQty === 'number' ? String(v.stockQty) : '', image: v.image ?? '' })));
+    setPhotos(p?.imageUrls ?? []);
     setPerOption(!!p?.variants?.length && p.variants.every((v) => typeof v.stockQty === 'number'));
     setPreorder(p?.allowPreorder ?? false);
   }
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF((s) => ({ ...s, [k]: e.target.value }));
+
+  /** Shrink in the browser, then store. Returns the saved path, or null after showing the reason. */
+  async function upload(file: File): Promise<string | null> {
+    try {
+      const data = await photoToDataUrl(file, { maxEdge: 1200, maxChars: 520_000 });
+      return (await api.post<{ url: string }>('media', { data })).url;
+    } catch (e) { setErr((e as Error).message); return null; }
+  }
+  async function addPhotos(files: FileList | null) {
+    if (!files?.length) return;
+    setUploading(true); setErr(null);
+    const room = 8 - photos.length;
+    const added: string[] = [];
+    for (const f of [...files].slice(0, room)) { const u = await upload(f); if (u) added.push(u); }
+    setPhotos((cur) => [...cur, ...added]);
+    setUploading(false);
+  }
+  async function setOptionPhoto(id: number, files: FileList | null) {
+    const f = files?.[0];
+    if (!f) return;
+    setUploading(true); setErr(null);
+    const u = await upload(f);
+    if (u) setOpts((cur) => cur.map((x) => (x.id === id ? { ...x, image: u } : x)));
+    setUploading(false);
+  }
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -121,8 +150,8 @@ function ProductDialog({ target, onClose }: { target: Product | 'new' | null; on
     const qtys = named.map((o) => Number(o.qty === '' ? NaN : o.qty));
     if (split && qtys.some((q) => !Number.isInteger(q) || q < 0)) return setErr('Give every option a stock number (0 if sold out)');
     if (new Set(named.map((o) => o.name.trim().toLowerCase())).size !== named.length) return setErr('Two options have the same name');
-    const variants = named.map((o, i) => ({ name: o.name.trim(), ...(split ? { stockQty: qtys[i]! } : {}) }));
-    const body = { name: f.name.trim(), description: f.description.trim() || null, priceMinor, stockQty, trackStock: track, variants: variants.length ? variants : null, imageUrls: f.image.trim() ? [f.image.trim()] : [], restockNote: track ? f.restock.trim() || null : null, allowPreorder: track && preorder };
+    const variants = named.map((o, i) => ({ name: o.name.trim(), ...(split ? { stockQty: qtys[i]! } : {}), ...(o.image ? { image: o.image } : {}) }));
+    const body = { name: f.name.trim(), description: f.description.trim() || null, priceMinor, stockQty, trackStock: track, variants: variants.length ? variants : null, imageUrls: photos, restockNote: track ? f.restock.trim() || null : null, allowPreorder: track && preorder };
     setBusy(true); setErr(null);
     try {
       const saved = p ? await api.patch<Product & { waitingNow?: number }>(`products/${p.id}`, body) : await api.post<Product>('products', body);
@@ -135,7 +164,7 @@ function ProductDialog({ target, onClose }: { target: Product | 'new' | null; on
 
   return (
     <Dialog open={!!target} onClose={onClose} title={p ? `Edit ${labels.item}` : labels.addItem}
-      footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button type="submit" form="product-form" loading={busy}>{p ? 'Save changes' : labels.addItem}</Button></>}>
+      footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button type="submit" form="product-form" loading={busy} disabled={uploading}>{p ? 'Save changes' : labels.addItem}</Button></>}>
       <form id="product-form" onSubmit={submit} className="space-y-4">
         {err && <ErrorNote>{err}</ErrorNote>}
         <Field label="Name"><Input required value={f.name} onChange={set('name')} /></Field>
@@ -155,10 +184,14 @@ function ProductDialog({ target, onClose }: { target: Product | 'new' | null; on
               <div key={o.id} className="flex gap-2">
                 <Input value={o.name} placeholder="e.g. 42, Red, Beef" aria-label="Option name" onChange={(e) => setOpts(opts.map((x) => (x.id === o.id ? { ...x, name: e.target.value } : x)))} />
                 {track && perOption && <Input className="w-28" inputMode="numeric" placeholder="In stock" aria-label={`Stock for ${o.name || 'option'}`} value={o.qty} onChange={(e) => setOpts(opts.map((x) => (x.id === o.id ? { ...x, qty: e.target.value } : x)))} />}
+                <label title={o.image ? 'Change photo of this option' : 'Add a photo of this option'} className="relative flex size-9 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-lg border bg-muted/40 text-muted-foreground hover:text-foreground">
+                  {o.image ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={mediaSrc(o.image)} alt="" className="size-full object-cover" /> : <Camera className="size-4" strokeWidth={1.75} />}
+                  <input type="file" accept="image/*" className="sr-only" aria-label={`Photo of ${o.name || 'option'}`} onChange={(e) => { void setOptionPhoto(o.id, e.target.files); e.target.value = ''; }} />
+                </label>
                 <IconButton type="button" label="Remove option" onClick={() => setOpts(opts.filter((x) => x.id !== o.id))}><Trash2 /></IconButton>
               </div>
             ))}
-            <Button type="button" size="sm" variant="secondary" onClick={() => setOpts([...opts, { id: ++optId, name: '', qty: perOption ? '0' : '' }])}><Plus className="size-3.5" />Add option</Button>
+            <Button type="button" size="sm" variant="secondary" onClick={() => setOpts([...opts, { id: ++optId, name: '', qty: perOption ? '0' : '', image: '' }])}><Plus className="size-3.5" />Add option</Button>
           </div>
           {track && opts.length > 0 && (
             <label className="mt-3 flex items-start gap-2 text-[13px]"><input type="checkbox" className="mt-0.5" checked={perOption} onChange={(e) => { setPerOption(e.target.checked); if (e.target.checked) setOpts(opts.map((o) => ({ ...o, qty: o.qty || '0' }))); }} />
@@ -172,7 +205,26 @@ function ProductDialog({ target, onClose }: { target: Product | 'new' | null; on
             <label className="flex items-center gap-2 text-[13px]"><input type="checkbox" checked={preorder} onChange={(e) => setPreorder(e.target.checked)} />Let customers pre-order it <span className="text-muted-foreground">(you confirm each one)</span></label>
           </div>
         )}
-        <Field label="Photo link (optional)" hint="A public image URL the assistant can send to customers."><Input type="url" placeholder="https://…" value={f.image} onChange={set('image')} /></Field>
+        <div>
+          <div className="mb-1.5 text-[13px] font-medium">Photos (optional)</div>
+          <p className="mb-2 text-xs text-muted-foreground">The assistant sends these when a customer asks to see it. The first one is the main photo. Up to 8.</p>
+          <div className="flex flex-wrap gap-2">
+            {photos.map((u, i) => (
+              <div key={u} className="relative size-20 overflow-hidden rounded-lg border">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={mediaSrc(u)} alt={`Photo ${i + 1}`} className="size-full object-cover" />
+                <button type="button" aria-label={`Remove photo ${i + 1}`} onClick={() => setPhotos(photos.filter((x) => x !== u))} className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-black/70 text-white hover:bg-black"><X className="size-3" /></button>
+                {i === 0 && <span className="absolute inset-x-0 bottom-0 bg-black/60 py-0.5 text-center text-[10px] text-white">Main</span>}
+              </div>
+            ))}
+            {photos.length < 8 && (
+              <label className="flex size-20 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed text-xs text-muted-foreground hover:bg-muted/40 hover:text-foreground">
+                {uploading ? 'Adding…' : <><Camera className="size-4" strokeWidth={1.75} />Add</>}
+                <input type="file" accept="image/*" multiple className="sr-only" aria-label="Add photos" disabled={uploading} onChange={(e) => { void addPhotos(e.target.files); e.target.value = ''; }} />
+              </label>
+            )}
+          </div>
+        </div>
       </form>
     </Dialog>
   );

@@ -19,6 +19,8 @@ async function handler(req: NextRequest, ctx: { params: Promise<{ path: string[]
     cache: 'no-store'
   });
   if (res.status === 204) return new Response(null, { status: 204 });
+  const type = res.headers.get('content-type') ?? 'application/json';
+  if (type.startsWith('image/')) return new Response(await res.arrayBuffer(), { status: res.status, headers: { 'content-type': type, 'cache-control': res.headers.get('cache-control') ?? 'no-store' } });
   return new Response(await res.text(), { status: res.status, headers: { 'content-type': res.headers.get('content-type') ?? 'application/json' } });
 }
 

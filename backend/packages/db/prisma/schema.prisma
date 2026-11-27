@@ -92,6 +92,7 @@ model Business {
   conversations    Conversation[]
   orders           Order[]
   waitlistEntries WaitlistEntry[]
+  media           Media[]
   broadcasts       Broadcast[]
   usageLedger      UsageLedger[]
   auditLogs        AuditLog[]
@@ -391,4 +392,19 @@ model WaitlistEntry {
 
   @@index([businessId, productId, status])
   @@map("waitlist_entries")
+}
+
+/// Photos the owner uploaded (product and option photos). Small, already shrunk by the browser. Behind MediaService so the
+/// storage can move to object storage (R2/S3) later without touching anything else.
+model Media {
+  id         String   @id @default(cuid())
+  businessId String   @map("business_id")
+  mime       String
+  bytes      Bytes
+  sizeBytes  Int      @map("size_bytes")
+  createdAt  DateTime @default(now()) @map("created_at")
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId])
+  @@map("media")
 }

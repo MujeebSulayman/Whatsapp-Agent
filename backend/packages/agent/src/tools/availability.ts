@@ -22,13 +22,14 @@ export async function loadReserved(db: PrismaClient, businessId: string): Promis
   return map;
 }
 
-interface P { id: string; trackStock: boolean; stockQty: number; variants: unknown; restockNote: string | null; allowPreorder: boolean }
+interface P { id: string; imageUrls?: string[]; trackStock: boolean; stockQty: number; variants: unknown; restockNote: string | null; allowPreorder: boolean }
 
 /** The facts about availability that the assistant may tell a customer. Everything here comes from the database. */
 export function stockInfo(p: P, reserved: Reserved) {
   const s = stockSummary(p, reserved);
   const names = variantList(p.variants);
   return {
+    photos: p.imageUrls?.length ?? 0,
     in_stock: s.inStock,
     ...(p.trackStock && s.left !== undefined ? { stock_qty: s.left } : { note: 'Not stock-limited (service or made to order)' }),
     ...(s.variants ? { variants: s.variants.map((v) => ({ name: v.name, in_stock: v.inStock, left: v.left })) } : names.length ? { variants: names.map((v) => v.name) } : {}),

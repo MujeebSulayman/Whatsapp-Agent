@@ -73,7 +73,7 @@ describe('tools only act for the current customer in the current business', () =
   it('send_product_image sends only real photos from this business', async () => {
     const sent: string[] = [];
     const ctx = ctxFor(ids.ada, { sendImage: async (o) => void sent.push(o.url) });
-    expect(await sendProductImage.run(ctx, { product_id: ids.photoProduct })).toEqual({ sent: true });
+    expect(await sendProductImage.run(ctx, { product_id: ids.photoProduct })).toMatchObject({ sent: true, photos: 1 });
     expect(sent).toEqual(['https://img.example/a.jpg']);
     expect(await sendProductImage.run(ctx, { product_id: ids.product })).toMatchObject({ sent: false });
     expect(await sendProductImage.run(ctx, { product_id: ids.otherProduct })).toMatchObject({ error: expect.any(String) });

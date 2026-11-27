@@ -10,7 +10,7 @@ export interface BusinessDetail {
   setup: { whatsapp: boolean; products: boolean; zones: boolean; faqs: boolean };
 }
 
-export interface Product { id: string; name: string; description: string | null; priceMinor: number; stockQty: number; trackStock: boolean; variants: { name: string; stockQty?: number | null }[] | null; restockNote: string | null; allowPreorder: boolean; imageUrls: string[]; active: boolean }
+export interface Product { id: string; name: string; description: string | null; priceMinor: number; stockQty: number; trackStock: boolean; variants: { name: string; stockQty?: number | null; image?: string | null }[] | null; restockNote: string | null; allowPreorder: boolean; imageUrls: string[]; active: boolean }
 export interface Zone { id: string; areaName: string; feeMinor: number; etaText: string }
 export interface Faq { id: string; question: string; answer: string }
 
