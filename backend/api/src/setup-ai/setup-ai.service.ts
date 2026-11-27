@@ -2,7 +2,7 @@ import { HttpException, HttpStatus, Inject, Injectable, Logger, ServiceUnavailab
 import { buildContext, runAgent } from '@wa/agent';
 import { extractJson, modelConfigFromEnv, pickModel, type ChatInputMessage, type ContentPart, type LlmClient } from '@wa/ai';
 import type { Prisma, PrismaClient } from '@wa/db';
-import { parseMoney } from '@wa/shared';
+import { formatMoney, parseMoney } from '@wa/shared';
 import type { Redis } from 'ioredis';
 import { z } from 'zod';
 import { EmbeddingService } from '../common/embedding.js';
@@ -170,7 +170,7 @@ export class SetupAiService {
   async preview(businessId: string, messages: { role: 'user' | 'assistant'; content: string }[]) {
     if (messages.at(-1)?.role !== 'user') throw new HttpException('Send a customer message to get a reply.', HttpStatus.BAD_REQUEST);
     await this.guard(businessId);
-    const business = await this.db.business.findUniqueOrThrow({ where: { id: businessId }, select: { currency: true, kind: true } });
+    const business = await this.db.business.findUniqueOrThrow({ where: { id: businessId }, select: { currency: true, kind: true, paystackSubaccountCode: true } });
     const started = Date.now();
     let captured: Awaited<ReturnType<typeof runAgent>> | null = null;
     try {
@@ -184,7 +184,9 @@ export class SetupAiService {
         const model = pickModel(modelConfigFromEnv(), { lastMessage: ctx.lastCustomerText, hasOpenOrder: false });
         captured = await runAgent({
           llm: this.llm, model, system: ctx.system, history: ctx.history,
-          ctx: { db, businessId, currency: business.currency, kind: business.kind, conversationId: conversation.id, customerId: customer.id, embed: this.embedQuery }
+          ctx: { db, businessId, currency: business.currency, kind: business.kind, conversationId: conversation.id, customerId: customer.id, embed: this.embedQuery,
+            // Practice mode never touches Paystack: it shows the same behaviour with a link that goes nowhere.
+            payments: { createLink: async (orderId) => (business.paystackSubaccountCode ? { url: 'https://checkout.paystack.com/practice-mode-link', amount: (await db.order.findFirst({ where: { id: orderId, businessId } }).then((o) => (o ? formatMoney(o.totalMinor, business.currency) : ''))) } : { error: 'This business has not set up online payments.' }) } }
         });
         throw new RollbackPreview();
       }, { maxWait: 10_000, timeout: 120_000 });

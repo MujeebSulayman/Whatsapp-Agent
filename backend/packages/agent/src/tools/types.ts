@@ -14,6 +14,8 @@ export interface ToolContext {
   embed?: (text: string) => Promise<number[]>;
   /** Optional: lets a tool send a product photo into the chat. */
   sendImage?: (o: { url: string; caption?: string }) => Promise<void>;
+  /** Optional: creates an online payment link for one of this customer's open orders. */
+  payments?: { createLink(orderId: string): Promise<{ url: string; amount: string } | { error: string }> };
   /** Mutable per-run state the tools can flag for the loop/handler. */
   state: { handedOff: boolean; handoff?: { reason: string; summary: string } };
 }

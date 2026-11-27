@@ -1,5 +1,6 @@
 import { Controller, Get, Module } from '@nestjs/common';
 import { createOpenRouterClient, createOpenRouterEmbedder, embeddingModelFromEnv } from '@wa/ai';
+import { createPaystackClient } from '@wa/shared';
 import { AnalyticsController } from './analytics/analytics.controller.js';
 import { AccountsService } from './auth/accounts.service.js';
 import { AuthController } from './auth/auth.controller.js';
@@ -16,6 +17,8 @@ import { LLM_CLIENT, QUERY_EMBEDDER, SetupAiService } from './setup-ai/setup-ai.
 import { OrdersController } from './orders/orders.controller.js';
 import { CatalogController } from './products/catalog.controller.js';
 import { PlaybooksController } from './playbooks/playbooks.controller.js';
+import { PAYSTACK_CLIENT, PaymentsController } from './payments/payments.controller.js';
+import { PaystackWebhookController } from './payments/paystack.webhook.js';
 import { MediaController } from './media/media.controller.js';
 import { MediaService } from './media/media.service.js';
 import { WaitlistController } from './products/waitlist.controller.js';
@@ -34,8 +37,8 @@ class HealthController {
 
 @Module({
   imports: [InfraModule],
-  controllers: [HealthController, WhatsappController, AuthController, SocialAuthController, SetupAiController, BusinessController, CatalogController, WaitlistController, MediaController, PlaybooksController, ConversationsController, OrdersController, CustomersController, AnalyticsController, TeamController],
-  providers: [WhatsappService, Messenger, WaitlistService, MediaService, EmbeddingService, AccountsService, { provide: GOOGLE_CLIENT, useFactory: () => new GoogleClient() },
+  controllers: [HealthController, WhatsappController, AuthController, SocialAuthController, SetupAiController, BusinessController, CatalogController, WaitlistController, MediaController, PaymentsController, PaystackWebhookController, PlaybooksController, ConversationsController, OrdersController, CustomersController, AnalyticsController, TeamController],
+  providers: [WhatsappService, Messenger, { provide: PAYSTACK_CLIENT, useFactory: () => (process.env.PAYSTACK_SECRET_KEY ? createPaystackClient(process.env.PAYSTACK_SECRET_KEY) : null) }, WaitlistService, MediaService, EmbeddingService, AccountsService, { provide: GOOGLE_CLIENT, useFactory: () => new GoogleClient() },
     SetupAiService,
     { provide: LLM_CLIENT, useFactory: () => createOpenRouterClient({ apiKey: process.env.OPENROUTER_API_KEY ?? '', appTitle: 'Converso' }) },
     {

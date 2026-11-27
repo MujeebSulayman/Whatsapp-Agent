@@ -80,6 +80,11 @@ model Business {
   ownerPhone    String?  @map("owner_phone")
   trialEndsAt   DateTime? @map("trial_ends_at")
   aiDailyCapUsd Decimal  @default(5) @map("ai_daily_cap_usd") @db.Decimal(10, 2)
+  /// Paystack subaccount: where this business's share of card/bank payments is settled. Null = payments not set up.
+  paystackSubaccountCode String? @map("paystack_subaccount_code")
+  payoutBankName     String? @map("payout_bank_name")
+  payoutAccountName  String? @map("payout_account_name")
+  payoutAccountLast4 String? @map("payout_account_last4")
   createdAt     DateTime @default(now()) @map("created_at")
 
   memberships      Membership[]
@@ -296,6 +301,8 @@ model Payment {
   status      PaymentStatus   @default(pending)
   paidAt      DateTime?       @map("paid_at")
   rawWebhook  Json?           @map("raw_webhook")
+  checkoutUrl String?         @map("checkout_url")
+  createdAt   DateTime        @default(now()) @map("created_at")
   order       Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([businessId])

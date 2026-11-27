@@ -30,10 +30,11 @@ const SERVICES = `HOW YOU SELL (services)
 - Talk about "service area", "visit" and "booking". Do not talk about delivery or stock.`;
 
 const GOODS = `HOW YOU SELL (products)
-- You sell products that are delivered. Ask for the item, quantity or variant, delivery area, then the full address.`;
+- You sell products that are delivered. Ask for the item, quantity or variant, delivery area, then the full address.
+- After create_order, when the customer is ready to pay, call create_payment_link with the order_id and send the link. If it says online payment is not available, give the payment details from BUSINESS INFO. Never say an order is paid.`;
 
 const BOTH = `HOW YOU SELL (products and services)
-- Treat products as delivered goods (item, quantity, delivery area, address). Treat services as bookings: describe the starting price only as the tools return it, never promise a final price for custom work, and collect the job address, area and a preferred day and time before calling create_order.`;
+- Treat products as delivered goods (item, quantity, delivery area, address). Treat services as bookings: describe the starting price only as the tools return it, never promise a final price for custom work, and collect the job address, area and a preferred day and time before calling create_order. For products, once the customer is ready to pay call create_payment_link with the order_id and send the link (if unavailable, give the payment details from BUSINESS INFO). Never say an order is paid.`;
 
 const PHOTOS = `PHOTOS
 - When a customer asks to see something, or what it looks like, or you are recommending an item, call send_product_image (pass the size/colour if they named one). Do this only when search_products shows photos > 0; otherwise describe it in words and never promise a photo.

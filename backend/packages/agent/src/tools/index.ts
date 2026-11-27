@@ -3,6 +3,7 @@ import type { ToolDef } from '@wa/ai';
 import { applyDiscount } from './apply-discount.js';
 import { checkOrderStatus } from './check-order-status.js';
 import { checkStock } from './check-stock.js';
+import { createPaymentLink } from './create-payment-link.js';
 import { createOrder } from './create-order.js';
 import { getDeliveryFee } from './get-delivery-fee.js';
 import { finishPlaybook, recordAnswer, startPlaybook } from './playbook.js';
@@ -15,7 +16,7 @@ import { sendProductImage } from './send-product-image.js';
 import type { Tool } from './types.js';
 
 export const TOOLS: Tool[] = [
-  searchProducts, checkStock, getDeliveryFee, createOrder, checkOrderStatus, applyDiscount, sendProductImage, saveCustomerDetail, suggestAlternatives, joinWaitlist, startPlaybook, recordAnswer, finishPlaybook, handoffToHuman
+  searchProducts, checkStock, getDeliveryFee, createOrder, checkOrderStatus, applyDiscount, sendProductImage, saveCustomerDetail, suggestAlternatives, joinWaitlist, startPlaybook, recordAnswer, finishPlaybook, createPaymentLink, handoffToHuman
 ] as Tool[];
 
 export const toolDefs = (tools: Tool[] = TOOLS): ToolDef[] =>

@@ -1,14 +1,16 @@
 import type { PrismaClient } from '@wa/db';
 import { pickModel, type LlmClient, type ModelConfig } from '@wa/ai';
-import { decryptSecret, maskPhone, type InboundJob } from '@wa/shared';
+import { decryptSecret, maskPhone, type InboundJob, type PaystackClient } from '@wa/shared';
 import { buildContext } from '@wa/agent';
-import { runAgent } from '@wa/agent';
+import { createPaymentsPort, runAgent } from '@wa/agent';
 import type { Locker } from '../lock.js';
 
 export type SendText = (o: { phoneNumberId: string; accessToken: string; to: string; body: string }) => Promise<string>;
 export type SendImage = (o: { phoneNumberId: string; accessToken: string; to: string; url: string; caption?: string }) => Promise<string>;
 
 export interface Deps {
+  /** When set, the assistant can send online payment links. */
+  paystack?: PaystackClient;
   db: PrismaClient;
   llm: LlmClient;
   models: ModelConfig;
@@ -124,7 +126,7 @@ async function turn(deps: Deps, job: InboundJob, tokenEnc: string, log: (m: stri
       : undefined;
     const result = await runAgent({
       llm: deps.llm, model, system: ctx.system, history: ctx.history,
-      ctx: { db, businessId: job.businessId, currency: business.currency, kind: business.kind, conversationId: job.conversationId, customerId: job.customerId, sendImage, embed: deps.embedQuery }
+      ctx: { db, businessId: job.businessId, currency: business.currency, kind: business.kind, conversationId: job.conversationId, customerId: job.customerId, sendImage, embed: deps.embedQuery, payments: deps.paystack ? createPaymentsPort({ db, paystack: deps.paystack, businessId: job.businessId, customerId: job.customerId }) : undefined }
     });
 
     await db.agentRun.create({

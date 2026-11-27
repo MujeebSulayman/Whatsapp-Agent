@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { Suspense, useMemo, useState, type FormEvent } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { mutate } from 'swr';
+import { PayoutCard } from '@/components/payments/payout-card';
 import { SuggestButton } from '@/components/setup/suggest-button';
 import { Button, Card, CardBody, CardFooter, CardHeader, Dialog, EmptyState, ErrorNote, Field, IconButton, Input, Loading, PageHeader, Section, Select, StatusDot, Table, Tabs, TD, TH, THead, Textarea, TR, useToast } from '@/components/ui';
 import { api, useApi, useMe } from '@/lib/api';
@@ -13,7 +14,7 @@ import { CATEGORIES, KIND_OPTIONS, type Kind } from '@/lib/categories';
 import { useLabels } from '@/lib/use-labels';
 import { useMoney } from '@/lib/use-money';
 
-type Tab = 'profile' | 'delivery' | 'faqs' | 'whatsapp' | 'data';
+type Tab = 'profile' | 'delivery' | 'faqs' | 'payments' | 'whatsapp' | 'data';
 
 export default function BusinessPage() {
   return <Suspense fallback={<Loading />}><Inner /></Suspense>;
@@ -31,10 +32,11 @@ function Inner() {
   return (
     <div className="mx-auto max-w-5xl">
       <PageHeader title="Business" description="Your details, delivery areas, FAQs and WhatsApp connection." />
-      <div className="mb-8"><Tabs value={tab} onChange={setTab} tabs={[{ id: 'profile', label: 'Profile' }, { id: 'delivery', label: labels.zoneTab }, { id: 'faqs', label: 'FAQs' }, { id: 'whatsapp', label: 'WhatsApp' }, { id: 'data', label: 'Data & privacy' }]} /></div>
+      <div className="mb-8"><Tabs value={tab} onChange={setTab} tabs={[{ id: 'profile', label: 'Profile' }, { id: 'delivery', label: labels.zoneTab }, { id: 'faqs', label: 'FAQs' }, { id: 'payments', label: 'Payments' }, { id: 'whatsapp', label: 'WhatsApp' }, { id: 'data', label: 'Data & privacy' }]} /></div>
       {tab === 'profile' && <Profile biz={biz} owner={owner} />}
       {tab === 'delivery' && <Delivery />}
       {tab === 'faqs' && <Faqs />}
+      {tab === 'payments' && <PayoutCard owner={owner} />}
       {tab === 'whatsapp' && <Whatsapp biz={biz} owner={owner} />}
       {tab === 'data' && <DataPrivacy biz={biz} owner={owner} />}
     </div>
