@@ -1,6 +1,7 @@
 packages:
-  - apps/*
+  - frontend
+  - backend/*
   - packages/*
-allowBuilds:
-  esbuild: true
-  msgpackr-extract: true
+onlyBuiltDependencies:
+  - esbuild
+  - msgpackr-extract

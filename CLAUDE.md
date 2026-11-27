@@ -2,8 +2,8 @@
 Spec: docs/SPEC.md. Read it before starting any task.
 
 ## Stack
-pnpm + Turborepo, TypeScript strict, NestJS (apps/api), BullMQ worker (apps/worker),
-Next.js App Router + Tailwind + shadcn (apps/dashboard), Postgres + Prisma (packages/db), Redis.
+pnpm + Turborepo, TypeScript strict, NestJS (backend/api), BullMQ worker (backend/worker),
+Next.js App Router + Tailwind + shadcn (frontend), Postgres + Prisma (packages/db), Redis.
 
 ## Rules
 - Every table and query is scoped by business_id. Never write an unscoped query.

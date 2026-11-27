@@ -201,7 +201,7 @@ importers:
         specifier: ^5.1.2
         version: 5.1.2(@types/node@26.6.11)(vite@8.3.8(@types/node@26.6.11)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15))
 
-  apps/api:
+  backend/api:
     dependencies:
       '@nestjs/common':
         specifier: ^12.6.2
@@ -235,7 +235,29 @@ importers:
         specifier: ^5.1.2
         version: 5.1.2(@types/node@26.6.11)(vite@8.3.8(@types/node@26.6.11)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15))
 
-  apps/dashboard:
+  backend/worker:
+    dependencies:
+      '@wa/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      bullmq:
+        specifier: ^6.7.10
+        version: 6.7.10(ioredis@6.1.0)
+      ioredis:
+        specifier: ^6.1.0
+        version: 6.1.0
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
+    devDependencies:
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: ^5.1.2
+        version: 5.1.2(@types/node@26.6.11)(vite@8.3.8(@types/node@26.6.11)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15))
+
+  frontend:
     dependencies:
       next:
         specifier: ^16.4.6
@@ -259,28 +281,6 @@ importers:
       tailwindcss:
         specifier: ^4.3.5
         version: 4.3.5
-
-  apps/worker:
-    dependencies:
-      '@wa/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
-      bullmq:
-        specifier: ^6.7.10
-        version: 6.7.10(ioredis@6.1.0)
-      ioredis:
-        specifier: ^6.1.0
-        version: 6.1.0
-      zod:
-        specifier: ^4.6.7
-        version: 4.6.7
-    devDependencies:
-      typescript:
-        specifier: ^7.0.2
-        version: 7.0.2
-      vitest:
-        specifier: ^5.1.2
-        version: 5.1.2(@types/node@26.6.11)(vite@8.3.8(@types/node@26.6.11)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15))
 
   packages/ai: {}
 
