@@ -12,6 +12,8 @@ const ProductInput = z.object({
   description: z.string().max(500).nullable().optional(),
   priceMinor: z.number().int().min(0).max(2_000_000_000),
   stockQty: z.number().int().min(0).max(1_000_000),
+  /** false for services and made-to-order items. Defaults from the business type when omitted. */
+  trackStock: z.boolean().optional(),
   variants: z.array(z.object({ name: z.string().min(1).max(60) })).max(30).nullable().optional(),
   imageUrls: z.array(z.string().url()).max(10).optional(),
   active: z.boolean().optional()
@@ -26,6 +28,12 @@ export class CatalogController {
     @Inject(PRISMA) private readonly db: PrismaClient,
     @Inject(EmbeddingService) private readonly embeddings: EmbeddingService
   ) {}
+
+  /** Services never run out of stock; goods do. A mixed business tracks stock unless told otherwise. */
+  private async defaultTrackStock(businessId: string): Promise<boolean> {
+    const b = await this.db.business.findUniqueOrThrow({ where: { id: businessId }, select: { kind: true } });
+    return b.kind !== 'services';
+  }
 
   // ---- products
   @Get('products')
@@ -42,8 +50,9 @@ export class CatalogController {
   @HttpCode(201)
   async createProduct(@Auth() a: AuthCtx, @Body() body: unknown) {
     const d = parse(ProductInput, body);
+    const trackStock = d.trackStock ?? (await this.defaultTrackStock(a.businessId));
     const created = await this.db.product.create({
-      data: { businessId: a.businessId, ...d, variants: (d.variants ?? undefined) as Prisma.InputJsonValue | undefined, description: d.description ?? null }
+      data: { businessId: a.businessId, ...d, trackStock, variants: (d.variants ?? undefined) as Prisma.InputJsonValue | undefined, description: d.description ?? null }
     });
     this.embeddings.indexProducts(a.businessId, [created.id]);
     return created;
@@ -69,14 +78,14 @@ export class CatalogController {
   @Post('products/import')
   async importProducts(@Auth() a: AuthCtx, @Body() body: unknown) {
     const { csv } = parse(z.object({ csv: z.string().min(1).max(2_000_000) }), body);
-    const biz = await this.db.business.findUniqueOrThrow({ where: { id: a.businessId }, select: { currency: true } });
+    const biz = await this.db.business.findUniqueOrThrow({ where: { id: a.businessId }, select: { currency: true, kind: true } });
     const { rows, errors } = productsFromCsv(parseCsv(csv), biz.currency);
     let created = 0;
     let updated = 0;
     const touched: string[] = [];
     for (const r of rows) {
       const existing = await this.db.product.findFirst({ where: { businessId: a.businessId, name: { equals: r.name, mode: 'insensitive' } } });
-      const data = { name: r.name, description: r.description, priceMinor: r.priceMinor, stockQty: r.stockQty, variants: (r.variants ?? undefined) as Prisma.InputJsonValue | undefined };
+      const data = { name: r.name, description: r.description, priceMinor: r.priceMinor, stockQty: r.stockQty, trackStock: biz.kind !== 'services', variants: (r.variants ?? undefined) as Prisma.InputJsonValue | undefined };
       if (existing) {
         await this.db.product.update({ where: { id: existing.id }, data });
         touched.push(existing.id);

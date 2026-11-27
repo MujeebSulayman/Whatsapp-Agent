@@ -1,7 +1,7 @@
 export interface Me { user: { id: string; email: string; name: string | null }; business: { id: string; name: string; slug: string; plan: string; trialEndsAt: string | null }; role: 'owner' | 'agent' }
 
 export interface BusinessDetail {
-  id: string; name: string; slug: string; category: string; city: string; country: string; currency: string; timezone: string; tone: string; aiEnabled: boolean; plan: string;
+  id: string; name: string; slug: string; category: string; city: string; country: string; currency: string; kind: 'goods' | 'services' | 'both'; timezone: string; tone: string; aiEnabled: boolean; plan: string;
   businessHours: Record<string, string> | null; paymentInfo: string | null; returnPolicy: string | null; ownerPhone: string | null;
   trialDaysLeft: number | null; aiDailyCapUsd: string;
   aiRules: { maxDiscountPct: number; escalateKeywords: string[]; forbiddenTopics: string[]; customInstructions: string | null } | null;
@@ -10,7 +10,7 @@ export interface BusinessDetail {
   setup: { whatsapp: boolean; products: boolean; zones: boolean; faqs: boolean };
 }
 
-export interface Product { id: string; name: string; description: string | null; priceMinor: number; stockQty: number; variants: { name: string }[] | null; imageUrls: string[]; active: boolean }
+export interface Product { id: string; name: string; description: string | null; priceMinor: number; stockQty: number; trackStock: boolean; variants: { name: string }[] | null; imageUrls: string[]; active: boolean }
 export interface Zone { id: string; areaName: string; feeMinor: number; etaText: string }
 export interface Faq { id: string; question: string; answer: string }
 

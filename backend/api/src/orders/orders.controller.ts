@@ -62,7 +62,7 @@ export class OrdersController {
       });
       if (claimed.count === 0) return;
       for (const it of items) {
-        await tx.product.updateMany({ where: { id: it.product_id, businessId: a.businessId, stockQty: { gte: it.quantity } }, data: { stockQty: { decrement: it.quantity } } });
+        await tx.product.updateMany({ where: { id: it.product_id, businessId: a.businessId, trackStock: true, stockQty: { gte: it.quantity } }, data: { stockQty: { decrement: it.quantity } } });
       }
       await tx.customer.updateMany({ where: { id: o.customerId, businessId: a.businessId }, data: { totalSpentMinor: { increment: o.totalMinor }, lastOrderAt: new Date() } });
       await tx.auditLog.create({ data: { businessId: a.businessId, actor: a.userId, action: 'order.mark_paid', payload: { orderId: id, totalMinor: o.totalMinor } } });

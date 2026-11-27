@@ -7,6 +7,7 @@ import { Button, Card, Dialog, EmptyState, ErrorNote, Input, Loading, PageHeader
 import { api, useApi } from '@/lib/api';
 import type { Order, OrderStatus } from '@/lib/types';
 import { formatDateTime } from '@/lib/utils';
+import { useLabels } from '@/lib/use-labels';
 import { useMoney } from '@/lib/use-money';
 
 type Filter = 'all' | OrderStatus;
@@ -14,6 +15,7 @@ const tabs: { id: Filter; label: string }[] = [{ id: 'all', label: 'All' }, { id
 
 export default function OrdersPage() {
   const money = useMoney();
+  const labels = useLabels();
   const [filter, setFilter] = useState<Filter>('all');
   const [search, setSearch] = useState('');
   const [openId, setOpenId] = useState<string | null>(null);
@@ -23,14 +25,14 @@ export default function OrdersPage() {
 
   return (
     <>
-      <PageHeader title="Orders" description="Orders the assistant captured from WhatsApp chats." />
+      <PageHeader title={labels.orders} description={labels.ordersBlurb} />
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <Tabs value={filter} onChange={setFilter} tabs={tabs} />
-        <Input className="w-64" placeholder="Search customer or order ID" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <Tabs value={filter} onChange={setFilter} tabs={tabs.map((t) => (t.id === 'dispatched' ? { ...t, label: labels.status.dispatched } : t.id === 'delivered' ? { ...t, label: labels.status.delivered } : t))} />
+        <Input className="w-64" placeholder="Search customer or reference" value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
       <Card>
         {isLoading ? <Loading /> : !orders?.length ? (
-          <EmptyState icon={<ShoppingBag className="size-5" />} title="No orders yet" description="Orders show up here as soon as the assistant takes one from a customer." />
+          <EmptyState icon={<ShoppingBag className="size-5" />} title={`No ${labels.orders.toLowerCase()} yet`} description={`${labels.orders} show up here as soon as the assistant takes one from a customer.`} />
         ) : (
           <Table>
             <THead><tr><TH>Order</TH><TH>Customer</TH><TH>Items</TH><TH>Total</TH><TH>Payment</TH><TH>Status</TH><TH>Placed</TH></tr></THead>

@@ -8,6 +8,8 @@ import { Badge, Button, Card, CardBody, CardHeader, Dialog, EmptyState, ErrorNot
 import { api, useApi, useMe } from '@/lib/api';
 import type { BusinessDetail, Faq, Zone } from '@/lib/types';
 import { COUNTRIES, currencyOptions, timezoneOptions } from '@/lib/countries';
+import { ALL_CATEGORIES, KIND_OPTIONS, type Kind } from '@/lib/categories';
+import { useLabels } from '@/lib/use-labels';
 import { useMoney } from '@/lib/use-money';
 
 type Tab = 'profile' | 'delivery' | 'faqs' | 'whatsapp' | 'data';
@@ -22,12 +24,13 @@ function Inner() {
   const [tab, setTab] = useState<Tab>(initial);
   const { data: biz } = useApi<BusinessDetail>('business');
   const { data: me } = useMe();
+  const labels = useLabels();
   if (!biz || !me) return <Loading />;
   const owner = me.role === 'owner';
   return (
     <div className="mx-auto max-w-4xl">
       <PageHeader title="Business" description="Your details, delivery areas, FAQs and WhatsApp connection." />
-      <div className="mb-6"><Tabs value={tab} onChange={setTab} tabs={[{ id: 'profile', label: 'Profile' }, { id: 'delivery', label: 'Delivery' }, { id: 'faqs', label: 'FAQs' }, { id: 'whatsapp', label: 'WhatsApp' }, { id: 'data', label: 'Data & privacy' }]} /></div>
+      <div className="mb-6"><Tabs value={tab} onChange={setTab} tabs={[{ id: 'profile', label: 'Profile' }, { id: 'delivery', label: labels.zoneTab }, { id: 'faqs', label: 'FAQs' }, { id: 'whatsapp', label: 'WhatsApp' }, { id: 'data', label: 'Data & privacy' }]} /></div>
       {tab === 'profile' && <Profile biz={biz} owner={owner} />}
       {tab === 'delivery' && <Delivery />}
       {tab === 'faqs' && <Faqs />}
@@ -40,7 +43,7 @@ function Inner() {
 /* ---------------- Profile ---------------- */
 function Profile({ biz, owner }: { biz: BusinessDetail; owner: boolean }) {
   const toast = useToast();
-  const [f, setF] = useState({ name: biz.name, category: biz.category, city: biz.city, country: biz.country, currency: biz.currency, timezone: biz.timezone, paymentInfo: biz.paymentInfo ?? '', returnPolicy: biz.returnPolicy ?? '', ownerPhone: biz.ownerPhone ?? '' });
+  const [f, setF] = useState({ name: biz.name, category: biz.category, city: biz.city, kind: biz.kind, country: biz.country, currency: biz.currency, timezone: biz.timezone, paymentInfo: biz.paymentInfo ?? '', returnPolicy: biz.returnPolicy ?? '', ownerPhone: biz.ownerPhone ?? '' });
   const [hours, setHours] = useState<{ label: string; value: string }[]>(Object.entries(biz.businessHours ?? {}).map(([label, value]) => ({ label, value })));
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -54,7 +57,7 @@ function Profile({ biz, owner }: { biz: BusinessDetail; owner: boolean }) {
     try {
       const rows = hours.filter((h) => h.label.trim() && h.value.trim());
       await api.patch('business', {
-        name: f.name.trim(), category: f.category.trim(), city: f.city.trim(), country: f.country, timezone: f.timezone, ...(f.currency !== biz.currency ? { currency: f.currency } : {}),
+        name: f.name.trim(), category: f.category.trim(), kind: f.kind, city: f.city.trim(), country: f.country, timezone: f.timezone, ...(f.currency !== biz.currency ? { currency: f.currency } : {}),
         paymentInfo: f.paymentInfo.trim() || null, returnPolicy: f.returnPolicy.trim() || null, ownerPhone: f.ownerPhone.trim() || null,
         businessHours: rows.length ? Object.fromEntries(rows.map((h) => [h.label.trim(), h.value.trim()])) : null
       });
@@ -70,9 +73,12 @@ function Profile({ biz, owner }: { biz: BusinessDetail; owner: boolean }) {
           {!owner && <ErrorNote>Only the account owner can edit these details.</ErrorNote>}
           <div className="grid gap-4 sm:grid-cols-3">
             <Field label="Business name"><Input required value={f.name} onChange={set('name')} disabled={!owner} /></Field>
-            <Field label="Category"><Input required value={f.category} onChange={set('category')} disabled={!owner} /></Field>
+            <Field label="What your business does" hint="Pick a suggestion or type your own."><Input required list="category-suggestions" value={f.category} onChange={set('category')} disabled={!owner} /><datalist id="category-suggestions">{ALL_CATEGORIES.map((c) => <option key={c.name} value={c.name} />)}</datalist></Field>
             <Field label="City"><Input required value={f.city} onChange={set('city')} disabled={!owner} /></Field>
           </div>
+          <Field label="How customers buy from you" hint={KIND_OPTIONS.find((o) => o.value === f.kind)?.hint}>
+            <Select value={f.kind} onChange={(e) => setF((s) => ({ ...s, kind: e.target.value as Kind }))} disabled={!owner}>{KIND_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</Select>
+          </Field>
           <div className="grid gap-4 sm:grid-cols-3">
             <Field label="Country"><Select value={f.country} onChange={set('country')} disabled={!owner}>{COUNTRIES.map((c) => <option key={c.code} value={c.code}>{c.flag} {c.name}</option>)}</Select></Field>
             <Field label="Currency" hint={currencyLocked ? "Locked: you already have products, delivery fees or orders in this currency." : "Prices are shown in this currency."}>
@@ -106,6 +112,7 @@ function Profile({ biz, owner }: { biz: BusinessDetail; owner: boolean }) {
 /* ---------------- Delivery zones ---------------- */
 function Delivery() {
   const money = useMoney();
+  const labels = useLabels();
   const toast = useToast();
   const { data: zones, isLoading } = useApi<Zone[]>('delivery-zones');
   const [target, setTarget] = useState<Zone | 'new' | null>(null);
@@ -133,8 +140,8 @@ function Delivery() {
 
   return (
     <Card>
-      <CardHeader title="Delivery areas" description="The assistant quotes these fees and times. Areas you don't list are handed to you." action={<Button size="sm" onClick={() => setTarget('new')}><Plus className="size-3.5" />Add area</Button>} />
-      {isLoading ? <Loading /> : !zones?.length ? <EmptyState title="No delivery areas yet" description="Add the areas you deliver to, with a fee and a delivery time." /> : (
+      <CardHeader title={labels.zones} description={labels.zonesBlurb} action={<Button size="sm" onClick={() => setTarget('new')}><Plus className="size-3.5" />Add area</Button>} />
+      {isLoading ? <Loading /> : !zones?.length ? <EmptyState title={`No ${labels.zones.toLowerCase()} yet`} description={labels.kind === 'services' ? 'Add the areas you work in, with a call-out fee and a typical response time.' : 'Add the areas you deliver to, with a fee and a delivery time.'} /> : (
         <Table>
           <THead><tr><TH>Area</TH><TH>Fee</TH><TH>Delivery time</TH><TH className="w-24"><span className="sr-only">Actions</span></TH></tr></THead>
           <tbody>
@@ -153,7 +160,7 @@ function Delivery() {
           {err && <ErrorNote>{err}</ErrorNote>}
           <Field label="Area"><Input required value={f.areaName} onChange={(e) => setF({ ...f, areaName: e.target.value })} placeholder="e.g. Downtown" /></Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label={`Fee (${money.currency})`}><Input required inputMode="decimal" value={f.fee} onChange={(e) => setF({ ...f, fee: e.target.value })} /></Field>
+            <Field label={`${labels.fee} (${money.currency})`}><Input required inputMode="decimal" value={f.fee} onChange={(e) => setF({ ...f, fee: e.target.value })} /></Field>
             <Field label="Delivery time"><Input required value={f.etaText} onChange={(e) => setF({ ...f, etaText: e.target.value })} placeholder="45–60 minutes" /></Field>
           </div>
         </form>

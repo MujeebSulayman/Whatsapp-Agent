@@ -16,7 +16,7 @@ const KEY = 'f'.repeat(64);
 const prisma = createPrisma();
 const ids = { biz: '', other: '', ada: '', bola: '', adaOrder: '', bolaOrder: '', product: '', otherProduct: '', photoProduct: '' };
 const ctxFor = (customerId: string, extra: Partial<ToolContext> = {}): ToolContext => ({
-  db: prisma, businessId: ids.biz, currency: 'NGN', conversationId: 'c', customerId, state: { handedOff: false }, ...extra
+  db: prisma, businessId: ids.biz, currency: 'NGN', kind: 'goods', conversationId: 'c', customerId, state: { handedOff: false }, ...extra
 });
 
 beforeAll(async () => {

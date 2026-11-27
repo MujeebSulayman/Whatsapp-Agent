@@ -6,6 +6,7 @@ import { useId, useState, type ReactNode } from 'react';
 import { api, useApi } from '@/lib/api';
 import type { BusinessDetail, Me } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { useLabels } from '@/lib/use-labels';
 import { Avatar, Badge, ThemeToggle } from './ui';
 
 const main = [
@@ -62,6 +63,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const { data: me } = useApi<Me>('auth/me');
   const { data: biz } = useApi<BusinessDetail>('business');
+  const labels = useLabels();
   const close = () => setOpen(false);
   const setupDone = biz ? Object.values(biz.setup).every(Boolean) : true;
 
@@ -79,7 +81,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Rocket className="size-4" />Finish setup
           </Link>
         )}
-        <div className="space-y-0.5">{main.map((i) => <NavLink key={i.href} {...i} onNavigate={close} />)}</div>
+        <div className="space-y-0.5">{main.map((i) => <NavLink key={i.href} {...i} label={i.href === '/orders' ? labels.orders : i.href === '/products' ? labels.items : i.label} onNavigate={close} />)}</div>
         <div>
           <div className="mb-1.5 px-3 text-xs font-medium text-muted-foreground">Configure</div>
           <div className="space-y-0.5">{settings.map((i) => <NavLink key={i.href} {...i} onNavigate={close} />)}</div>

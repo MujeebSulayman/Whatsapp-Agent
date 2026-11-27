@@ -6,6 +6,8 @@ export interface ToolContext {
   businessId: string;
   /** ISO 4217 code of the business; every amount shown to a customer uses it. */
   currency: string;
+  /** How the business sells: stocked products, services (quotes and bookings) or both. */
+  kind: 'goods' | 'services' | 'both';
   conversationId: string;
   customerId: string;
   /** Optional: embeds a search query (enables vector search; keyword search is always the fallback). */

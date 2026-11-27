@@ -52,6 +52,13 @@ enum PaymentProvider {
   flutterwave
 }
 
+/// How a business sells: stocked products, services (quotes and bookings), or both.
+enum BusinessKind {
+  goods
+  services
+  both
+}
+
 // Money is an integer count of the currency minor unit (cents, kobo, pence...), never floats. Each business has one currency.
 
 model Business {
@@ -62,6 +69,7 @@ model Business {
   city          String   @default("")
   country       String   @default("NG")
   currency      String   @default("NGN")
+  kind          BusinessKind @default(goods)
   timezone      String   @default("Africa/Lagos")
   plan          String   @default("trial")
   aiEnabled     Boolean  @default(true) @map("ai_enabled")
@@ -138,6 +146,8 @@ model Product {
   priceMinor   Int      @map("price_minor")
   variants    Json?
   stockQty    Int      @default(0) @map("stock_qty")
+  /// false for services and made-to-order items: availability is never limited by stock
+  trackStock  Boolean  @default(true) @map("track_stock")
   imageUrls   String[] @map("image_urls")
   active      Boolean  @default(true)
   embedding   Unsupported("vector(1536)")?

@@ -8,7 +8,8 @@ import { PRISMA } from '../infra.module.js';
 
 const UpdateBusiness = z.object({
   name: z.string().min(2).max(100),
-  category: z.string().min(2).max(60),
+  category: z.string().trim().min(2).max(60),
+  kind: z.enum(['goods', 'services', 'both']),
   city: z.string().min(2).max(60),
   country: z.string().refine(isCountryCode, "Choose a valid country"),
   currency: z.string().refine(isCurrencyCode, "Choose a valid currency"),

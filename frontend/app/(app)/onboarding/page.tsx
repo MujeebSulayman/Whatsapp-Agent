@@ -4,15 +4,17 @@ import Link from 'next/link';
 import { Badge, Button, Card, Loading, PageHeader } from '@/components/ui';
 import { useApi } from '@/lib/api';
 import type { BusinessDetail } from '@/lib/types';
+import { useLabels } from '@/lib/use-labels';
 import { cn } from '@/lib/utils';
 
 export default function OnboardingPage() {
   const { data: biz } = useApi<BusinessDetail>('business');
+  const labels = useLabels();
   if (!biz) return <Loading />;
   const steps = [
     { done: biz.setup.whatsapp, title: 'Connect your WhatsApp number', body: 'Your customers message this number and the assistant answers for you.', href: '/business?tab=whatsapp', cta: 'Connect number' },
-    { done: biz.setup.products, title: 'Add your products', body: 'Add them one by one or import a spreadsheet (CSV). The assistant only quotes prices from here.', href: '/products', cta: 'Add products' },
-    { done: biz.setup.zones, title: 'Set your delivery areas and fees', body: 'So the assistant can quote delivery fees and times by area.', href: '/business?tab=delivery', cta: 'Add delivery areas' },
+    { done: biz.setup.products, title: `Add your ${labels.items.toLowerCase()}`, body: 'Add them one by one or import a spreadsheet (CSV). The assistant only quotes prices from here.', href: '/products', cta: labels.addItem },
+    { done: biz.setup.zones, title: `Set your ${labels.zones.toLowerCase()} and fees`, body: labels.kind === 'services' ? 'So the assistant knows where you work and what to charge for a call-out.' : 'So the assistant can quote delivery fees and times by area.', href: '/business?tab=delivery', cta: `Add ${labels.zones.toLowerCase()}` },
     { done: biz.setup.faqs, title: 'Add common questions', body: 'Opening hours, returns, how to pay. The assistant answers these in your voice.', href: '/business?tab=faqs', cta: 'Add FAQs' },
     { done: !!biz.aiRules && (biz.aiRules.customInstructions !== null || biz.aiRules.maxDiscountPct > 0), title: 'Set your rules', body: 'Choose the maximum discount, topics to avoid and when to hand a chat to you.', href: '/ai-settings', cta: 'Review AI settings' }
   ];

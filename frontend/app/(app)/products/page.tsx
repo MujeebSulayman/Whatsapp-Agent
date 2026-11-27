@@ -5,6 +5,7 @@ import { mutate } from 'swr';
 import { Badge, Button, Card, Dialog, EmptyState, ErrorNote, Field, Input, Loading, PageHeader, Switch, Table, TD, TH, THead, Textarea, TR, useToast } from '@/components/ui';
 import { api, useApi } from '@/lib/api';
 import type { Product } from '@/lib/types';
+import { useLabels } from '@/lib/use-labels';
 import { useMoney } from '@/lib/use-money';
 
 const KEY = 'products';
@@ -12,6 +13,7 @@ const TEMPLATE = 'name,description,price,stock,variants\nParty Pack,Serves 10,12
 
 export default function ProductsPage() {
   const money = useMoney();
+  const labels = useLabels();
   const toast = useToast();
   const [search, setSearch] = useState('');
   const { data: products, isLoading } = useApi<Product[]>(KEY);
@@ -31,22 +33,22 @@ export default function ProductsPage() {
 
   return (
     <>
-      <PageHeader title="Products" description="The assistant only quotes the prices and stock you set here."
-        actions={<><Button variant="secondary" onClick={() => setImporting(true)}><Upload className="size-4" />Import CSV</Button><Button onClick={() => setEditing('new')}><Plus className="size-4" />Add product</Button></>} />
-      <div className="mb-4"><Input className="max-w-xs" placeholder="Search products" value={search} onChange={(e) => setSearch(e.target.value)} /></div>
+      <PageHeader title={labels.items} description={labels.kind === 'services' ? 'The assistant only quotes the services and starting prices you set here.' : 'The assistant only quotes the prices and stock you set here.'}
+        actions={<><Button variant="secondary" onClick={() => setImporting(true)}><Upload className="size-4" />Import CSV</Button><Button onClick={() => setEditing('new')}><Plus className="size-4" />{labels.addItem}</Button></>} />
+      <div className="mb-4"><Input className="max-w-xs" placeholder={`Search ${labels.items.toLowerCase()}`} value={search} onChange={(e) => setSearch(e.target.value)} /></div>
       <Card>
         {isLoading ? <Loading /> : !products?.length ? (
-          <EmptyState icon={<Package className="size-5" />} title="No products yet" description="Add your first product, or import many at once from a spreadsheet."
-            action={<div className="flex gap-2"><Button variant="secondary" onClick={() => setImporting(true)}>Import CSV</Button><Button onClick={() => setEditing('new')}>Add product</Button></div>} />
+          <EmptyState icon={<Package className="size-5" />} title={`No ${labels.items.toLowerCase()} yet`} description={`Add your first ${labels.item}, or import many at once from a spreadsheet.`}
+            action={<div className="flex gap-2"><Button variant="secondary" onClick={() => setImporting(true)}>Import CSV</Button><Button onClick={() => setEditing('new')}>{labels.addItem}</Button></div>} />
         ) : (
           <Table>
-            <THead><tr><TH>Product</TH><TH>Price</TH><TH>Stock</TH><TH>Options</TH><TH>Available</TH><TH className="w-24"><span className="sr-only">Actions</span></TH></tr></THead>
+            <THead><tr><TH>{labels.kind === 'services' ? 'Service' : 'Name'}</TH><TH>{labels.priceLabel}</TH>{labels.showStock && <TH>Stock</TH>}<TH>Options</TH><TH>Available</TH><TH className="w-24"><span className="sr-only">Actions</span></TH></tr></THead>
             <tbody>
               {list.map((p) => (
                 <TR key={p.id}>
                   <TD><div className="font-medium">{p.name}</div>{p.description && <div className="max-w-xs truncate text-xs text-muted-foreground">{p.description}</div>}</TD>
                   <TD className="tabular-nums">{money.fmt(p.priceMinor)}</TD>
-                  <TD>{p.stockQty === 0 ? <Badge tone="danger">Out of stock</Badge> : p.stockQty <= 3 ? <Badge tone="warning">{p.stockQty} left</Badge> : <span className="tabular-nums">{p.stockQty}</span>}</TD>
+                  {labels.showStock && <TD>{!p.trackStock ? <span className="text-muted-foreground">Not tracked</span> : p.stockQty === 0 ? <Badge tone="danger">Out of stock</Badge> : p.stockQty <= 3 ? <Badge tone="warning">{p.stockQty} left</Badge> : <span className="tabular-nums">{p.stockQty}</span>}</TD>}
                   <TD className="text-muted-foreground">{p.variants?.map((v) => v.name).join(', ') || '—'}</TD>
                   <TD><Switch checked={p.active} onChange={(v) => toggle(p, v)} label={`${p.name} available`} /></TD>
                   <TD>
@@ -72,14 +74,18 @@ export default function ProductsPage() {
 function ProductDialog({ target, onClose }: { target: Product | 'new' | null; onClose: () => void }) {
   const money = useMoney();
   const toast = useToast();
+  const labels = useLabels();
   const p = target && target !== 'new' ? target : null;
   const [f, setF] = useState({ name: '', description: '', price: '', stock: '', variants: '', image: '' });
+  // Services never track stock; mixed businesses choose per item; products always do.
+  const [track, setTrack] = useState(true);
   const [seed, setSeed] = useState<unknown>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   if (target !== seed) {
     setSeed(target);
     setErr(null);
+    setTrack(p ? p.trackStock : labels.kind !== 'services');
     setF(p ? { name: p.name, description: p.description ?? '', price: money.toInput(p.priceMinor), stock: String(p.stockQty), variants: p.variants?.map((v) => v.name).join(', ') ?? '', image: p.imageUrls[0] ?? '' } : { name: '', description: '', price: '', stock: '0', variants: '', image: '' });
   }
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF((s) => ({ ...s, [k]: e.target.value }));
@@ -87,31 +93,34 @@ function ProductDialog({ target, onClose }: { target: Product | 'new' | null; on
   async function submit(e: FormEvent) {
     e.preventDefault();
     const priceMinor = money.parse(f.price);
-    const stockQty = Number(f.stock);
+    const stockQty = track ? Number(f.stock) : 0;
     if (priceMinor === null) return setErr(`Enter a valid price in ${money.currency}, e.g. ${money.example}`);
-    if (!Number.isInteger(stockQty) || stockQty < 0) return setErr('Stock must be a whole number, 0 or more');
+    if (track && (!Number.isInteger(stockQty) || stockQty < 0)) return setErr('Stock must be a whole number, 0 or more');
     const variants = f.variants.split(',').map((v) => v.trim()).filter(Boolean).map((name) => ({ name }));
-    const body = { name: f.name.trim(), description: f.description.trim() || null, priceMinor, stockQty, variants: variants.length ? variants : null, imageUrls: f.image.trim() ? [f.image.trim()] : [] };
+    const body = { name: f.name.trim(), description: f.description.trim() || null, priceMinor, stockQty, trackStock: track, variants: variants.length ? variants : null, imageUrls: f.image.trim() ? [f.image.trim()] : [] };
     setBusy(true); setErr(null);
     try {
       if (p) await api.patch(`products/${p.id}`, body); else await api.post('products', body);
       await mutate(KEY);
-      toast(p ? 'Product updated' : 'Product added');
+      toast(p ? `${labels.item[0]!.toUpperCase()}${labels.item.slice(1)} updated` : `${labels.item[0]!.toUpperCase()}${labels.item.slice(1)} added`);
       onClose();
     } catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
   }
 
   return (
-    <Dialog open={!!target} onClose={onClose} title={p ? 'Edit product' : 'Add product'}
-      footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button type="submit" form="product-form" loading={busy}>{p ? 'Save changes' : 'Add product'}</Button></>}>
+    <Dialog open={!!target} onClose={onClose} title={p ? `Edit ${labels.item}` : labels.addItem}
+      footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button type="submit" form="product-form" loading={busy}>{p ? 'Save changes' : labels.addItem}</Button></>}>
       <form id="product-form" onSubmit={submit} className="space-y-4">
         {err && <ErrorNote>{err}</ErrorNote>}
         <Field label="Name"><Input required value={f.name} onChange={set('name')} /></Field>
-        <Field label="Description" hint="Shown to the assistant so it can describe the product."><Textarea rows={2} value={f.description} onChange={set('description')} /></Field>
+        <Field label="Description" hint={`Shown to the assistant so it can describe the ${labels.item}.`}><Textarea rows={2} value={f.description} onChange={set('description')} /></Field>
         <div className="grid grid-cols-2 gap-3">
-          <Field label={`Price (${money.currency})`}><Input required inputMode="decimal" placeholder={money.example} value={f.price} onChange={set('price')} /></Field>
-          <Field label="In stock"><Input required inputMode="numeric" value={f.stock} onChange={set('stock')} /></Field>
+          <Field label={`${labels.priceLabel} (${money.currency})`} hint={labels.kind === 'services' ? 'The "from" price. The final price can be confirmed after the job is assessed.' : undefined}><Input required inputMode="decimal" placeholder={money.example} value={f.price} onChange={set('price')} /></Field>
+          {track && <Field label="In stock"><Input required inputMode="numeric" value={f.stock} onChange={set('stock')} /></Field>}
         </div>
+        {labels.kind === 'both' && (
+          <label className="flex items-center gap-2 text-[13px]"><input type="checkbox" checked={track} onChange={(e) => setTrack(e.target.checked)} />Track stock for this item <span className="text-muted-foreground">(untick for services or made-to-order items)</span></label>
+        )}
         <Field label="Options (optional)" hint="Separate with commas, e.g. Beef, Chicken"><Input value={f.variants} onChange={set('variants')} /></Field>
         <Field label="Photo link (optional)" hint="A public image URL the assistant can send to customers."><Input type="url" placeholder="https://…" value={f.image} onChange={set('image')} /></Field>
       </form>

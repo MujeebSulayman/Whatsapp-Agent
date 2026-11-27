@@ -58,8 +58,8 @@ describe('accounts', () => {
     expect(A.businessId).not.toBe(B.businessId);
   });
   it('rejects duplicate emails and weak passwords', async () => {
-    expect((await http().post('/auth/signup').send({ email: A.email, password: 'correct-horse-9', name: 'x', businessName: 'Dup Biz', city: 'Lagos', country: 'NG', currency: 'NGN' })).status).toBe(409);
-    expect((await http().post('/auth/signup').send({ email: `w-${run}@example.com`, password: 'short', name: 'x', businessName: 'Weak Biz', city: 'Lagos', country: 'NG', currency: 'NGN' })).status).toBe(400);
+    expect((await http().post('/auth/signup').send({ email: A.email, password: 'correct-horse-9', name: 'x', businessName: 'Dup Biz', category: 'retail', city: 'Lagos', country: 'NG', currency: 'NGN' })).status).toBe(409);
+    expect((await http().post('/auth/signup').send({ email: `w-${run}@example.com`, password: 'short', name: 'x', businessName: 'Weak Biz', category: 'retail', city: 'Lagos', country: 'NG', currency: 'NGN' })).status).toBe(400);
   });
   it('logs in with the right password only', async () => {
     expect((await http().post('/auth/login').send({ email: A.email, password: 'correct-horse-9' })).body.token).toBeTruthy();
@@ -251,8 +251,18 @@ describe('any country, any currency', () => {
     await prisma.business.deleteMany({ where: { id: { in: made } } });
   });
 
+  it('works out the currency from the country when none is sent', async () => {
+    const mk = async (tag: string, country: string) => {
+      const res = await http().post('/auth/signup').send({ email: `cur${tag}-${run}@example.com`, password: 'correct-horse-9', name: 'x', businessName: `Cur ${tag} ${run}`, category: 'retail', city: 'Somewhere', country });
+      expect(res.status, JSON.stringify(res.body)).toBe(201);
+      made.push(res.body.business.id);
+      return res.body.business.currency as string;
+    };
+    expect([await mk('us', 'US'), await mk('jp', 'JP'), await mk('ng', 'NG'), await mk('de', 'DE')]).toEqual(['USD', 'JPY', 'NGN', 'EUR']);
+  });
+
   it('rejects a made-up country, currency or timezone at signup', async () => {
-    const base = { email: `bad-${run}@example.com`, password: 'correct-horse-9', name: 'x', businessName: 'Bad Shop', city: 'Accra', country: 'GH', currency: 'GHS' };
+    const base = { email: `bad-${run}@example.com`, password: 'correct-horse-9', name: 'x', businessName: 'Bad Shop', category: 'retail', city: 'Accra', country: 'GH', currency: 'GHS' };
     expect((await http().post('/auth/signup').send({ ...base, country: 'XX' })).status).toBe(400);
     expect((await http().post('/auth/signup').send({ ...base, country: 'gh' })).status).toBe(400);
     expect((await http().post('/auth/signup').send({ ...base, currency: 'ZZZ' })).status).toBe(400);
@@ -294,5 +304,56 @@ describe('any country, any currency', () => {
     expect((await http().patch('/business').set(as(t)).send({ currency: 'UGX' })).status).toBe(200); // same currency is not a change
     expect((await http().patch('/business').set(as(t)).send({ currency: 'NOPE' })).status).toBe(400);
     expect((await http().get('/business').set(as(t))).body.currency).toBe('UGX');
+  });
+});
+
+describe('any kind of business: products, services or both', () => {
+  const made: string[] = [];
+  const signupKind = async (tag: string, category: string, kind?: string) => {
+    const res = await http().post('/auth/signup').send({ email: `${tag}-${run}@example.com`, password: 'correct-horse-9', name: 'Owner', businessName: `${tag} co ${run}`, category, ...(kind ? { kind } : {}), city: 'Leeds', country: 'GB', currency: 'GBP', timezone: 'Europe/London' });
+    expect(res.status, JSON.stringify(res.body)).toBe(201);
+    made.push(res.body.business.id);
+    return { token: res.body.token, businessId: res.body.business.id, userId: res.body.user.id, email: `${tag}-${run}@example.com`, kind: res.body.business.kind as string } as Tenant & { kind: string };
+  };
+  afterAll(async () => {
+    await prisma.business.deleteMany({ where: { id: { in: made } } });
+  });
+
+  it('accepts any category text and an explicit business type', async () => {
+    const hvac = await signupKind('hvac', 'HVAC & air conditioning', 'services');
+    expect(hvac.kind).toBe('services');
+    expect((await http().get('/business').set(as(hvac))).body).toMatchObject({ category: 'HVAC & air conditioning', kind: 'services' });
+    const other = await signupKind('odd', 'Llama grooming'); // not in any list, no type given
+    expect(other.kind).toBe('goods');
+    expect((await http().post('/auth/signup').send({ email: `bad-${run}@example.com`, password: 'correct-horse-9', name: 'x', businessName: 'Bad Kind', category: 'x', kind: 'nonsense', city: 'Leeds', country: 'GB', currency: 'GBP' })).status).toBe(400);
+  });
+
+  it('service offerings are not stock-tracked by default; products are', async () => {
+    const svc = await signupKind('paint', 'Painting & decorating', 'services');
+    const goods = await signupKind('shop', 'Clothing', 'goods');
+    const s = (await http().post('/products').set(as(svc)).send({ name: 'Room repaint', priceMinor: 25000, stockQty: 0 })).body;
+    const g = (await http().post('/products').set(as(goods)).send({ name: 'Jacket', priceMinor: 6000, stockQty: 3 })).body;
+    expect([s.trackStock, g.trackStock]).toEqual([false, true]);
+    const csv = await http().post('/products/import').set(as(svc)).send({ csv: 'name,price\nHallway repaint,120\n' });
+    expect(csv.body.created).toBe(1);
+    expect(((await http().get('/products').set(as(svc))).body as { name: string; trackStock: boolean }[]).every((p) => p.trackStock === false)).toBe(true);
+  });
+
+  it('marking a service booking paid never touches stock; goods still decrement', async () => {
+    const mixed = await signupKind('mixed', 'Home improvement', 'both');
+    const pid = (await http().post('/products').set(as(mixed)).send({ name: 'Paint tin', priceMinor: 1500, stockQty: 5, trackStock: true })).body.id;
+    const sid = (await http().post('/products').set(as(mixed)).send({ name: 'Painting labour', priceMinor: 9000, stockQty: 0, trackStock: false })).body.id;
+    const c = await prisma.customer.create({ data: { businessId: mixed.businessId, waId: `4477${Math.floor(Math.random() * 1e7)}` } });
+    const o = await prisma.order.create({ data: { businessId: mixed.businessId, customerId: c.id, subtotalMinor: 10500, totalMinor: 10500, items: [{ product_id: pid, name: 'Paint tin', quantity: 1, line_total_minor: 1500 }, { product_id: sid, name: 'Painting labour', quantity: 1, line_total_minor: 9000 }] } });
+    expect((await http().post(`/orders/${o.id}/mark-paid`).set(as(mixed))).status).toBe(200);
+    expect((await prisma.product.findUniqueOrThrow({ where: { id: pid } })).stockQty).toBe(4);
+    expect((await prisma.product.findUniqueOrThrow({ where: { id: sid } })).stockQty).toBe(0);
+  });
+
+  it('the owner can change the business type later', async () => {
+    const t = await signupKind('switch', 'Electrical', 'goods');
+    expect((await http().patch('/business').set(as(t)).send({ kind: 'services', category: 'Electrical contractor' })).status).toBe(200);
+    expect((await http().get('/business').set(as(t))).body).toMatchObject({ kind: 'services', category: 'Electrical contractor' });
+    expect((await http().patch('/business').set(as(t)).send({ kind: 'nope' })).status).toBe(400);
   });
 });

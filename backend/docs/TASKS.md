@@ -17,7 +17,7 @@ Legend: [x] done and tested · [~] built, needs a live key/account to verify · 
 - [x] Team: list, add agent, remove (instant lock-out)
 - [x] AI tools: search_products, check_stock, get_delivery_fee, create_order, check_order_status, apply_discount, send_product_image, save_customer_detail, handoff_to_human
 - [x] Owner alert on handoff / AI problems (WhatsApp message to the owner's number)
-- [x] Tests: auth, roles, tenant isolation on every route, tools, safeguards (56 tests)
+- [x] Tests: auth, roles, tenant isolation on every route, tools, safeguards, currencies, services (91 tests)
 - [~] Vector product search: code and database tested with synthetic vectors; needs OPENROUTER_API_KEY to embed real text
 - [~] Agent evals: 15 scripted chats + runner (`pnpm --filter @wa/worker eval`); needs OPENROUTER_API_KEY
 - [~] Terminal chat with the real agent (`pnpm --filter @wa/worker chat`); needs OPENROUTER_API_KEY
@@ -29,6 +29,15 @@ Legend: [x] done and tested · [~] built, needs a live key/account to verify · 
 - [x] Orders (with status actions), Products (CSV import), Customers
 - [x] AI assistant settings, Business settings (profile, delivery, FAQs, WhatsApp, data & privacy)
 - [x] Analytics, Team
+
+## Any country, any business
+- [x] Per-business country, currency and timezone; money stored in minor units (works for 0-, 2- and 3-decimal currencies)
+- [x] Signup asks for country only: currency and timezone are worked out automatically
+- [x] Broad category list (home services, trades, automotive, wellness, professional, events, education, retail...) plus "type your own"
+- [x] Business type (products, services, both) drives wording, stock tracking and the AI agent's booking behaviour
+- [ ] Per-country WhatsApp message pricing (Meta rates differ by country) in usage tracking
+- [ ] Languages: the agent replies in the customer's language; dashboard text is English only
+- [ ] Appointment calendar and availability for service businesses (bookings record a preferred time for now)
 
 ## Left out on purpose
 - [ ] Paystack payments, payment links, subscriptions and wallet: test payments first

@@ -51,3 +51,25 @@ export function timezonesForCountry(code: string): string[] {
     return [];
   }
 }
+
+/**
+ * Timezone chosen silently at signup: the owner's own if it belongs to the country, the country's only
+ * timezone if it has one, otherwise the first one listed. Editable later in Business settings.
+ */
+export function autoTimezone(country: string): string {
+  const zones = timezonesForCountry(country);
+  const mine = guessTimezone();
+  if (zones.length === 1) return zones[0]!;
+  if (zones.includes(mine)) return mine;
+  const main = MAIN_ZONE[country];
+  if (main && zones.includes(main)) return main;
+  return zones[0] ?? mine ?? 'UTC';
+}
+
+/** The usual default for countries that span several timezones (the browser lists them alphabetically). */
+const MAIN_ZONE: Record<string, string> = {
+  US: 'America/New_York', CA: 'America/Toronto', BR: 'America/Sao_Paulo', RU: 'Europe/Moscow', AU: 'Australia/Sydney',
+  MX: 'America/Mexico_City', ID: 'Asia/Jakarta', AR: 'America/Argentina/Buenos_Aires', CD: 'Africa/Kinshasa', KZ: 'Asia/Almaty',
+  CL: 'America/Santiago', EC: 'America/Guayaquil', PT: 'Europe/Lisbon', ES: 'Europe/Madrid', NZ: 'Pacific/Auckland',
+  UA: 'Europe/Kyiv', MY: 'Asia/Kuala_Lumpur', MN: 'Asia/Ulaanbaatar', GL: 'America/Nuuk', PF: 'Pacific/Tahiti'
+};

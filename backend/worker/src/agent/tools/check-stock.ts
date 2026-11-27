@@ -8,6 +8,7 @@ export const checkStock = defineTool({
   async run(ctx, { product_id }) {
     const p = await ctx.db.product.findFirst({ where: { id: product_id, businessId: ctx.businessId, active: true } });
     if (!p) return { error: 'Unknown product_id. Use search_products first.' };
+    if (!p.trackStock) return { name: p.name, in_stock: true, note: 'Not stock-limited (service or made to order).' };
     return { name: p.name, in_stock: p.stockQty > 0, stock_qty: p.stockQty };
   }
 });

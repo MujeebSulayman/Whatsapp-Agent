@@ -36,6 +36,7 @@ export async function buildContext(db: PrismaClient, o: { businessId: string; co
     city: business.city,
     country: countryName(business.country),
     currency: business.currency,
+    kind: business.kind,
     maxDiscountPct: rules?.maxDiscountPct ?? 0,
     hours,
     paymentMethods: business.paymentInfo ?? 'Paystack payment link',

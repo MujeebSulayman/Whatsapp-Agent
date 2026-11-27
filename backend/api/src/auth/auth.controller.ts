@@ -1,10 +1,10 @@
 import { randomBytes } from 'node:crypto';
-import { Body, ConflictException, Controller, Get, HttpCode, HttpException, HttpStatus, Inject, Post, Req, UnauthorizedException, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, ConflictException, Controller, Get, HttpCode, HttpException, HttpStatus, Inject, Post, Req, UnauthorizedException, UseGuards } from '@nestjs/common';
 import type { PrismaClient } from '@wa/db';
 import type { Redis } from 'ioredis';
 import { z } from 'zod';
 import { Auth, AuthGuard, type AuthCtx } from '../common/auth.guard.js';
-import { isCountryCode, isCurrencyCode, isTimezone } from '@wa/shared';
+import { isCountryCode, defaultCurrencyFor, isCurrencyCode, isTimezone } from '@wa/shared';
 import { hashPassword, signToken, verifyPassword } from '../common/security.js';
 import { parse } from '../common/validate.js';
 import { PRISMA, REDIS } from '../infra.module.js';
@@ -14,10 +14,12 @@ const Signup = z.object({
   password: z.string().min(8).max(200),
   name: z.string().min(1).max(100),
   businessName: z.string().min(2).max(100),
-  category: z.string().min(2).max(60).default('retail'),
+  category: z.string().trim().min(2).max(60),
+  kind: z.enum(['goods', 'services', 'both']).default('goods'),
   city: z.string().min(2).max(60),
   country: z.string().refine(isCountryCode, "Choose a valid country"),
-  currency: z.string().refine(isCurrencyCode, "Choose a valid currency"),
+  /** Optional: normally derived from the country (US -> USD). */
+  currency: z.string().refine(isCurrencyCode, "Choose a valid currency").optional(),
   timezone: z.string().refine(isTimezone, "Invalid timezone").default("UTC")
 });
 const Login = z.object({ email: z.string().email().max(200), password: z.string().min(1).max(200) });
@@ -36,6 +38,8 @@ export class AuthController {
   @HttpCode(201)
   async signup(@Body() body: unknown) {
     const input = parse(Signup, body);
+    const currency = input.currency ?? defaultCurrencyFor(input.country);
+    if (!currency) throw new BadRequestException("We could not work out a currency for that country");
     const email = input.email.toLowerCase();
     if (await this.db.user.findUnique({ where: { email } })) throw new ConflictException('An account with this email already exists');
     const passwordHash = await hashPassword(input.password);
@@ -46,14 +50,14 @@ export class AuthController {
       const user = await tx.user.create({ data: { email, name: input.name, passwordHash } });
       const business = await tx.business.create({
         data: {
-          name: input.businessName, slug, category: input.category, city: input.city, country: input.country, currency: input.currency, timezone: input.timezone, trialEndsAt, plan: 'trial',
+          name: input.businessName, slug, category: input.category, kind: input.kind, city: input.city, country: input.country, currency, timezone: input.timezone, trialEndsAt, plan: 'trial',
           aiRules: { create: { maxDiscountPct: 0, escalateKeywords: ['refund', 'complaint', 'lawyer', 'police'], forbiddenTopics: [] } },
           memberships: { create: { userId: user.id, role: 'owner' } }
         }
       });
       return { user, business };
     });
-    return { token: await signToken(user.id, business.id), user: { id: user.id, email, name: user.name }, business: { id: business.id, name: business.name, country: business.country, currency: business.currency } };
+    return { token: await signToken(user.id, business.id), user: { id: user.id, email, name: user.name }, business: { id: business.id, name: business.name, country: business.country, currency: business.currency, kind: business.kind } };
   }
 
   @Post('login')

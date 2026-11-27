@@ -42,8 +42,8 @@ export const searchProducts = defineTool({
         description: p.description,
         price: formatMoney(p.priceMinor, ctx.currency),
         variants: p.variants,
-        in_stock: p.stockQty > 0,
-        stock_qty: p.stockQty
+        in_stock: !p.trackStock || p.stockQty > 0,
+        ...(p.trackStock ? { stock_qty: p.stockQty } : { note: "Not stock-limited (service or made to order)" })
       })),
       note: products.length ? undefined : 'No matching products. Do not invent one.'
     };

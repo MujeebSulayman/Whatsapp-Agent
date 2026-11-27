@@ -8,7 +8,7 @@ import type { ToolContext } from '../src/agent/tools/types.js';
 const prisma = createPrisma();
 const unit = (i: number) => Array.from({ length: 1536 }, (_, k) => (k === i ? 1 : 0));
 const ids = { biz: '', other: '', spicy: '', mild: '', foreign: '' };
-const ctx = (embed?: ToolContext['embed']): ToolContext => ({ db: prisma, businessId: ids.biz, currency: 'NGN', conversationId: 'c', customerId: 'x', state: { handedOff: false }, embed });
+const ctx = (embed?: ToolContext['embed']): ToolContext => ({ db: prisma, businessId: ids.biz, currency: 'NGN', kind: 'goods', conversationId: 'c', customerId: 'x', state: { handedOff: false }, embed });
 const names = async (c: ToolContext, q: string) => ((await searchProducts.run(c, { query: q })) as { results: { name: string }[] }).results.map((r) => r.name);
 
 beforeAll(async () => {

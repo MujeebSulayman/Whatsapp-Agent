@@ -45,3 +45,12 @@ describe('geo', () => {
     expect(isTimezone('Mars/Base')).toBe(false);
   });
 });
+
+import { defaultCurrencyFor } from './geo.js';
+describe('currency from country', () => {
+  it('maps countries to their currency', () => {
+    expect(['US', 'NG', 'GH', 'KE', 'JP', 'GB', 'IN', 'BR', 'ZA'].map(defaultCurrencyFor)).toEqual(['USD', 'NGN', 'GHS', 'KES', 'JPY', 'GBP', 'INR', 'BRL', 'ZAR']);
+    expect(defaultCurrencyFor('DE')).toBe('EUR'); // eurozone
+    expect(defaultCurrencyFor('XX')).toBeNull();
+  });
+});

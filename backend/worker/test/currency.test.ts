@@ -12,7 +12,7 @@ const prisma = createPrisma();
 type Shop = { id: string; customerId: string; productId: string; currency: string };
 const shops: Record<'us' | 'jp' | 'gh', Shop> = { us: {} as Shop, jp: {} as Shop, gh: {} as Shop };
 const slugs = ['cur-us', 'cur-jp', 'cur-gh'];
-const ctx = (s: Shop): ToolContext => ({ db: prisma, businessId: s.id, currency: s.currency, conversationId: 'c', customerId: s.customerId, state: { handedOff: false } });
+const ctx = (s: Shop): ToolContext => ({ db: prisma, businessId: s.id, currency: s.currency, kind: 'goods', conversationId: 'c', customerId: s.customerId, state: { handedOff: false } });
 
 async function mk(slug: string, country: string, currency: string, city: string, price: number, fee: number): Promise<Shop> {
   const b = await prisma.business.create({

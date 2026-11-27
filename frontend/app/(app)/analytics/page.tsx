@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Card, CardBody, CardHeader, EmptyState, Loading, PageHeader, Select, Stat } from '@/components/ui';
 import { useApi } from '@/lib/api';
 import type { Analytics } from '@/lib/types';
+import { useLabels } from '@/lib/use-labels';
 import { useMoney } from '@/lib/use-money';
 
 function BarChart({ data, format }: { data: { label: string; value: number }[]; format: (n: number) => string }) {
@@ -27,6 +28,7 @@ function BarChart({ data, format }: { data: { label: string; value: number }[]; 
 
 export default function AnalyticsPage() {
   const money = useMoney();
+  const labels = useLabels();
   const [days, setDays] = useState('30');
   const { data, isLoading } = useApi<Analytics>(`analytics/overview?days=${days}`, { refreshInterval: 30000 });
   const label = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
@@ -39,14 +41,14 @@ export default function AnalyticsPage() {
         <div className="space-y-6">
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             <Stat label="Active chats" value={data.conversations} />
-            <Stat label="Orders" value={data.orders} hint={data.conversionPct === null ? undefined : `${data.conversionPct}% of chats`} />
+            <Stat label={labels.orders} value={data.orders} hint={data.conversionPct === null ? undefined : `${data.conversionPct}% of chats`} />
             <Stat label="Revenue (paid)" value={money.fmt(data.revenueMinor)} hint={`${data.paidOrders} paid orders`} />
             <Stat label="Handled by AI" value={data.aiHandledPct === null ? '—' : `${data.aiHandledPct}%`} hint="Chats that never needed a human" />
             <Stat label="AI replies" value={data.aiRuns} />
             <Stat label="AI cost" value={`$${Number(data.aiCostUsd).toFixed(2)}`} hint="Model usage in this period" />
           </div>
           <div className="grid gap-6 lg:grid-cols-2">
-            <Card><CardHeader title="Orders per day" /><CardBody><BarChart data={data.series.map((s) => ({ label: label(s.date), value: s.orders }))} format={(n) => `${n} orders`} /></CardBody></Card>
+            <Card><CardHeader title={`${labels.orders} per day`} /><CardBody><BarChart data={data.series.map((s) => ({ label: label(s.date), value: s.orders }))} format={(n) => `${n} orders`} /></CardBody></Card>
             <Card><CardHeader title="Revenue per day" description="Paid orders only" /><CardBody><BarChart data={data.series.map((s) => ({ label: label(s.date), value: s.revenueMinor }))} format={money.fmt} /></CardBody></Card>
           </div>
           <Card>

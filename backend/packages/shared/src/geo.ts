@@ -26,3 +26,12 @@ export function isTimezone(tz: string): boolean {
   zones ??= new Set(Intl.supportedValuesOf('timeZone'));
   return tz === 'UTC' || zones.has(tz);
 }
+
+import { countries } from 'countries-list';
+import { isCurrencyCode } from './money.js';
+
+/** The currency a country uses, e.g. US -> USD, NG -> NGN, JP -> JPY. First supported ISO 4217 code; null if none. */
+export function defaultCurrencyFor(country: string): string | null {
+  const entry = (countries as Record<string, { currency: string[] } | undefined>)[country];
+  return entry?.currency.find(isCurrencyCode) ?? null;
+}
