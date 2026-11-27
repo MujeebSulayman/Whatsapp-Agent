@@ -52,7 +52,7 @@ export class AnalyticsController {
       orders: live.length,
       paidOrders: paid.length,
       revenueKobo: paid.reduce((s, o) => s + o.totalKobo, 0),
-      conversionPct: conversations === 0 ? null : Math.round((live.length / conversations) * 100),
+      conversionPct: conversations === 0 ? null : Math.min(100, Math.round((live.length / conversations) * 100)),
       aiHandledPct: aiHandled,
       aiCostUsd: String(runs._sum.costUsd ?? 0),
       aiRuns: runs._count,

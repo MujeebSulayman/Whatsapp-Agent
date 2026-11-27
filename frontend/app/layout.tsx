@@ -1,12 +1,13 @@
 import './globals.css';
 import type { ReactNode } from 'react';
+import { ToastProvider } from '@/components/ui';
 
-export const metadata = { title: 'WA Sales Agent' };
+export const metadata = { title: 'WA Sales Agent', description: 'Your AI salesperson on WhatsApp' };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body className="min-h-screen bg-neutral-50 text-neutral-900">{children}</body>
+      <body><ToastProvider>{children}</ToastProvider></body>
     </html>
   );
 }
