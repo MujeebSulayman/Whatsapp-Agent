@@ -133,7 +133,7 @@ describe('handler safeguards', () => {
     expect(calls).toHaveLength(0);
     expect(sent[0]).toMatchObject({ to: '2348011110001', body: FALLBACK_TEXT });
     expect(sent[1]?.to).toBe('2348077770000');
-    expect(sent[1]?.body).toContain('spend limit');
+    expect(sent[1]?.body).toContain('daily usage limit');
     expect((await prisma.conversation.findUniqueOrThrow({ where: { id: convId } })).status).toBe('human');
   });
 

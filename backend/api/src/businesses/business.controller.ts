@@ -58,7 +58,6 @@ export class BusinessController {
     const trialDaysLeft = b.trialEndsAt ? Math.max(0, Math.ceil((b.trialEndsAt.getTime() - Date.now()) / 86_400_000)) : null;
     return {
       ...b,
-      aiDailyCapUsd: String(b.aiDailyCapUsd),
       trialDaysLeft,
       usage: { period: monthKey(), aiReplies: usage?.aiReplies ?? 0, waMessagesBilled: usage?.waMessagesBilled ?? 0 },
       setup: { whatsapp: b.whatsappAccounts.length > 0, products: products > 0, zones: zones > 0, faqs: faqs > 0 }

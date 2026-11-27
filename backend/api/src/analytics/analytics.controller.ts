@@ -22,7 +22,8 @@ export class AnalyticsController {
       this.db.conversation.count({ where: { businessId, lastMessageAt: { gte: since } } }),
       this.db.message.groupBy({ by: ['conversationId'], where: { businessId, sentBy: 'human', createdAt: { gte: since } } }),
       this.db.order.findMany({ where: { businessId, createdAt: { gte: since } }, select: { createdAt: true, totalMinor: true, paymentStatus: true, status: true, items: true } }),
-      this.db.agentRun.aggregate({ where: { businessId, createdAt: { gte: since } }, _sum: { costUsd: true }, _count: true })
+      // Only replies to customers: the owner's own setup help and practice chats are not "AI replies", and what the AI costs us is not shown to businesses.
+      this.db.agentRun.count({ where: { businessId, kind: 'chat', createdAt: { gte: since } } })
     ]);
 
     const live = orders.filter((o) => o.status !== 'cancelled');
@@ -54,8 +55,7 @@ export class AnalyticsController {
       revenueMinor: paid.reduce((s, o) => s + o.totalMinor, 0),
       conversionPct: conversations === 0 ? null : Math.min(100, Math.round((live.length / conversations) * 100)),
       aiHandledPct: aiHandled,
-      aiCostUsd: String(runs._sum.costUsd ?? 0),
-      aiRuns: runs._count,
+      aiRuns: runs,
       series: [...series.values()],
       topProducts: [...top.values()].sort((x, y) => y.revenueMinor - x.revenueMinor).slice(0, 5)
     };

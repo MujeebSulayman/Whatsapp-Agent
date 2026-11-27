@@ -176,7 +176,7 @@ export default function LandingPage() {
               <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground sm:text-[16px]">Read any chat, jump in whenever you like, and turn the assistant off for one customer or for the whole business with a single switch.</p>
             </div>
             <ul className="divide-y divide-white/10 text-[15px]">
-              {['Practice chat: test your assistant as a customer, nothing is sent', 'Teach it from mistakes: correct an answer and it becomes a rule', 'A daily AI spend cap per business, so costs never surprise you', 'Your team gets their own logins, owners control settings'].map((t) => (
+              {['Practice chat: test your assistant as a customer, nothing is sent', 'Teach it from mistakes: correct an answer and it becomes a rule', 'Switch the assistant off for your whole business, or take over any single chat, at any time', 'Your team gets their own logins, owners control settings'].map((t) => (
                 <li key={t} className="flex gap-3 py-3.5 first:pt-0 last:pb-0">
                   <Check className="mt-0.5 size-4 shrink-0 text-brand" strokeWidth={2} /><span>{t}</span>
                 </li>

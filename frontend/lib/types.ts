@@ -3,7 +3,7 @@ export interface Me { user: { id: string; email: string; name: string | null }; 
 export interface BusinessDetail {
   id: string; name: string; slug: string; category: string; city: string; country: string; currency: string; kind: 'goods' | 'services' | 'both'; timezone: string; tone: string; aiEnabled: boolean; plan: string;
   businessHours: Record<string, string> | null; paymentInfo: string | null; returnPolicy: string | null; ownerPhone: string | null;
-  trialDaysLeft: number | null; aiDailyCapUsd: string;
+  trialDaysLeft: number | null;
   aiRules: { maxDiscountPct: number; escalateKeywords: string[]; forbiddenTopics: string[]; customInstructions: string | null } | null;
   whatsappAccounts: { id: string; displayNumber: string; phoneNumberId: string; status: string; wabaId: string }[];
   usage: { period: string; aiReplies: number; waMessagesBilled: number };
@@ -40,7 +40,7 @@ export interface CustomerDetail extends Customer { orders: Order[]; conversation
 
 export interface Analytics {
   days: number; conversations: number; orders: number; paidOrders: number; revenueMinor: number; conversionPct: number | null; aiHandledPct: number | null;
-  aiCostUsd: string; aiRuns: number; series: { date: string; orders: number; revenueMinor: number }[]; topProducts: { name: string; quantity: number; revenueMinor: number }[];
+  aiRuns: number; series: { date: string; orders: number; revenueMinor: number }[]; topProducts: { name: string; quantity: number; revenueMinor: number }[];
 }
 export interface TeamMember { userId: string; role: 'owner' | 'agent'; email: string; name: string | null }
 

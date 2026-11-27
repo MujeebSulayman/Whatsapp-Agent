@@ -73,7 +73,7 @@ export default function AnalyticsPage() {
             { label: 'Revenue (paid)', value: money.fmt(data.revenueMinor), icon: Wallet, hint: `${data.paidOrders} paid orders` },
             { label: 'Handled by AI', value: data.aiHandledPct === null ? '—' : `${data.aiHandledPct}%`, icon: Sparkles, hint: 'Chats that never needed a human' },
             { label: 'AI replies', value: data.aiRuns, icon: Bot },
-            { label: 'AI cost', value: `$${Number(data.aiCostUsd).toFixed(2)}`, icon: Gauge, hint: 'Model usage in this period' }
+            { label: 'Average order', value: data.paidOrders === 0 ? '—' : money.fmt(Math.round(data.revenueMinor / data.paidOrders)), icon: Gauge, hint: 'Paid orders only' }
           ]} />
           <div className="grid gap-4 lg:grid-cols-2">
             <ChartCard title={`${labels.orders} per day`} total={`${totalOrders}`}>

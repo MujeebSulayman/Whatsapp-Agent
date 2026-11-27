@@ -110,7 +110,7 @@ async function turn(deps: Deps, job: InboundJob, tokenEnc: string, log: (m: stri
     await db.conversation.updateMany({ where: { id: job.conversationId, businessId: job.businessId }, data: { status: 'human' } });
     await db.auditLog.create({ data: { businessId: job.businessId, actor: 'system', action: 'ai_cap_reached', payload: { capUsd: String(business.aiDailyCapUsd) } } });
     await send(FALLBACK_TEXT, false);
-    return alertOwner(`AI paused: today's AI spend limit was reached. A customer (${maskPhone(job.from)}) is waiting in your inbox.`);
+    return alertOwner(`AI paused: the assistant reached its daily usage limit. A customer (${maskPhone(job.from)}) is waiting in your inbox.`);
   }
 
   const started = Date.now();
