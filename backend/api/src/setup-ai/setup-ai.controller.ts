@@ -1,7 +1,7 @@
 import { Body, Controller, Get, HttpCode, Inject, Post, UseGuards } from '@nestjs/common';
 import { Auth, AuthGuard, requireOwner, type AuthCtx } from '../common/auth.guard.js';
 import { parse } from '../common/validate.js';
-import { AppendRuleBody, ApplyBody, CorrectionBody, ImportBody, ImproveBody, InterviewBody, PreviewBody } from './schemas.js';
+import { AppendRuleBody, ApplyBody, CorrectionBody, ImportBody, ImproveBody, InterviewBody, PlaybookDraftBody, PreviewBody } from './schemas.js';
 import { SetupAiService } from './setup-ai.service.js';
 
 /** AI help for setting a business up. Owner-only; nothing is saved until the owner approves it via /apply. */
@@ -29,6 +29,14 @@ export class SetupAiController {
   interview(@Auth() a: AuthCtx, @Body() body: unknown) {
     requireOwner(a);
     return this.ai.draftFromInterview(a.businessId, parse(InterviewBody, body).answers);
+  }
+
+  /** Turn a plain description of how the owner handles a kind of customer into a draft playbook. Saves nothing. */
+  @Post('playbook')
+  @HttpCode(200)
+  playbook(@Auth() a: AuthCtx, @Body() body: unknown) {
+    requireOwner(a);
+    return this.ai.draftPlaybook(a.businessId, parse(PlaybookDraftBody, body).description);
   }
 
   @Post('improve')

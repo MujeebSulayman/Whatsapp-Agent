@@ -7,8 +7,8 @@ import type { Redis } from 'ioredis';
 import { z } from 'zod';
 import { EmbeddingService } from '../common/embedding.js';
 import { PRISMA, REDIS } from '../infra.module.js';
-import { correctionSystem, importSystem, improveSystem, interviewSystem, type BizFacts } from './prompts.js';
-import { ApplyBody, ImportOut, InterviewOut, RuleOut, SuggestionOut, clean } from './schemas.js';
+import { correctionSystem, importSystem, improveSystem, interviewSystem, playbookSystem, type BizFacts } from './prompts.js';
+import { ApplyBody, ImportOut, InterviewOut, PlaybookOut, RuleOut, SuggestionOut, clean } from './schemas.js';
 
 export const LLM_CLIENT = 'LLM_CLIENT';
 /** Embeds a search query for the practice chat; undefined when no AI key is configured. */
@@ -129,6 +129,13 @@ export class SetupAiService {
     const given = answers.filter((a) => a.answer.trim());
     const body = given.map((a, i) => `${i + 1}. ${a.question}\nAnswer: ${a.answer.trim()}`).join('\n\n');
     return this.askJson(businessId, { model: modelConfigFromEnv().smart, system: interviewSystem(await this.facts(businessId)), user: `The owner's answers:\n"""\n${body}\n"""`, schema: InterviewOut });
+  }
+
+  /* ---------------- 2b. draft a playbook from a plain description ---------------- */
+  async draftPlaybook(businessId: string, description: string) {
+    const out = await this.askJson(businessId, { model: modelConfigFromEnv().smart, system: playbookSystem(await this.facts(businessId)), user: `How the owner handles this kind of customer:\n\"\"\"\n${clean(description, 1200)}\n\"\"\"`, schema: PlaybookOut });
+    if (out.steps.length === 0) throw new HttpException('Could not turn that into steps. Describe what you ask a customer, one thing at a time.', HttpStatus.UNPROCESSABLE_ENTITY);
+    return out;
   }
 
   /* ---------------- 3. help with one field ---------------- */

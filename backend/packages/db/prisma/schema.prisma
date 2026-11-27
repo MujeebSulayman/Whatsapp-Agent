@@ -93,6 +93,8 @@ model Business {
   orders           Order[]
   waitlistEntries WaitlistEntry[]
   media           Media[]
+  playbooks       Playbook[]
+  playbookRuns    PlaybookRun[]
   broadcasts       Broadcast[]
   usageLedger      UsageLedger[]
   auditLogs        AuditLog[]
@@ -217,6 +219,7 @@ model Customer {
   conversations      Conversation[]
   orders             Order[]
   waitlist           WaitlistEntry[]
+  playbookRuns       PlaybookRun[]
 
   @@unique([businessId, waId])
   @@map("customers")
@@ -407,4 +410,47 @@ model Media {
 
   @@index([businessId])
   @@map("media")
+}
+
+/// The owner's step-by-step way of handling one kind of customer (enquiry, intake, quote, viewing...). Works for any business.
+model Playbook {
+  id            String        @id @default(cuid())
+  businessId    String        @map("business_id")
+  name          String
+  /// In the owner's words: when the assistant should use it
+  whenToUse     String        @map("when_to_use")
+  /// [{ id, ask, required }] in order
+  steps         Json
+  /// handoff = call the owner in with a summary; message = just send finishMessage
+  finish        String        @default("handoff")
+  finishMessage String?       @map("finish_message")
+  active        Boolean       @default(true)
+  createdAt     DateTime      @default(now()) @map("created_at")
+  business      Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  runs          PlaybookRun[]
+
+  @@index([businessId, active])
+  @@map("playbooks")
+}
+
+/// One customer going through a playbook, with what they told us.
+model PlaybookRun {
+  id             String    @id @default(cuid())
+  businessId     String    @map("business_id")
+  playbookId     String    @map("playbook_id")
+  customerId     String    @map("customer_id")
+  conversationId String?   @map("conversation_id")
+  /// { stepId: answer }
+  answers        Json      @default("{}")
+  /// active | completed
+  status         String    @default("active")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  completedAt    DateTime? @map("completed_at")
+  business       Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  playbook       Playbook  @relation(fields: [playbookId], references: [id], onDelete: Cascade)
+  customer       Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([businessId, status, createdAt])
+  @@index([customerId, playbookId, status])
+  @@map("playbook_runs")
 }

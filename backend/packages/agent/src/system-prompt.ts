@@ -15,6 +15,10 @@ export interface PromptInput {
   tone: string;
   forbiddenTopics: string[];
   faqs: { question: string; answer: string }[];
+  /** The owner's step-by-step ways of handling customers (any kind of business). */
+  playbooks?: { id: string; name: string; whenToUse: string; steps: { id: string; ask: string; required: boolean }[] }[];
+  /** A playbook this customer is partway through, so the assistant can pick up where it left off. */
+  playbookInProgress?: string | null;
   customerName?: string | null;
   openOrder?: string | null;
 }
@@ -42,11 +46,20 @@ const SOLD_OUT = `WHEN SOMETHING IS SOLD OUT
 
 const guidance = (k: PromptInput['kind']) => (k === 'services' ? SERVICES : `${k === 'both' ? BOTH : GOODS}\n\n${PHOTOS}\n\n${SOLD_OUT}`);
 
+const playbookSection = (p: PromptInput) =>
+  p.playbooks?.length
+    ? `\n\nPLAYBOOKS (the owner's own step-by-step ways of handling certain customers)
+- When a customer's need matches a playbook's "use when", call start_playbook, then follow its steps IN ORDER, asking ONE step at a time in your own words and the customer's language. After each answer call record_answer.
+- Never skip a required step, never answer a step for the customer, never invent an answer. If they ask something else in between, answer it, then return to the next step.
+- When every required step is answered, call finish_playbook and say only what it tells you to.
+${p.playbooks.map((b) => `* id=${b.id} "${b.name}". Use when: ${b.whenToUse}\n  Steps: ${b.steps.map((s, i) => `${i + 1}) [${s.id}${s.required ? '' : ', optional'}] ${s.ask}`).join('  ')}`).join('\n')}${p.playbookInProgress ? `\nIN PROGRESS with this customer: ${p.playbookInProgress}` : ''}`
+    : '';
+
 export function buildSystemPrompt(p: PromptInput): string {
   return `You are the sales assistant for ${p.businessName}, a ${p.category} business in ${p.city ? `${p.city}, ` : ''}${p.country}.
 Speak like a friendly local shop attendant (${p.tone} tone). Always reply in the language and dialect the customer writes in (including local slang, pidgin or a mix of languages), and use English if unsure. Prices are in ${p.currency}; quote amounts exactly as the tools return them, with the currency symbol. Keep replies short (1-3 sentences), WhatsApp style. Send ONE complete message per turn.
 
-${guidance(p.kind)}
+${guidance(p.kind)}${playbookSection(p)}
 
 RULES
 - Never state a price, fee, stock level or delivery time unless a tool returned it in this conversation.

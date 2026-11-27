@@ -1,5 +1,5 @@
 'use client';
-import { BarChart3, Bot, Loader2, LogOut, Menu, MessageSquare, Package, Rocket, ShoppingBag, Sparkles, Store, Users, UsersRound, X } from 'lucide-react';
+import { BarChart3, Bot, ListChecks, Loader2, LogOut, Menu, MessageSquare, Package, Rocket, ShoppingBag, Sparkles, Store, Users, UsersRound, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useId, useState, type ReactNode } from 'react';
@@ -24,6 +24,7 @@ const groups: { title?: string; items: NavItem[] }[] = [
   { title: 'Settings', items: [
     { href: '/setup', label: 'AI setup', icon: Sparkles },
     { href: '/ai-settings', label: 'AI assistant', icon: Bot },
+    { href: '/playbooks', label: 'Playbooks', icon: ListChecks },
     { href: '/business', label: 'Business', icon: Store },
     { href: '/team', label: 'Team', icon: UsersRound }
   ] }

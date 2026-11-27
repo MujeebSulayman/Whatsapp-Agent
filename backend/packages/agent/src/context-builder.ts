@@ -1,6 +1,6 @@
 import type { PrismaClient } from '@wa/db';
 import type { ChatMessage } from '@wa/ai';
-import { countryName, formatMoney } from '@wa/shared';
+import { countryName, formatMoney, parseSteps } from '@wa/shared';
 import { buildSystemPrompt } from './system-prompt.js';
 
 export interface AgentContext {
@@ -13,13 +13,15 @@ export interface AgentContext {
 /** business + rules + customer + last 20 messages + open order. All reads are scoped by businessId. */
 export async function buildContext(db: PrismaClient, o: { businessId: string; conversationId: string; customerId: string; /** Use this history instead of the stored messages (assistant preview). */ history?: ChatMessage[] }): Promise<AgentContext> {
   const { businessId } = o;
-  const [business, rules, faqs, customer, recent, openOrder] = await Promise.all([
+  const [business, rules, faqs, customer, recent, openOrder, playbooks, run] = await Promise.all([
     db.business.findUniqueOrThrow({ where: { id: businessId } }),
     db.aiRules.findUnique({ where: { businessId } }),
     db.faq.findMany({ where: { businessId }, take: 20 }),
     db.customer.findFirst({ where: { id: o.customerId, businessId } }),
     db.message.findMany({ where: { businessId, conversationId: o.conversationId }, orderBy: { seq: 'desc' }, take: 20 }),
-    db.order.findFirst({ where: { businessId, customerId: o.customerId, status: 'pending', paymentStatus: { in: ['unpaid', 'pending'] } }, orderBy: { createdAt: 'desc' } })
+    db.order.findFirst({ where: { businessId, customerId: o.customerId, status: 'pending', paymentStatus: { in: ['unpaid', 'pending'] } }, orderBy: { createdAt: 'desc' } }),
+    db.playbook.findMany({ where: { businessId, active: true }, orderBy: { createdAt: 'asc' }, take: 10 }),
+    db.playbookRun.findFirst({ where: { businessId, customerId: o.customerId, status: 'active' }, orderBy: { createdAt: 'desc' }, include: { playbook: true } })
   ]);
 
   const history: ChatMessage[] = o.history ?? recent
@@ -30,7 +32,16 @@ export async function buildContext(db: PrismaClient, o: { businessId: string; co
   const lastCustomerText = [...history].reverse().find((m) => m.role === 'user')?.content ?? '';
   const hours = business.businessHours ? JSON.stringify(business.businessHours) : 'not set';
 
+  const runSteps = run ? parseSteps(run.playbook.steps) : [];
+  const runAnswers = (run?.answers ?? {}) as Record<string, string>;
+  const next = runSteps.find((s) => !runAnswers[s.id]);
+  const playbookInProgress = run && run.playbook.active
+    ? `"${run.playbook.name}" (id=${run.playbookId}). Answered so far: ${runSteps.filter((s) => runAnswers[s.id]).map((s) => `${s.id}=${JSON.stringify(runAnswers[s.id])}`).join(', ') || 'nothing'}. ${next ? `Next: [${next.id}] ${next.ask}` : 'All steps answered: call finish_playbook.'}`
+    : null;
+
   const system = buildSystemPrompt({
+    playbooks: playbooks.map((b) => ({ id: b.id, name: b.name, whenToUse: b.whenToUse, steps: parseSteps(b.steps) })).filter((b) => b.steps.length),
+    playbookInProgress,
     businessName: business.name,
     category: business.category,
     city: business.city,

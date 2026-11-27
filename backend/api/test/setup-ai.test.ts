@@ -77,7 +77,7 @@ afterAll(async () => {
 describe('who can use it', () => {
   it('is owner-only, and needs a login', async () => {
     expect((await http().get('/setup-ai/status').set(as(A))).body).toEqual({ available: true });
-    const probes: [string, object][] = [['import', { text: 'x' }], ['interview', { answers: [{ question: 'q', answer: 'a' }] }], ['improve', { field: 'instructions', text: 'x' }], ['preview', { messages: [{ role: 'user', content: 'hi' }] }], ['correction', { customerMessage: 'a', assistantReply: 'b', correction: 'cccc' }], ['rules/append', { rule: 'Always be polite' }], ['apply', {}]];
+    const probes: [string, object][] = [['import', { text: 'x' }], ['interview', { answers: [{ question: 'q', answer: 'a' }] }], ['improve', { field: 'instructions', text: 'x' }], ['playbook', { description: 'I ask what they want and their budget' }], ['preview', { messages: [{ role: 'user', content: 'hi' }] }], ['correction', { customerMessage: 'a', assistantReply: 'b', correction: 'cccc' }], ['rules/append', { rule: 'Always be polite' }], ['apply', {}]];
     for (const [path, body] of probes) {
       expect((await http().post(`/setup-ai/${path}`).set(as(AGENT)).send(body)).status, path).toBe(403);
       expect((await http().post(`/setup-ai/${path}`).send(body)).status, path).toBe(401);
@@ -212,6 +212,16 @@ describe('interview, field help and corrections', () => {
     expect(res.body).toMatchObject({ faqs: [{ question: 'When are you open?' }], escalateKeywords: ['refund'], returnPolicy: null });
     expect(String(calls[0]!.messages[1]!.content)).not.toContain('Unanswered'); // unanswered questions are not sent
     expect(await prisma.faq.count({ where: { businessId: B.businessId } })).toBe(before);
+  });
+
+  it('drafts a playbook from a plain description, cleaned and bounded, and saves nothing', async () => {
+    handler = () => reply({ name: 'New student enquiry', whenToUse: 'Someone asks about joining a class', steps: [{ ask: 'What do they want to learn?', required: true }, { ask: 'Their level?', required: true }, { ask: 'Anything else?', required: false }, { ask: '', required: true }], finish: 'handoff', finishMessage: 'Thanks, we will send the details.' });
+    const res = await http().post('/setup-ai/playbook').set(as(A)).send({ description: 'When someone asks about a class I ask what they want to learn and their level, then I call them.' });
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ name: 'New student enquiry', finish: 'handoff' });
+    expect(res.body.steps).toHaveLength(3); // the empty step is dropped
+    expect(await prisma.playbook.count({ where: { businessId: A.businessId } })).toBe(0);
+    expect((await http().post('/setup-ai/playbook').set(as(A)).send({ description: 'short' })).status).toBe(400);
   });
 
   it('suggests text for a single field, bounded in length', async () => {

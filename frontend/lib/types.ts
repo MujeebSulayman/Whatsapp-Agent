@@ -56,3 +56,8 @@ export interface InterviewDraft {
 export interface PracticeReply { reply: string; handedOff: boolean; actions: { name: string; failed: boolean }[] }
 
 export interface WaitGroup { productId: string; name: string; variant: string | null; inStock: boolean; people: { id: string; name: string | null; waId: string; since: string }[] }
+
+export interface PlaybookStepT { id?: string; ask: string; required: boolean }
+export interface Playbook { id: string; name: string; whenToUse: string; steps: (PlaybookStepT & { id: string })[]; finish: 'handoff' | 'message'; finishMessage: string | null; active: boolean; runs: number }
+export interface PlaybookResponse { id: string; status: 'active' | 'completed'; createdAt: string; completedAt: string | null; conversationId: string | null; playbook: { id: string; name: string }; customer: { id: string; name: string | null; waId: string }; answers: { ask: string; answer: string | null }[] }
+export interface PlaybookDraft { name: string; whenToUse: string; steps: { ask: string; required: boolean }[]; finish: 'handoff' | 'message'; finishMessage: string | null }

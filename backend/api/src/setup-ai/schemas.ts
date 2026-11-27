@@ -74,3 +74,13 @@ export const ApplyBody = z.object({
     forbiddenTopics: z.array(z.string().trim().min(1).max(40)).max(30)
   }).partial().optional()
 });
+
+/** What the model returns for a playbook draft. Bounded and cleaned like everything else the model writes. */
+export const PlaybookOut = z.object({
+  name: str(80),
+  whenToUse: str(300),
+  steps: z.array(z.object({ ask: str(200), required: z.boolean().default(true) })).min(1).max(12).transform((a) => a.filter((s) => s.ask.length >= 2)),
+  finish: z.enum(['handoff', 'message']).catch('handoff'),
+  finishMessage: maybe(500)
+});
+export const PlaybookDraftBody = z.object({ description: z.string().trim().min(10).max(1200) });

@@ -31,6 +31,7 @@ Legend: [x] done and tested · [~] built, needs a live key/account to verify · 
 - [x] AI setup assistant: import from text or photos, guided interview, practice chat with corrections, "Improve with AI" on fields (live-model quality not yet verified: needs a valid OpenRouter key)
 - [x] Sold-out handling: stock per size/colour, held for unpaid orders, alternatives, waitlist with "tell them it is back", owner restock note, optional pre-orders
 - [x] Product photos: upload in the dashboard (shrunk in the browser, stored in the database behind a storage layer), several per item, a photo per size/colour, assistant sends them on request
+- [x] Playbooks: the owner's own ordered steps for any kind of customer (enquiry, intake, quote, viewing...), the assistant follows them and saves answers, AI drafts one from a sentence, owner sees the answers
 - [x] Analytics, Team
 
 ## Any country, any business

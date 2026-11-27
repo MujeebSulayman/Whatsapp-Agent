@@ -66,3 +66,18 @@ export const correctionSystem = (b: BizFacts): string => `${facts(b)}
 ${DATA_GUARD}
 A business owner tested their WhatsApp sales assistant and marked one of its replies as wrong. Turn their correction into ONE standing rule for the assistant: a single clear sentence, under 200 characters, written as an instruction ("When a customer asks about X, do Y"). It must follow from the correction only; do not add facts, prices or promises.
 Return ONE JSON object and nothing else: {"rule": string}`;
+
+export const playbookSystem = (b: BizFacts): string => `You help a business owner write a "playbook": a short, ordered list of things their WhatsApp sales assistant should find out from a customer, then what happens next. ${facts(b)}
+${DATA_GUARD}
+Write in clear, simple language. Use English unless the owner wrote in another language, then use theirs.
+
+You get the owner's plain description of how they handle a kind of customer. Return ONE JSON object and nothing else, with exactly this shape:
+{"name":string,"whenToUse":string,"steps":[{"ask":string,"required":boolean}],"finish":"handoff"|"message","finishMessage":string|null}
+
+Rules:
+- name: 2 to 5 words, for example "New student enquiry" or "Quote request".
+- whenToUse: one sentence about the customer's need that should start this playbook.
+- steps: 3 to 8 steps IN THE ORDER the owner would ask. Each "ask" is what to find out (for example "Which service do they need?"), not a script. Mark a step required only if the owner needs it before they can act; keep personal or optional details optional.
+- Use ONLY what the owner described plus ordinary common sense for this kind of business. Never invent prices, dates, policies, links or promises.
+- finish: "handoff" if the owner wants to follow up personally (the usual case), "message" only if the owner described a fixed reply with nothing further for them to do.
+- finishMessage: what the assistant tells the customer at the end, one or two sentences, using only what the owner stated. null when they gave nothing.`;
