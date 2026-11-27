@@ -94,7 +94,9 @@ export const createOrder = defineTool({
         ? 'This is a PRE-ORDER: tell the customer the item is not in stock yet and the shop will confirm when it is ready. Do not promise a date.'
         : isService
         ? 'Tell the customer their request is recorded and that the team will confirm the time and the final price. Do not promise a fixed final price for custom work.'
-        : 'Tell the customer the total. Payment link comes in a later step.'
+        : ctx.payments
+          ? 'Tell the customer the items, delivery fee and total exactly as returned. Then call create_payment_link with this order_id and send the link.'
+          : 'Tell the customer the items, delivery fee and total exactly as returned. Then give the payment details from BUSINESS INFO and say the shop will confirm once payment is received.'
     };
   }
 });

@@ -4,6 +4,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { ChatMessage, LlmClient } from '@wa/ai';
 import { createPrisma } from '@wa/db';
 import { encryptSecret, type InboundJob } from '@wa/shared';
+import { MAX_STEPS } from '@wa/agent';
 import { FALLBACK_TEXT, MEDIA_TEXT, handleInbound } from '../src/jobs/handle-inbound.js';
 
 const KEY = 'd'.repeat(64);
@@ -146,11 +147,11 @@ describe('agent loop', () => {
     expect(sent).toHaveLength(1);
   });
 
-  it('stops at the 6-step cap and hands off instead of looping forever', async () => {
+  it('stops at the step cap and hands off instead of looping forever', async () => {
     await newTurn('loop forever');
     const llm = scripted([() => toolCall('search_products', { query: 'x' })]);
     await handleInbound(deps(llm), job);
-    expect(llm.calls).toHaveLength(6);
+    expect(llm.calls).toHaveLength(MAX_STEPS);
     expect((await prisma.conversation.findUniqueOrThrow({ where: { id: convId } })).status).toBe('human');
     expect(sent).toEqual([FALLBACK_TEXT]);
   });

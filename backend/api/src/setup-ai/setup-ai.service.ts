@@ -186,7 +186,7 @@ export class SetupAiService {
           llm: this.llm, model, system: ctx.system, history: ctx.history,
           ctx: { db, businessId, currency: business.currency, kind: business.kind, conversationId: conversation.id, customerId: customer.id, embed: this.embedQuery,
             // Practice mode never touches Paystack: it shows the same behaviour with a link that goes nowhere.
-            payments: { createLink: async (orderId) => (business.paystackSubaccountCode ? { url: 'https://checkout.paystack.com/practice-mode-link', amount: (await db.order.findFirst({ where: { id: orderId, businessId } }).then((o) => (o ? formatMoney(o.totalMinor, business.currency) : ''))) } : { error: 'This business has not set up online payments.' }) } }
+            payments: !ctx.onlinePayments ? undefined : { createLink: async (orderId) => (business.paystackSubaccountCode ? { url: 'https://checkout.paystack.com/practice-mode-link', amount: (await db.order.findFirst({ where: { id: orderId, businessId } }).then((o) => (o ? formatMoney(o.totalMinor, business.currency) : ''))) } : { error: 'This business has not set up online payments.' }) } }
         });
         throw new RollbackPreview();
       }, { maxWait: 10_000, timeout: 120_000 });

@@ -8,6 +8,8 @@ export interface AgentContext {
   history: ChatMessage[];
   hasOpenOrder: boolean;
   lastCustomerText: string;
+  /** True when this business has online payments set up, so the assistant may be given a payment-link port. */
+  onlinePayments: boolean;
 }
 
 /** business + rules + customer + last 20 messages + open order. All reads are scoped by businessId. */
@@ -40,6 +42,7 @@ export async function buildContext(db: PrismaClient, o: { businessId: string; co
     : null;
 
   const system = buildSystemPrompt({
+    onlinePayments: !!business.paystackSubaccountCode,
     playbooks: playbooks.map((b) => ({ id: b.id, name: b.name, whenToUse: b.whenToUse, steps: parseSteps(b.steps) })).filter((b) => b.steps.length),
     playbookInProgress,
     businessName: business.name,
@@ -50,7 +53,9 @@ export async function buildContext(db: PrismaClient, o: { businessId: string; co
     kind: business.kind,
     maxDiscountPct: rules?.maxDiscountPct ?? 0,
     hours,
-    paymentMethods: business.paymentInfo ?? 'Paystack payment link',
+    paymentMethods: business.paystackSubaccountCode
+      ? `Online payment link (card or bank transfer), made with create_payment_link${business.paymentInfo ? `. Also: ${business.paymentInfo}` : ''}`
+      : business.paymentInfo ?? 'Not set up yet: say the shop will share payment details, and never claim a payment link exists',
     returnPolicy: business.returnPolicy ?? 'ask the owner',
     customInstructions: rules?.customInstructions ?? '',
     tone: business.tone,
@@ -60,5 +65,5 @@ export async function buildContext(db: PrismaClient, o: { businessId: string; co
     openOrder: openOrder ? `${openOrder.id} total ${formatMoney(openOrder.totalMinor, business.currency)} (${openOrder.paymentStatus})` : null
   });
 
-  return { system, history, hasOpenOrder: !!openOrder, lastCustomerText };
+  return { system, history, hasOpenOrder: !!openOrder, lastCustomerText, onlinePayments: !!business.paystackSubaccountCode };
 }

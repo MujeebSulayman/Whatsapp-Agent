@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createPrisma } from '@wa/db';
 import { createPaymentLink, createPaymentsPort } from '@wa/agent';
 import type { ToolContext } from '@wa/agent';
+import { buildSystemPrompt } from '@wa/agent';
 import type { PaystackClient } from '@wa/shared';
 
 const prisma = createPrisma();
@@ -77,5 +78,25 @@ describe('create_payment_link', () => {
     const c: ToolContext = { ...ctx(ng), payments: createPaymentsPort({ db: prisma, paystack: broken, businessId: ng.id, customerId: ng.cust }) };
     const o = await prisma.order.create({ data: { businessId: ng.id, customerId: ng.cust, items: [], subtotalMinor: 5000, totalMinor: 5000 } });
     expect(await createPaymentLink.run(c, { order_id: o.id })).toMatchObject({ error: expect.stringMatching(/Could not create/) });
+  });
+});
+
+describe('what the assistant is told about paying', () => {
+  const base = { businessName: 'X', category: 'c', city: '', country: 'Nigeria', currency: 'NGN', kind: 'goods' as const, maxDiscountPct: 0, hours: '', paymentMethods: 'p', returnPolicy: '', customInstructions: '', tone: 'friendly', forbiddenTopics: [], faqs: [] };
+  it('only mentions payment links when the business really has them, and always asks for the order summary', () => {
+    const on = buildSystemPrompt({ ...base, onlinePayments: true });
+    const off = buildSystemPrompt({ ...base, onlinePayments: false });
+    expect(on).toMatch(/call create_payment_link/);
+    expect(off).not.toMatch(/call create_payment_link/);
+    expect(off).toMatch(/NO online payment link/);
+    for (const p of [on, off]) expect(p).toMatch(/items, (the )?delivery fee and (the )?total/);
+  });
+  it('tells it never to claim an action it did not take', () => {
+    expect(buildSystemPrompt(base)).toMatch(/Never say you have done something.*unless the matching tool returned success/);
+  });
+  it('tells it not to use markdown on WhatsApp and never to guess product ids', () => {
+    const p = buildSystemPrompt(base);
+    expect(p).toMatch(/does not show markdown/);
+    expect(p).toMatch(/Never guess a product_id/);
   });
 });

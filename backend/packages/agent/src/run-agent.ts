@@ -2,7 +2,25 @@ import type { ChatMessage, LlmClient } from '@wa/ai';
 import { TOOLS, toolDefs } from './tools/index.js';
 import type { Tool, ToolContext } from './tools/types.js';
 
-export const MAX_STEPS = 6;
+export const MAX_STEPS = 8;
+
+/**
+ * The model sometimes says it did something without calling the tool. For actions that are safe to repeat we catch that and make it do
+ * the real thing (or correct itself) once. Not done for orders: a wrong nudge there could create a duplicate order.
+ */
+export const CLAIM_CHECKS: { tool: string; claim: RegExp; nudge: string }[] = [
+  {
+    tool: 'join_waitlist',
+    claim: /((add(ed|ing)?|put|putting|placed?|got)\s+you\s+(on|to|in)\s+(the\s+)?(wait\s?-?list|list))|(you('re|\s+are|\s+will\s+be)\s+(now\s+)?on\s+the\s+(wait\s?-?list|list))|((i'?ll|i\s+will|we'?ll|we\s+will)\s+(add|put)\s+you)/i,
+    nudge: 'You told the customer they are on the waitlist, but join_waitlist has not succeeded in this turn. Call join_waitlist now (use search_products first if you need the product_id, and ask which size or colour only if you truly do not know), then confirm. Do not claim it without the tool.'
+  }
+];
+
+/** True when a sentence in the reply states the action as done or promised. Questions and offers ("would you like me to...") are not claims. */
+const OFFER = /(would you like|do you want|want me to|should i|shall i|can i|may i|if you(?:'d| would)? (?:like|want)|let me know if)/i;
+export function claims(re: RegExp, text: string): boolean {
+  return text.split(/(?<=[.!?])\s+/).some((sentence) => re.test(sentence) && !/\?\s*$/.test(sentence) && !OFFER.test(sentence));
+}
 
 export interface AgentResult {
   reply: string;
@@ -23,13 +41,15 @@ export async function runAgent(o: {
   ctx: Omit<ToolContext, 'state'>;
   tools?: Tool[];
 }): Promise<AgentResult> {
-  const tools = o.tools ?? TOOLS;
+  // The payment-link tool is only offered when this business actually has online payments set up.
+  const tools = (o.tools ?? TOOLS).filter((t) => t.name !== 'create_payment_link' || !!o.ctx.payments);
   const defs = toolDefs(tools);
   const state = { handedOff: false };
   const ctx: ToolContext = { ...o.ctx, state };
   const messages: ChatMessage[] = [{ role: 'system', content: o.system }, ...o.history];
   const result: AgentResult = { reply: '', model: o.model, inputTokens: 0, outputTokens: 0, costUsd: 0, toolCalls: [], handedOff: false, hitStepCap: false };
 
+  const nudged = new Set<string>();
   for (let step = 0; step < MAX_STEPS; step++) {
     const { message, usage } = await o.llm.chat({ model: o.model, messages, tools: defs });
     result.inputTokens += usage.inputTokens;
@@ -37,7 +57,14 @@ export async function runAgent(o: {
     result.costUsd += usage.costUsd;
 
     if (!message.tool_calls?.length) {
-      result.reply = (message.content ?? '').trim();
+      const text = (message.content ?? '').trim();
+      const unbacked = CLAIM_CHECKS.find((c) => claims(c.claim, text) && !result.toolCalls.some((t) => t.name === c.tool && !(t.result as { error?: unknown } | null)?.error) && !nudged.has(c.tool));
+      if (unbacked && step < MAX_STEPS - 1) {
+        nudged.add(unbacked.tool);
+        messages.push(message, { role: 'system', content: unbacked.nudge });
+        continue;
+      }
+      result.reply = text;
       result.handedOff = state.handedOff;
       return result;
     }
