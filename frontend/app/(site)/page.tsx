@@ -1,7 +1,11 @@
-import { ArrowRight, Check } from 'lucide-react';
+import { Check, Clock, FileText, Globe, Inbox, Languages, ShoppingBag, Smartphone } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 import { Logo } from '@/components/app-shell';
+import { HandoverVisual, LimitsVisual, NoGuessingVisual } from './feature-visuals';
+import { NavActions } from './nav-actions';
+import { WhatsAppPhone } from './whatsapp-phone';
 
 export const metadata: Metadata = {
   title: 'Converso: an AI salesperson for your WhatsApp',
@@ -10,24 +14,32 @@ export const metadata: Metadata = {
 
 const PRIVACY_URL = process.env.NEXT_PUBLIC_PRIVACY_URL ?? '/privacy';
 const TERMS_URL = process.env.NEXT_PUBLIC_TERMS_URL ?? '/terms';
+/** Where "Contact us" goes: a wa.me link, a mailto: or a form. Without one it scrolls to the closing section. */
+const CONTACT_URL = process.env.NEXT_PUBLIC_CONTACT_URL || '#contact';
+const contactProps = /^https?:/.test(CONTACT_URL) ? { target: '_blank', rel: 'noreferrer' } : {};
 
-const cta = 'inline-flex h-11 items-center justify-center gap-2 rounded-lg px-5 text-[15px] font-medium transition-colors';
-const primary = `${cta} bg-primary text-primary-foreground hover:bg-primary/90`;
-const secondary = `${cta} border border-white/15 text-foreground hover:bg-white/5`;
+const btn = 'inline-flex h-11 items-center justify-center rounded-lg px-5 text-[15px] font-medium transition-colors';
+const primary = `${btn} bg-primary text-primary-foreground hover:bg-primary/90`;
+const secondary = `${btn} border border-white/15 text-foreground hover:bg-white/5`;
+const h2 = 'text-[28px] font-medium leading-tight tracking-[-0.02em] sm:text-[36px]';
 
 const steps = [
-  { n: '01', t: 'Tell it about your business', d: 'Paste your price list, snap a photo of your menu, or answer a few questions. It drafts your products, delivery areas and FAQs. You check everything before it goes live.' },
-  { n: '02', t: 'Connect your WhatsApp number', d: 'Customers keep messaging the number they already know. Your assistant answers in seconds, any hour, in English, Pidgin or whatever language they write in.' },
-  { n: '03', t: 'Watch the orders come in', d: 'Orders and booking requests land in your dashboard with the customer, items and address. When a chat needs you, it is flagged and handed over.' }
+  { n: '01', icon: FileText, t: 'Tell it about your business', d: 'Paste your price list, snap a photo of your menu, or answer a few questions. It drafts your products, delivery areas and FAQs. You check everything before it goes live.' },
+  { n: '02', icon: Smartphone, t: 'Connect your WhatsApp number', d: 'Customers keep messaging the number they already know. Your assistant answers in seconds, any hour, in English, Pidgin or whatever language they write in.' },
+  { n: '03', icon: Inbox, t: 'Watch the orders come in', d: 'Orders and booking requests land in your dashboard with the customer, items and address. When a chat needs you, it is flagged and handed over.' }
 ];
 
-const features = [
-  { t: 'Quotes only what is true', d: 'Prices, stock and delivery fees come from your catalogue, never from the AI’s imagination. If it does not know, it says so and asks you.' },
-  { t: 'Speaks like your customers', d: 'It replies in the language and tone the customer uses, and in the voice you set: friendly, professional, playful or formal.' },
-  { t: 'Hands over when it should', d: 'Complaints, big orders and the words you choose pull you into the chat. Take over from the inbox and the AI steps aside.' },
-  { t: 'You set the limits', d: 'A maximum discount it can never exceed, topics it must avoid, and standing instructions in your own words. Practice it first; nothing is sent to a real customer.' },
-  { t: 'Goods, services or both', d: 'Sell products with stock, or quote jobs and take bookings. Works for food, fashion, beauty, repairs, cleaning, HVAC and more.' },
-  { t: 'Built for any country', d: 'Your currency, your timezone, your delivery areas. Nothing assumes one country.' }
+/* The three that matter most get a row each, with a slice of the product beside the words. */
+const featureRows = [
+  { Visual: NoGuessingVisual, t: 'Quotes only what is true', d: 'Prices, stock and delivery fees come from your catalogue, never from the AI’s imagination. If something is missing, it says so and asks you instead of guessing.' },
+  { Visual: HandoverVisual, t: 'Hands over when it should', d: 'Complaints, refunds, big orders and the words you choose pull you into the chat, with a summary so you do not have to scroll back. Take over from the inbox and the AI steps aside.' },
+  { Visual: LimitsVisual, t: 'You set the limits', d: 'A maximum discount it can never exceed, topics it must avoid, and standing instructions in your own words. Practice it first; nothing is sent to a real customer.' }
+];
+
+const moreFeatures = [
+  { icon: Languages, t: 'Speaks like your customers', d: 'It replies in the language and tone the customer uses, and in the voice you set: friendly, professional, playful or formal.' },
+  { icon: ShoppingBag, t: 'Goods, services or both', d: 'Sell products with stock, or quote jobs and take bookings. Works for food, fashion, beauty, repairs, cleaning, HVAC and more.' },
+  { icon: Globe, t: 'Built for any country', d: 'Your currency, your timezone, your delivery areas. Nothing assumes one country.' }
 ];
 
 const faqs = [
@@ -38,117 +50,141 @@ const faqs = [
   { q: 'Is my customers’ data safe?', a: 'Every business is kept separate from every other. Messages are sent to our AI provider to write replies. You can delete your business and its data at any time from settings.' }
 ];
 
+/** The lit planet edge from the sign-in screens. `className` sets --h, how far down the section the horizon sits. */
+function Horizon({ className }: { className: string }) {
+  return (
+    <div aria-hidden className={`absolute inset-0 [&_.horizon]:h-full [&_.horizon]:min-h-0 ${className}`}>
+      <div className="horizon [&>.horizon-flare]:top-[var(--h)]! [&>.horizon-glow]:top-[var(--h)]! [&>.horizon-planet]:top-[var(--h)]!">
+        <div className="horizon-stars" /><div className="horizon-glow" /><div className="horizon-planet" /><div className="horizon-flare" /><div className="horizon-fade" />
+      </div>
+    </div>
+  );
+}
+
+/** A small card floating beside the phone: what Converso is doing on the shop's side. Desktop only. */
+function Widget({ className, icon, title, line }: { className: string; icon: ReactNode; title: string; line: string }) {
+  return (
+    <div className={`absolute z-10 hidden w-[230px] items-center gap-3 rounded-xl border border-white/10 bg-[#111113]/90 p-3 shadow-[0_20px_40px_-20px_rgb(0_0_0/0.8)] backdrop-blur md:flex ${className}`}>
+      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-white/[0.06] text-foreground">{icon}</span>
+      <span className="min-w-0 leading-tight">
+        <span className="block text-[13.5px] font-medium">{title}</span>
+        <span className="mt-0.5 block text-[12.5px] text-muted-foreground">{line}</span>
+      </span>
+    </div>
+  );
+}
+
 export default function LandingPage() {
   return (
     <div className="theme-dark min-h-dvh overflow-x-clip scroll-smooth bg-background text-foreground">
       <header className="sticky top-0 z-30 border-b border-white/10 bg-black/70 backdrop-blur-md">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:px-5">
           <Link href="/" aria-label="Converso home"><Logo /></Link>
           <nav className="hidden items-center gap-8 text-[14px] text-muted-foreground md:flex">
             <a href="#how" className="transition-colors hover:text-foreground">How it works</a>
             <a href="#features" className="transition-colors hover:text-foreground">Features</a>
             <a href="#faq" className="transition-colors hover:text-foreground">FAQ</a>
           </nav>
-          <div className="flex items-center gap-2">
-            <Link href="/login" className="hidden h-9 items-center rounded-lg px-3 text-[14px] text-muted-foreground transition-colors hover:text-foreground sm:inline-flex">Sign in</Link>
-            <Link href="/signup" className="inline-flex h-9 items-center rounded-lg bg-primary px-4 text-[14px] font-medium text-primary-foreground transition-colors hover:bg-primary/90">Get started</Link>
-          </div>
+          <NavActions contactUrl={CONTACT_URL} watchId="hero-actions" />
         </div>
       </header>
 
       <main>
-        {/* Hero: the same lit horizon as the sign-in screens, sitting under the headline */}
-        <section className="relative">
-          <div aria-hidden className="absolute inset-0 [&_.horizon]:h-full [&_.horizon]:min-h-0 [&_.horizon-flare]:top-[74%]! [&_.horizon-glow]:top-[74%]! [&_.horizon-planet]:top-[74%]!">
-            <div className="horizon"><div className="horizon-stars" /><div className="horizon-glow" /><div className="horizon-planet" /><div className="horizon-flare" /><div className="horizon-fade" /></div>
-          </div>
-          <div className="relative mx-auto max-w-4xl px-5 pb-40 pt-20 text-center sm:pt-28 lg:pb-56 lg:pt-36">
-            <p className="mb-5 text-[13px] font-medium uppercase tracking-[0.14em] text-muted-foreground">AI sales agent for WhatsApp</p>
-            <h1 className="text-[40px] font-semibold leading-[1.05] tracking-tight sm:text-[56px] lg:text-[72px]">Never miss a sale because you replied late.</h1>
-            <p className="mx-auto mt-6 max-w-2xl text-[17px] leading-relaxed text-muted-foreground sm:text-[19px]">
-              Converso answers your WhatsApp customers in seconds, in their own language, takes their orders or bookings, and calls you in when a chat needs a person.
-            </p>
-            <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <Link href="/signup" className={primary}>Start free<ArrowRight className="size-4" /></Link>
-              <a href="#how" className={secondary}>See how it works</a>
+        {/* Hero, in one column: headline, trial note, description, buttons, then the customer's phone rising out of the horizon */}
+        <section className="relative overflow-hidden border-b border-white/10">
+          <div className="max-sm:hidden"><Horizon className="[--h:60%] lg:[--h:57%]" /></div>
+          <div className="relative mx-auto max-w-6xl px-4 pt-14 sm:px-5 sm:pt-20 lg:pt-24">
+            <div className="mx-auto max-w-2xl text-center">
+              <h1 className="text-[38px] font-medium leading-[1.08] tracking-[-0.025em] sm:text-[52px] lg:text-[60px]">
+                An AI salesperson for your WhatsApp.
+              </h1>
+              <p className="mt-4 text-[14px] text-muted-foreground">14-day free trial. No card needed.</p>
+              <p className="mx-auto mt-6 max-w-xl text-[16px] leading-relaxed text-muted-foreground sm:text-[17px]">
+                It answers your customers on WhatsApp in seconds, quotes from your own price list and takes the order, day or night. When a chat needs you, it hands it over.
+              </p>
+              <div id="hero-actions" className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+                <Link href="/signup" className={primary}>Get started</Link>
+                <a href={CONTACT_URL} {...contactProps} className={secondary}>Contact us</a>
+              </div>
             </div>
-            <p className="mt-4 text-[13px] text-muted-foreground">No card needed. Set up in an evening.</p>
-          </div>
-        </section>
 
-        {/* Product: an example chat and the order it produced */}
-        <section className="relative mx-auto -mt-24 max-w-6xl px-5 lg:-mt-40">
-          <div className="grid gap-4 lg:grid-cols-[1.25fr_1fr]">
-            <div className="rounded-2xl border border-white/10 bg-card p-5 shadow-[0_30px_80px_-30px_rgb(0_0_0/0.8)] sm:p-6">
-              <div className="mb-4 flex items-center justify-between text-[12px] text-muted-foreground">
-                <span>Example chat on WhatsApp</span><span>9:41 pm</span>
+            <div className="relative mx-auto mt-14 flex max-w-4xl justify-center lg:mt-16">
+              {/* What happens on your side while the customer chats */}
+              <Widget className="left-0 top-[22%]" icon={<ShoppingBag className="size-4" strokeWidth={1.75} />} title="New order #ABYKZ9" line="Party Pack × 1 · ₦14,000" />
+              <Widget className="right-0 top-[48%]" icon={<Clock className="size-4" strokeWidth={1.75} />} title="Replied in 3 seconds" line="9:41 PM, after closing time" />
+              <div className="pb-16 sm:pb-24">
+                <WhatsAppPhone shop="Mama Put" initials="MP" messages={[
+                  { from: 'customer', time: '9:41 PM', children: 'Good evening, how much be party pack?' },
+                  { from: 'shop', time: '9:41 PM', children: <>Good evening! 👋 The Party Pack (serves 10) is <b className="font-semibold">₦12,000</b>: puff puff, samosa, spring rolls and wings. Should I add one for you?</> },
+                  { from: 'customer', time: '9:42 PM', children: 'Yes abeg. Deliver to Lekki Phase 1' },
+                  { from: 'shop', time: '9:42 PM', children: <>Delivery to Lekki Phase 1 is <b className="font-semibold">₦2,000</b>, about 45–60 minutes. Your total is <b className="font-semibold">₦14,000</b>. What’s your full address?</> },
+                  { from: 'customer', time: '9:43 PM', children: '12 Admiralty Way' },
+                  { from: 'shop', time: '9:43 PM', children: <>Done ✅ Order <b className="font-semibold">#ABYKZ9</b> is confirmed. We’ll message you when it’s on the way.</> }
+                ]} />
               </div>
-              <div className="space-y-3 text-[14px] leading-relaxed">
-                <div className="max-w-[80%] rounded-2xl rounded-tl-sm bg-muted px-4 py-2.5">abeg how much be party pack, and delivery to Ajah?</div>
-                <div className="ml-auto max-w-[85%] rounded-2xl rounded-tr-sm bg-white/10 px-4 py-2.5">Good evening! The Party Pack (serves 10) is ₦12,000. Delivery to Ajah is ₦2,500, about 90 minutes. Make I put one for you?</div>
-                <div className="max-w-[80%] rounded-2xl rounded-tl-sm bg-muted px-4 py-2.5">Yes abeg. 5 Admiralty Way</div>
-                <div className="ml-auto max-w-[85%] rounded-2xl rounded-tr-sm bg-white/10 px-4 py-2.5">Done. 1 Party Pack to 5 Admiralty Way, total ₦14,500. Send the transfer and I will confirm your order.</div>
-              </div>
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-card p-5 sm:p-6">
-              <div className="mb-4 flex items-center justify-between">
-                <span className="text-[12px] text-muted-foreground">In your dashboard</span>
-                <span className="rounded-full bg-warning-bg px-2.5 py-0.5 text-[12px] text-warning">Awaiting payment</span>
-              </div>
-              <div className="text-[15px] font-medium">New order</div>
-              <dl className="mt-4 divide-y divide-white/10 text-[14px]">
-                <div className="flex justify-between py-2.5"><dt className="text-muted-foreground">Party Pack × 1</dt><dd>₦12,000</dd></div>
-                <div className="flex justify-between py-2.5"><dt className="text-muted-foreground">Delivery, Ajah</dt><dd>₦2,500</dd></div>
-                <div className="flex justify-between py-2.5 font-medium"><dt>Total</dt><dd>₦14,500</dd></div>
-                <div className="py-2.5"><dt className="text-muted-foreground">Deliver to</dt><dd className="mt-0.5">5 Admiralty Way</dd></div>
-              </dl>
-              <p className="mt-2 text-[12px] text-muted-foreground">Illustration. Every price here came from the shop’s catalogue.</p>
             </div>
           </div>
         </section>
 
-        <section id="how" className="mx-auto max-w-6xl px-5 pt-28 lg:pt-40">
-          <h2 className="max-w-2xl text-[30px] font-semibold leading-tight tracking-tight sm:text-[40px]">From price list to taking orders, in three steps.</h2>
+        <section id="how" className="mx-auto max-w-6xl scroll-mt-20 px-4 pt-28 sm:px-5 lg:pt-40">
+          <h2 className={`max-w-2xl ${h2}`}>From price list to taking orders, in three steps.</h2>
           <ol className="mt-12 grid gap-px overflow-hidden rounded-2xl border border-white/10 bg-white/10 md:grid-cols-3">
             {steps.map((s) => (
               <li key={s.n} className="bg-black p-7">
-                <div className="font-mono text-[13px] text-muted-foreground">{s.n}</div>
-                <h3 className="mt-6 text-[18px] font-medium">{s.t}</h3>
+                <div className="flex items-center justify-between text-muted-foreground">
+                  <s.icon className="size-5" strokeWidth={1.5} />
+                  <span className="font-mono text-[13px]">{s.n}</span>
+                </div>
+                <h3 className="mt-7 text-[17px] font-medium">{s.t}</h3>
                 <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground">{s.d}</p>
               </li>
             ))}
           </ol>
         </section>
 
-        <section id="features" className="mx-auto max-w-6xl px-5 pt-28 lg:pt-40">
-          <h2 className="max-w-2xl text-[30px] font-semibold leading-tight tracking-tight sm:text-[40px]">Helpful to customers. Careful with your business.</h2>
+        <section id="features" className="mx-auto max-w-6xl scroll-mt-20 px-4 pt-28 sm:px-5 lg:pt-40">
+          <h2 className={`max-w-2xl ${h2}`}>Helpful to customers. Careful with your business.</h2>
           <p className="mt-4 max-w-2xl text-[17px] leading-relaxed text-muted-foreground">An assistant that sells is only useful if you can trust it. These limits are built in, not bolted on.</p>
-          <div className="mt-12 grid gap-x-12 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
-            {features.map((f) => (
-              <div key={f.t} className="border-t border-white/10 pt-5">
-                <h3 className="text-[17px] font-medium">{f.t}</h3>
+          <div className="mt-16 space-y-20 lg:mt-20 lg:space-y-28">
+            {featureRows.map((f, i) => (
+              <div key={f.t} className="grid items-center gap-8 lg:grid-cols-2 lg:gap-16">
+                <div className={i % 2 ? 'lg:order-2' : ''}>
+                  <h3 className="text-[22px] font-medium tracking-[-0.01em] sm:text-[24px]">{f.t}</h3>
+                  <p className="mt-3 max-w-md text-[16px] leading-relaxed text-muted-foreground">{f.d}</p>
+                </div>
+                <div className={i % 2 ? 'lg:order-1' : ''}><f.Visual /></div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-20 grid gap-x-12 gap-y-10 border-t border-white/10 pt-10 sm:grid-cols-3 lg:mt-28">
+            {moreFeatures.map((f) => (
+              <div key={f.t}>
+                <f.icon className="size-5 text-muted-foreground" strokeWidth={1.5} />
+                <h3 className="mt-4 text-[17px] font-medium">{f.t}</h3>
                 <p className="mt-2.5 text-[15px] leading-relaxed text-muted-foreground">{f.d}</p>
               </div>
             ))}
           </div>
         </section>
 
-        <section className="mx-auto max-w-6xl px-5 pt-28 lg:pt-40">
-          <div className="grid items-start gap-10 rounded-2xl border border-white/10 bg-card p-8 sm:p-12 lg:grid-cols-2">
+        <section className="mx-auto max-w-6xl px-4 pt-28 sm:px-5 lg:pt-40">
+          <div className="grid items-start gap-10 rounded-2xl border border-white/10 bg-card p-7 sm:p-12 lg:grid-cols-2">
             <div>
-              <h2 className="text-[28px] font-semibold leading-tight tracking-tight sm:text-[36px]">You stay in charge of every conversation.</h2>
+              <h2 className={h2}>You stay in charge of every conversation.</h2>
               <p className="mt-4 text-[16px] leading-relaxed text-muted-foreground">Read any chat, jump in whenever you like, and turn the assistant off for one customer or for the whole business with a single switch.</p>
             </div>
-            <ul className="space-y-3.5 text-[15px]">
+            <ul className="divide-y divide-white/10 text-[15px]">
               {['Practice chat: test your assistant as a customer, nothing is sent', 'Teach it from mistakes: correct an answer and it becomes a rule', 'A daily AI spend cap per business, so costs never surprise you', 'Your team gets their own logins, owners control settings'].map((t) => (
-                <li key={t} className="flex gap-3"><Check className="mt-0.5 size-4 shrink-0 text-brand" strokeWidth={2} /><span>{t}</span></li>
+                <li key={t} className="flex gap-3 py-3.5 first:pt-0 last:pb-0">
+                  <Check className="mt-0.5 size-4 shrink-0 text-brand" strokeWidth={2} /><span>{t}</span>
+                </li>
               ))}
             </ul>
           </div>
         </section>
 
-        <section id="faq" className="mx-auto max-w-3xl px-5 pt-28 lg:pt-40">
-          <h2 className="text-[30px] font-semibold leading-tight tracking-tight sm:text-[40px]">Questions</h2>
+        <section id="faq" className="mx-auto max-w-3xl scroll-mt-20 px-4 pt-28 sm:px-5 lg:pt-40">
+          <h2 className={h2}>Questions</h2>
           <div className="mt-8 divide-y divide-white/10 border-y border-white/10">
             {faqs.map((f) => (
               <details key={f.q} className="group py-5">
@@ -159,18 +195,29 @@ export default function LandingPage() {
               </details>
             ))}
           </div>
+          <p className="mt-6 text-[15px] text-muted-foreground">
+            Something else? <a href={CONTACT_URL} {...contactProps} className="text-foreground underline underline-offset-4 decoration-white/30 hover:decoration-white">Contact us</a>.
+          </p>
         </section>
 
-        <section className="relative mx-auto mt-28 max-w-6xl px-5 pb-28 text-center lg:mt-40">
-          <h2 className="mx-auto max-w-2xl text-[32px] font-semibold leading-tight tracking-tight sm:text-[44px]">Let your next customer get an answer in seconds.</h2>
-          <div className="mt-8 flex justify-center"><Link href="/signup" className={primary}>Create your account<ArrowRight className="size-4" /></Link></div>
+        {/* Closing call to action: the horizon again, so the page ends where it began */}
+        <section id="contact" className="relative mt-28 scroll-mt-20 overflow-hidden lg:mt-40">
+          <Horizon className="[--h:76%] lg:[--h:70%]" />
+          <div className="relative mx-auto max-w-6xl px-4 pb-44 pt-24 text-center sm:px-5 lg:pb-56">
+            <h2 className={`mx-auto max-w-xl ${h2} sm:text-[40px]`}>Let your next customer get an answer in seconds.</h2>
+            <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
+              <Link href="/signup" className={`${primary} w-full sm:w-auto`}>Get started</Link>
+              <a href={CONTACT_URL} {...contactProps} className={`${secondary} w-full sm:w-auto`}>Contact us</a>
+            </div>
+            <p className="mt-4 text-[13px] text-muted-foreground">14-day free trial. No card needed.</p>
+          </div>
         </section>
       </main>
 
       <footer className="border-t border-white/10">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-5 py-8 text-[13px] text-muted-foreground sm:flex-row">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-4 py-8 text-[13px] text-muted-foreground sm:flex-row sm:px-5">
           <Logo textClassName="text-[14px]" />
-          <div className="flex items-center gap-6">
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
             <Link href="/login" className="transition-colors hover:text-foreground">Sign in</Link>
             <Link href={PRIVACY_URL} className="transition-colors hover:text-foreground">Privacy policy</Link>
             <Link href={TERMS_URL} className="transition-colors hover:text-foreground">Terms of service</Link>
