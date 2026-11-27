@@ -1,4 +1,5 @@
-import 'dotenv/config';
+import { config } from 'dotenv';
+config({ path: '../../.env' }); // backend/.env (cwd is backend/packages/db)
 import { createPrisma } from '../src/index.js';
 import { encryptSecret } from '@wa/shared';
 

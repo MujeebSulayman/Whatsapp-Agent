@@ -1,5 +1,5 @@
 import { config } from 'dotenv';
-config({ path: new URL('../../../.env', import.meta.url).pathname });
+config({ path: new URL('../../.env', import.meta.url).pathname });
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { ChatMessage, LlmClient } from '@wa/ai';
 import { createPrisma } from '@wa/db';

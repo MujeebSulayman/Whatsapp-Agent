@@ -1,4 +1,5 @@
-import 'dotenv/config';
+import { config } from 'dotenv';
+config({ path: '../../.env' }); // backend/.env (cwd is backend/packages/db)
 import { defineConfig } from 'prisma/config';
 
 export default defineConfig({

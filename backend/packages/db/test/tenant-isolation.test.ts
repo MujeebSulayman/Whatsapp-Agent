@@ -1,4 +1,5 @@
-import 'dotenv/config';
+import { config } from 'dotenv';
+config({ path: '../../.env' }); // backend/.env (cwd is backend/packages/db)
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createPrisma, scoped } from '../src/index.js';
 

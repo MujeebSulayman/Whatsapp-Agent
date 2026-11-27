@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import { config } from 'dotenv';
-config({ path: new URL('../../../.env', import.meta.url).pathname });
+config({ path: new URL('../../.env', import.meta.url).pathname });
 import { createHmac } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import type { INestApplication } from '@nestjs/common';
