@@ -14,7 +14,7 @@ import { WhatsappService } from '../src/webhooks/whatsapp.service.js';
 
 const SECRET = 'test-app-secret';
 const fixturePath = new URL('../../tests/fixtures/whatsapp-text.json', import.meta.url);
-const raw = readFileSync(fixturePath, 'utf8');
+const raw = readFileSync(fixturePath, 'utf8').replaceAll('PNID1', 'PNID-API-TEST').replace('wamid.FIXTURE1', 'wamid.API-TEST-1');
 const sign = (body: string) => 'sha256=' + createHmac('sha256', SECRET).update(body).digest('hex');
 
 const prisma = createPrisma();
@@ -29,7 +29,7 @@ beforeAll(async () => {
   const b = await prisma.business.create({
     data: {
       name: 'Webhook Test', slug: 'webhook-test', category: 'x',
-      whatsappAccounts: { create: { wabaId: 'W', phoneNumberId: 'PNID1', displayNumber: '2348000000000', accessTokenEncrypted: 'x' } }
+      whatsappAccounts: { create: { wabaId: 'W', phoneNumberId: 'PNID-API-TEST', displayNumber: '2348000000000', accessTokenEncrypted: 'x' } }
     }
   });
   businessId = b.id;
@@ -84,7 +84,7 @@ describe('POST /webhooks/whatsapp', () => {
     expect(res.status).toBe(200);
     expect(jobs).toHaveLength(1);
     expect(jobs[0]!.data.businessId).toBe(businessId);
-    expect(await prisma.message.count({ where: { businessId, waMessageId: 'wamid.FIXTURE1' } })).toBe(1);
+    expect(await prisma.message.count({ where: { businessId, waMessageId: 'wamid.API-TEST-1' } })).toBe(1);
   });
 
   it('is idempotent when Meta retries the same message', async () => {
@@ -95,7 +95,7 @@ describe('POST /webhooks/whatsapp', () => {
   });
 
   it('ignores messages for an unknown phone_number_id', async () => {
-    const other = raw.replace('PNID1', 'UNKNOWN');
+    const other = raw.replace('PNID-API-TEST', 'UNKNOWN');
     expect((await post(other, sign(other))).status).toBe(200);
     expect(jobs).toHaveLength(0);
   });
