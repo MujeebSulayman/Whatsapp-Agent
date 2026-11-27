@@ -20,8 +20,31 @@
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
-/* One neutral scale + a single dark accent. Colour is reserved for status only (success / warning / danger). */
+/*
+ * Design tokens. One neutral scale + a single accent (the "primary" colour); colour is reserved for status.
+ * Dark is the default. Light is opt-in via the theme toggle (html[data-theme="light"]).
+ */
 :root {
+  color-scheme: dark; /* native controls, scrollbars and form popups follow the theme */
+  --background: #09090b;
+  --foreground: #f4f4f5;
+  --card: #111113;
+  --muted: #1c1c1f;
+  --muted-foreground: #a1a1aa;
+  --border: #27272a;
+  --primary: #f4f4f5;
+  --primary-foreground: #09090b;
+  --accent: #1c1c1f;
+  --ring: #71717a;
+  --success: #4ade80;
+  --success-bg: rgb(34 197 94 / 0.12);
+  --warning: #facc15;
+  --warning-bg: rgb(234 179 8 / 0.12);
+  --danger: #f87171;
+  --danger-bg: rgb(239 68 68 / 0.12);
+}
+:root[data-theme="light"] {
+  color-scheme: light;
   --background: #fafafa;
   --foreground: #0a0a0a;
   --card: #ffffff;
@@ -40,16 +63,90 @@
   --danger-bg: #fef2f2;
 }
 
-html, body { height: 100%; }
-body { background: var(--background); color: var(--foreground); font-family: var(--font-sans); font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+/*
+ * Base styles beyond Tailwind's Preflight (which already covers box-sizing, margin reset, media defaults, form font inherit).
+ * Sources: Andy Bell's "A (more) Modern CSS Reset", Josh Comeau's custom CSS reset, MDN accessibility media queries,
+ * Chrome typography guidance. See backend/docs/CSS-NOTES.md.
+ */
 @layer base {
   * { border-color: var(--border); }
+
+  html {
+    -webkit-text-size-adjust: none;
+    text-size-adjust: none;           /* stop mobile browsers inflating text on rotate */
+    scroll-padding-top: 5rem;          /* anchors don't hide under sticky headers */
+    scrollbar-color: var(--muted-foreground) transparent;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    min-height: 100vh;
+    min-height: 100dvh;                /* real viewport height on mobile browsers */
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    overflow-wrap: break-word;
+  }
+
+  /* Typography: balanced headings, no orphans in paragraphs (Chrome/Josh Comeau guidance). */
+  h1, h2, h3, h4 { text-wrap: balance; }
+  p, li { text-wrap: pretty; }
+
+  /* Interaction */
+  :target { scroll-margin-block: 5rem; }
+  button, [role="button"], a, input, select, textarea, summary { touch-action: manipulation; } /* no 300ms tap delay, no double-tap zoom */
+  :focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; } /* keyboard focus is always visible */
+  :focus:not(:focus-visible) { outline: none; }
+  [hidden] { display: none !important; }
+  input, select, textarea { accent-color: var(--primary); }
+  ::selection { background: var(--ring); color: var(--background); }
+  ::placeholder { color: var(--muted-foreground); opacity: 0.8; }
+  textarea:not([rows]) { min-height: 8em; }
+
+  /* Numbers line up in tables and stats */
+  table { font-variant-numeric: tabular-nums; }
+
+  /* Native select: custom chevron that follows the theme */
   select {
     appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2371717a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a1a1aa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 0.6rem center;
   }
+  /* Pickers and dropdown lists inherit readable colours in both themes */
+  option { background: var(--card); color: var(--foreground); }
+
+  dialog { color: var(--foreground); }
+  dialog::backdrop { background: rgb(0 0 0 / 0.55); backdrop-filter: blur(2px); }
 }
-::selection { background: #e4e4e7; }
-dialog::backdrop { background: rgb(0 0 0 / 0.4); }
+
+/* Respect the OS "reduce motion" setting (vestibular disorders). */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+}
+
+/* Windows High Contrast / forced colours: keep controls and focus visible. */
+@media (forced-colors: active) {
+  :focus-visible { outline: 2px solid Highlight; }
+  button, input, select, textarea { border: 1px solid ButtonText; }
+}
+
+/* Printing an order or a report: no navigation chrome, black on white. */
+@media print {
+  aside, header, nav, button, [role="switch"] { display: none !important; }
+  body { background: #fff !important; color: #000 !important; min-height: 0; }
+  main { padding: 0 !important; max-width: none !important; }
+  * { box-shadow: none !important; }
+}

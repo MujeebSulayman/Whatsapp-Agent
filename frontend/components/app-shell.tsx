@@ -6,7 +6,7 @@ import { useState, type ReactNode } from 'react';
 import { api, useApi } from '@/lib/api';
 import type { BusinessDetail, Me } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { Avatar, Badge } from './ui';
+import { Avatar, Badge, ThemeToggle } from './ui';
 
 const main = [
   { href: '/inbox', label: 'Inbox', icon: MessageSquare },
@@ -79,6 +79,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <div className="truncate text-[13px] font-medium">{me?.user.name ?? '…'}</div>
             <div className="truncate text-xs text-muted-foreground">{me?.business.name}</div>
           </div>
+          <ThemeToggle />
           <button onClick={logout} aria-label="Sign out" title="Sign out" className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"><LogOut className="size-4" /></button>
         </div>
       </div>

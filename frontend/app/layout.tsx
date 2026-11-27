@@ -6,7 +6,11 @@ export const metadata = { title: 'WA Sales Agent', description: 'Your AI salespe
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" data-theme="dark" suppressHydrationWarning>
+      <head>
+        {/* Apply the saved theme before first paint to avoid a flash. Dark is the default. */}
+        <script dangerouslySetInnerHTML={{ __html: "try{document.documentElement.dataset.theme=localStorage.getItem('theme')||'dark'}catch(e){}" }} />
+      </head>
       <body><ToastProvider>{children}</ToastProvider></body>
     </html>
   );

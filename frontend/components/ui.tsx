@@ -1,5 +1,5 @@
 'use client';
-import { AlertCircle, CheckCircle2, Loader2, X } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Loader2, Moon, Sun, X } from 'lucide-react';
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 import { cn, initials } from '@/lib/utils';
 
@@ -46,8 +46,8 @@ export function Field({ label, hint, error, children, className }: { label: stri
 export function Switch({ checked, onChange, disabled, label }: { checked: boolean; onChange: (v: boolean) => void; disabled?: boolean; label: string }) {
   return (
     <button type="button" role="switch" aria-checked={checked} aria-label={label} disabled={disabled} onClick={() => onChange(!checked)}
-      className={cn('relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50', checked ? 'bg-primary' : 'bg-zinc-300')}>
-      <span className={cn('inline-block size-4 rounded-full bg-white shadow transition-transform', checked ? 'translate-x-[18px]' : 'translate-x-0.5')} />
+      className={cn('relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50', checked ? 'bg-primary' : 'bg-muted-foreground/40')}>
+      <span className={cn('inline-block size-4 rounded-full bg-primary-foreground shadow transition-transform', checked ? 'translate-x-4.5' : 'translate-x-0.5')} />
     </button>
   );
 }
@@ -173,6 +173,24 @@ export const ErrorNote = ({ children }: { children: ReactNode }) => (
   <div className="flex items-start gap-2 rounded-md border border-danger/20 bg-danger-bg px-3 py-2 text-[13px] text-danger"><AlertCircle className="mt-0.5 size-4 shrink-0" />{children}</div>
 );
 
+/* ---------- Theme toggle (dark default, light optional) ---------- */
+export function ThemeToggle({ className }: { className?: string }) {
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  useEffect(() => { setTheme(document.documentElement.dataset.theme === 'light' ? 'light' : 'dark'); }, []);
+  function toggle() {
+    const next = theme === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = next;
+    try { localStorage.setItem('theme', next); } catch { /* private mode: theme just won't persist */ }
+    setTheme(next);
+  }
+  return (
+    <button onClick={toggle} aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`} title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+      className={cn('rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground', className)}>
+      {theme === 'dark' ? <Sun className="size-4" /> : <Moon className="size-4" />}
+    </button>
+  );
+}
+
 /* ---------- Toasts ---------- */
 type Toast = { id: number; text: string; tone: 'success' | 'error' };
 const ToastCtx = createContext<(text: string, tone?: Toast['tone']) => void>(() => {});
@@ -187,7 +205,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastCtx.Provider value={push}>
       {children}
-      <div className="pointer-events-none fixed bottom-4 right-4 z-[100] flex flex-col gap-2">
+      <div className="pointer-events-none fixed bottom-4 right-4 z-100 flex flex-col gap-2">
         {items.map((t) => (
           <div key={t.id} className="pointer-events-auto flex items-center gap-2 rounded-md border bg-card px-3.5 py-2.5 text-sm shadow-lg">
             {t.tone === 'success' ? <CheckCircle2 className="size-4 text-success" /> : <AlertCircle className="size-4 text-danger" />}
