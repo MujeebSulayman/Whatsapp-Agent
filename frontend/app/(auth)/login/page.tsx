@@ -1,10 +1,9 @@
 'use client';
-import { ArrowRight, Eye, EyeOff, Mail } from 'lucide-react';
-import Link from 'next/link';
+import { Eye, EyeOff } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useState, type FormEvent } from 'react';
-import { GoogleButton, OrDivider, useProviders } from '@/components/auth/google-button';
-import { Button, ErrorNote, Field, Input } from '@/components/ui';
+import { AuthButton, AuthInput, AuthOptions, BackLink, SwitchLink, rememberMethod, useProviders } from '@/components/auth/google-button';
+import { ErrorNote } from '@/components/ui';
 import { api } from '@/lib/api';
 
 function LoginForm() {
@@ -27,6 +26,7 @@ function LoginForm() {
     setError(null);
     try {
       await api.post('auth/login', { email, password });
+      rememberMethod('email');
       router.replace('/inbox');
     } catch (err) {
       setError((err as Error).message);
@@ -35,39 +35,29 @@ function LoginForm() {
   }
 
   return (
-    <div className="animate-fade-up">
-      <h1 className="text-[26px] font-semibold tracking-tight">Welcome back</h1>
-      <p className="mb-8 mt-1.5 text-sm text-muted-foreground">Sign in to your dashboard.</p>
-
-      {(urlError || error) && <div className="mb-4"><ErrorNote>{error ?? urlError}</ErrorNote></div>}
+    <div className="animate-fade-up space-y-6">
+      <h1 className="sr-only">Sign in</h1>
+      {(urlError || error) && <ErrorNote>{error ?? urlError}</ErrorNote>}
 
       {providers.loading ? (
-        <div className="h-[132px]" aria-hidden />
+        <div className="h-[100px]" aria-hidden />
       ) : choosing ? (
-        <div className="space-y-4">
-          <GoogleButton preview={providers.preview} />
-          <OrDivider />
-          <Button type="button" variant="secondary" className="h-11 w-full rounded-lg" onClick={() => setWantsEmail(true)}><Mail className="size-4" />Continue with email</Button>
-        </div>
+        <AuthOptions preview={providers.preview} onEmail={() => setWantsEmail(true)} />
       ) : (
-        <form onSubmit={submit} className="space-y-4">
-          <Field label="Email"><Input className="h-11 rounded-lg" type="email" autoFocus autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@business.com" /></Field>
-          <Field label="Password">
-            <div className="relative">
-              <Input className="h-11 rounded-lg pr-10" type={show ? 'text' : 'password'} autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
-              <button type="button" onClick={() => setShow(!show)} aria-label={show ? 'Hide password' : 'Show password'} className="absolute right-2.5 top-3 rounded p-0.5 text-muted-foreground hover:text-foreground">
-                {show ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-              </button>
-            </div>
-          </Field>
-          <Button type="submit" className="h-11 w-full rounded-lg" loading={busy}>Sign in<ArrowRight className="size-4" /></Button>
-          {providers.offer && <button type="button" onClick={() => setWantsEmail(false)} className="w-full text-center text-[13px] text-muted-foreground hover:text-foreground">Other sign-in options</button>}
+        <form onSubmit={submit} className="space-y-3">
+          <AuthInput type="email" aria-label="Email" autoFocus autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" />
+          <div className="relative">
+            <AuthInput className="pr-11" type={show ? 'text' : 'password'} aria-label="Password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" />
+            <button type="button" onClick={() => setShow(!show)} aria-label={show ? 'Hide password' : 'Show password'} className="absolute right-3 top-3 rounded p-0.5 text-white/40 hover:text-white">
+              {show ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+            </button>
+          </div>
+          <AuthButton type="submit" tone="light" loading={busy}>Sign in</AuthButton>
+          {providers.offer && <div className="pt-2"><BackLink onClick={() => setWantsEmail(false)} /></div>}
         </form>
       )}
 
-      <p className="mt-8 border-t pt-6 text-center text-[13px] text-muted-foreground">
-        New here? <Link href="/signup" className="font-medium text-foreground underline-offset-4 hover:underline">Create an account</Link>
-      </p>
+      <SwitchLink prompt="New here?" href="/signup" label="Create an account" />
     </div>
   );
 }

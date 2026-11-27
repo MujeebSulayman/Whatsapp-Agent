@@ -38,11 +38,11 @@ export function BrandMark({ className = 'size-8' }: { className?: string }) {
   );
 }
 
-export function Logo() {
+export function Logo({ className, markClassName, textClassName }: { className?: string; markClassName?: string; textClassName?: string } = {}) {
   return (
-    <div className="flex items-center gap-2.5">
-      <BrandMark />
-      <span className="text-[15px] font-semibold tracking-tight">{process.env.NEXT_PUBLIC_APP_NAME ?? 'Converso'}</span>
+    <div className={cn('flex items-center gap-2.5', className)}>
+      <BrandMark className={markClassName} />
+      <span className={cn('text-[15px] font-semibold tracking-tight', textClassName)}>{process.env.NEXT_PUBLIC_APP_NAME ?? 'Converso'}</span>
     </div>
   );
 }
