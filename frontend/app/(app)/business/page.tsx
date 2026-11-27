@@ -1,11 +1,11 @@
 'use client';
-import { CheckCircle2, Download, Pencil, Plus, Plug, Trash2, Unplug } from 'lucide-react';
+import { Download, HelpCircle, MapPin, Pencil, Plus, Plug, Trash2, Unplug } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Suspense, useMemo, useState, type FormEvent } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { mutate } from 'swr';
 import { SuggestButton } from '@/components/setup/suggest-button';
-import { Badge, Button, Card, CardBody, CardHeader, Dialog, EmptyState, ErrorNote, Field, Input, Loading, PageHeader, Select, Table, Tabs, TD, TH, THead, Textarea, TR, useToast } from '@/components/ui';
+import { Button, Card, CardBody, CardFooter, CardHeader, Dialog, EmptyState, ErrorNote, Field, IconButton, Input, Loading, PageHeader, Section, Select, StatusDot, Table, Tabs, TD, TH, THead, Textarea, TR, useToast } from '@/components/ui';
 import { api, useApi, useMe } from '@/lib/api';
 import type { BusinessDetail, Faq, Zone } from '@/lib/types';
 import { COUNTRIES, currencyOptions, timezoneOptions } from '@/lib/countries';
@@ -29,9 +29,9 @@ function Inner() {
   if (!biz || !me) return <Loading />;
   const owner = me.role === 'owner';
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="mx-auto max-w-5xl">
       <PageHeader title="Business" description="Your details, delivery areas, FAQs and WhatsApp connection." />
-      <div className="mb-6"><Tabs value={tab} onChange={setTab} tabs={[{ id: 'profile', label: 'Profile' }, { id: 'delivery', label: labels.zoneTab }, { id: 'faqs', label: 'FAQs' }, { id: 'whatsapp', label: 'WhatsApp' }, { id: 'data', label: 'Data & privacy' }]} /></div>
+      <div className="mb-8"><Tabs value={tab} onChange={setTab} tabs={[{ id: 'profile', label: 'Profile' }, { id: 'delivery', label: labels.zoneTab }, { id: 'faqs', label: 'FAQs' }, { id: 'whatsapp', label: 'WhatsApp' }, { id: 'data', label: 'Data & privacy' }]} /></div>
       {tab === 'profile' && <Profile biz={biz} owner={owner} />}
       {tab === 'delivery' && <Delivery />}
       {tab === 'faqs' && <Faqs />}
@@ -68,44 +68,53 @@ function Profile({ biz, owner }: { biz: BusinessDetail; owner: boolean }) {
 
   return (
     <form onSubmit={save}>
-      <Card>
-        <CardBody className="space-y-5">
-          {err && <ErrorNote>{err}</ErrorNote>}
-          {!owner && <ErrorNote>Only the account owner can edit these details.</ErrorNote>}
-          <div className="grid gap-4 sm:grid-cols-3">
+      {(err || !owner) && <div className="mb-6 space-y-2">{err && <ErrorNote>{err}</ErrorNote>}{!owner && <ErrorNote>Only the account owner can edit these details.</ErrorNote>}</div>}
+      <Section title="Basics" description="How the assistant introduces your business.">
+        <Card><CardBody className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Business name"><Input required value={f.name} onChange={set('name')} disabled={!owner} /></Field>
-            <Field label="What your business does" hint="Pick a suggestion or type your own."><Input required list="category-suggestions" value={f.category} onChange={set('category')} disabled={!owner} /><datalist id="category-suggestions">{CATEGORIES.map((c) => <option key={c.name} value={c.name} />)}</datalist></Field>
             <Field label="City"><Input required value={f.city} onChange={set('city')} disabled={!owner} /></Field>
           </div>
+          <Field label="What your business does" hint="Pick a suggestion or type your own."><Input required list="category-suggestions" value={f.category} onChange={set('category')} disabled={!owner} /><datalist id="category-suggestions">{CATEGORIES.map((c) => <option key={c.name} value={c.name} />)}</datalist></Field>
           <Field label="How customers buy from you" hint={KIND_OPTIONS.find((o) => o.value === f.kind)?.hint}>
             <Select value={f.kind} onChange={(e) => setF((s) => ({ ...s, kind: e.target.value as Kind }))} disabled={!owner}>{KIND_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</Select>
           </Field>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Field label="Country"><Select value={f.country} onChange={set('country')} disabled={!owner}>{COUNTRIES.map((c) => <option key={c.code} value={c.code}>{c.flag} {c.name}</option>)}</Select></Field>
+        </CardBody></Card>
+      </Section>
+      <Section title="Region" description="Sets prices, dates and times across the app.">
+        <Card><CardBody className="space-y-4">
+          <Field label="Country"><Select value={f.country} onChange={set('country')} disabled={!owner}>{COUNTRIES.map((c) => <option key={c.code} value={c.code}>{c.flag} {c.name}</option>)}</Select></Field>
+          <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Currency" hint={currencyLocked ? "Locked: you already have products, delivery fees or orders in this currency." : "Prices are shown in this currency."}>
               <Select value={f.currency} onChange={set('currency')} disabled={!owner || currencyLocked}>{currencies.map((c) => <option key={c.code} value={c.code}>{c.label}</option>)}</Select>
             </Field>
             <Field label="Timezone"><Select value={f.timezone} onChange={set('timezone')} disabled={!owner}>{timezones.map((z) => <option key={z}>{z}</option>)}</Select></Field>
           </div>
-          <div>
-            <div className="mb-1.5 text-[13px] font-medium">Opening hours</div>
-            <div className="space-y-2">
-              {hours.map((h, i) => (
-                <div key={i} className="flex gap-2">
-                  <Input placeholder="e.g. Mon–Sat" value={h.label} disabled={!owner} onChange={(e) => setHours(hours.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))} />
-                  <Input placeholder="e.g. 9am–9pm" value={h.value} disabled={!owner} onChange={(e) => setHours(hours.map((x, j) => (j === i ? { ...x, value: e.target.value } : x)))} />
-                  {owner && <Button type="button" variant="ghost" aria-label="Remove row" onClick={() => setHours(hours.filter((_, j) => j !== i))}><Trash2 className="size-4" /></Button>}
-                </div>
-              ))}
-              {owner && <Button type="button" size="sm" variant="secondary" onClick={() => setHours([...hours, { label: '', value: '' }])}><Plus className="size-3.5" />Add hours</Button>}
+        </CardBody></Card>
+      </Section>
+      <Section title="Opening hours" description="The assistant tells customers when you are open.">
+        <Card><CardBody className="space-y-2">
+          {hours.length === 0 && <p className="text-[13px] text-muted-foreground">No hours added yet.</p>}
+          {hours.map((h, i) => (
+            <div key={i} className="flex gap-2">
+              <Input placeholder="e.g. Mon–Sat" value={h.label} disabled={!owner} onChange={(e) => setHours(hours.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))} />
+              <Input placeholder="e.g. 9am–9pm" value={h.value} disabled={!owner} onChange={(e) => setHours(hours.map((x, j) => (j === i ? { ...x, value: e.target.value } : x)))} />
+              {owner && <IconButton label="Remove row" tone="danger" className="size-9" onClick={() => setHours(hours.filter((_, j) => j !== i))}><Trash2 /></IconButton>}
             </div>
-          </div>
-          <Field label="How customers pay" hint="e.g. Card, bank transfer, mobile money or cash on delivery."><Input value={f.paymentInfo} onChange={set('paymentInfo')} disabled={!owner} /></Field>
-          <Field label="Return policy"><Textarea rows={2} value={f.returnPolicy} onChange={set('returnPolicy')} disabled={!owner} /></Field>
-          <Field label="Your WhatsApp number for alerts" hint="Country code, digits only, e.g. 14155550123. We message you here when a chat needs you. Message your business number first so WhatsApp allows it."><Input inputMode="numeric" value={f.ownerPhone} onChange={set('ownerPhone')} disabled={!owner} /></Field>
-        </CardBody>
-        {owner && <div className="flex justify-end border-t bg-muted/30 px-5 py-3"><Button type="submit" loading={busy}>Save changes</Button></div>}
-      </Card>
+          ))}
+          {owner && <Button type="button" size="sm" variant="ghost" className="-ml-2" onClick={() => setHours([...hours, { label: '', value: '' }])}><Plus className="size-3.5" />Add hours</Button>}
+        </CardBody></Card>
+      </Section>
+      <Section title="Payments and alerts" description="What the assistant says about paying and returns, and where we reach you.">
+        <Card>
+          <CardBody className="space-y-4">
+            <Field label="How customers pay" hint="e.g. Card, bank transfer, mobile money or cash on delivery."><Input value={f.paymentInfo} onChange={set('paymentInfo')} disabled={!owner} /></Field>
+            <Field label="Return policy"><Textarea rows={2} value={f.returnPolicy} onChange={set('returnPolicy')} disabled={!owner} /></Field>
+            <Field label="Your WhatsApp number for alerts" hint="Country code, digits only, e.g. 14155550123. We message you here when a chat needs you. Message your business number first so WhatsApp allows it."><Input inputMode="numeric" value={f.ownerPhone} onChange={set('ownerPhone')} disabled={!owner} /></Field>
+          </CardBody>
+          {owner && <CardFooter><Button type="submit" loading={busy}>Save changes</Button></CardFooter>}
+        </Card>
+      </Section>
     </form>
   );
 }
@@ -140,16 +149,16 @@ function Delivery() {
   }
 
   return (
-    <Card>
+    <Card className="overflow-hidden">
       <CardHeader title={labels.zones} description={labels.zonesBlurb} action={<Button size="sm" onClick={() => setTarget('new')}><Plus className="size-3.5" />Add area</Button>} />
-      {isLoading ? <Loading /> : !zones?.length ? <EmptyState title={`No ${labels.zones.toLowerCase()} yet`} description={labels.kind === 'services' ? 'Add the areas you work in, with a call-out fee and a typical response time.' : 'Add the areas you deliver to, with a fee and a delivery time.'} /> : (
+      {isLoading ? <Loading /> : !zones?.length ? <EmptyState icon={<MapPin />} title={`No ${labels.zones.toLowerCase()} yet`} description={labels.kind === 'services' ? 'Add the areas you work in, with a call-out fee and a typical response time.' : 'Add the areas you deliver to, with a fee and a delivery time.'} /> : (
         <Table>
-          <THead><tr><TH>Area</TH><TH>Fee</TH><TH>Delivery time</TH><TH className="w-24"><span className="sr-only">Actions</span></TH></tr></THead>
+          <THead><tr><TH>Area</TH><TH>Delivery time</TH><TH className="text-right">Fee</TH><TH className="w-20"><span className="sr-only">Actions</span></TH></tr></THead>
           <tbody>
             {zones.map((x) => (
               <TR key={x.id}>
-                <TD className="font-medium">{x.areaName}</TD><TD className="tabular-nums">{money.fmt(x.feeMinor)}</TD><TD className="text-muted-foreground">{x.etaText}</TD>
-                <TD><div className="flex justify-end gap-1"><Button size="sm" variant="ghost" aria-label={`Edit ${x.areaName}`} onClick={() => setTarget(x)}><Pencil className="size-4" /></Button><Button size="sm" variant="ghost" aria-label={`Delete ${x.areaName}`} onClick={() => remove(x.id)}><Trash2 className="size-4" /></Button></div></TD>
+                <TD className="font-medium">{x.areaName}</TD><TD className="text-[13px] text-muted-foreground">{x.etaText}</TD><TD className="text-right font-medium tabular-nums">{money.fmt(x.feeMinor)}</TD>
+                <TD><div className="flex justify-end gap-0.5"><IconButton label={`Edit ${x.areaName}`} onClick={() => setTarget(x)}><Pencil /></IconButton><IconButton label={`Delete ${x.areaName}`} tone="danger" onClick={() => remove(x.id)}><Trash2 /></IconButton></div></TD>
               </TR>
             ))}
           </tbody>
@@ -196,12 +205,12 @@ function Faqs() {
   return (
     <Card>
       <CardHeader title="Frequently asked questions" description="The assistant answers these in your voice." action={<Button size="sm" onClick={() => setTarget('new')}><Plus className="size-3.5" />Add FAQ</Button>} />
-      {isLoading ? <Loading /> : !faqs?.length ? <EmptyState title="No FAQs yet" description="Add opening hours, returns, how to pay, and anything customers often ask." /> : (
-        <ul className="divide-y">
+      {isLoading ? <Loading /> : !faqs?.length ? <EmptyState icon={<HelpCircle />} title="No FAQs yet" description="Add opening hours, returns, how to pay, and anything customers often ask." /> : (
+        <ul className="divide-y divide-border/60 border-t">
           {faqs.map((x) => (
-            <li key={x.id} className="flex items-start justify-between gap-4 px-5 py-4">
+            <li key={x.id} className="group flex items-start justify-between gap-4 px-5 py-4">
               <div className="min-w-0"><div className="text-sm font-medium">{x.question}</div><p className="mt-1 whitespace-pre-wrap text-[13px] text-muted-foreground">{x.answer}</p></div>
-              <div className="flex shrink-0 gap-1"><Button size="sm" variant="ghost" aria-label="Edit FAQ" onClick={() => setTarget(x)}><Pencil className="size-4" /></Button><Button size="sm" variant="ghost" aria-label="Delete FAQ" onClick={() => remove(x.id)}><Trash2 className="size-4" /></Button></div>
+              <div className="flex shrink-0 gap-0.5 opacity-60 transition-opacity group-hover:opacity-100 focus-within:opacity-100"><IconButton label="Edit FAQ" onClick={() => setTarget(x)}><Pencil /></IconButton><IconButton label="Delete FAQ" tone="danger" onClick={() => remove(x.id)}><Trash2 /></IconButton></div>
             </li>
           ))}
         </ul>
@@ -236,13 +245,13 @@ function Whatsapp({ biz, owner }: { biz: BusinessDetail; owner: boolean }) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <Card>
         <CardHeader title="Connected number" description="Customers message this WhatsApp number and the assistant replies." />
         <CardBody>
           {account ? (
             <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3"><CheckCircle2 className="size-5 text-success" /><div><div className="text-sm font-medium">+{account.displayNumber}</div><div className="text-xs text-muted-foreground">Phone number ID {account.phoneNumberId}</div></div><Badge tone="success">Active</Badge></div>
+              <div className="flex items-center gap-3"><span className="flex size-10 items-center justify-center rounded-xl border bg-success-bg text-success"><Plug className="size-4" /></span><div><div className="flex items-center gap-3 text-sm font-medium">+{account.displayNumber}<StatusDot tone="success">Active</StatusDot></div><div className="text-xs text-muted-foreground">Phone number ID {account.phoneNumberId}</div></div></div>
               {owner && <Button variant="secondary" size="sm" onClick={disconnect}><Unplug className="size-3.5" />Disconnect</Button>}
             </div>
           ) : <p className="text-[13px] text-muted-foreground">No number connected yet. Connect one below to start receiving customer messages.</p>}
@@ -261,7 +270,7 @@ function Whatsapp({ biz, owner }: { biz: BusinessDetail; owner: boolean }) {
               <Field label="Phone number" hint="With country code, digits only."><Input required inputMode="numeric" value={f.displayNumber} onChange={(e) => setF({ ...f, displayNumber: e.target.value })} placeholder="14155550123" /></Field>
               <Field label="Access token" hint="Stored encrypted. It is never shown again."><Input required type="password" autoComplete="off" value={f.accessToken} onChange={(e) => setF({ ...f, accessToken: e.target.value })} /></Field>
             </CardBody>
-            <div className="flex justify-end border-t bg-muted/30 px-5 py-3"><Button type="submit" loading={busy}><Plug className="size-4" />Connect number</Button></div>
+            <CardFooter><Button type="submit" loading={busy}><Plug className="size-4" />Connect number</Button></CardFooter>
           </Card>
         </form>
       )}
@@ -293,7 +302,7 @@ function DataPrivacy({ biz, owner }: { biz: BusinessDetail; owner: boolean }) {
 
   if (!owner) return <ErrorNote>Only the account owner can export or delete business data.</ErrorNote>;
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <Card>
         <CardHeader title="Export your data" description="Download everything we hold for your business (products, customers, chats, orders) as a JSON file." />
         <CardBody><Button variant="secondary" onClick={exportData}><Download className="size-4" />Download export</Button></CardBody>

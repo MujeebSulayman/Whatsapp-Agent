@@ -2,7 +2,7 @@
 import { Plus, Trash2, UsersRound } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { mutate } from 'swr';
-import { Avatar, Badge, Button, Card, Dialog, EmptyState, ErrorNote, Field, Input, Loading, PageHeader, Table, TD, TH, THead, TR, useToast } from '@/components/ui';
+import { Avatar, Badge, Button, Card, Dialog, EmptyState, ErrorNote, Field, IconButton, Input, Loading, PageHeader, Table, TD, TH, THead, TR, useToast } from '@/components/ui';
 import { api, useApi, useMe } from '@/lib/api';
 import type { TeamMember } from '@/lib/types';
 
@@ -30,23 +30,23 @@ export default function TeamPage() {
   return (
     <>
       <PageHeader title="Team" description="People who can read chats and reply from your inbox." actions={owner && <Button onClick={() => setAdding(true)}><Plus className="size-4" />Add team member</Button>} />
-      <Card>
-        {isLoading ? <Loading /> : !team?.length ? <EmptyState icon={<UsersRound className="size-5" />} title="No team members" /> : (
+      <Card className="overflow-hidden">
+        {isLoading ? <Loading /> : !team?.length ? <EmptyState icon={<UsersRound />} title="No team members" /> : (
           <Table>
             <THead><tr><TH>Member</TH><TH>Role</TH><TH className="w-16"><span className="sr-only">Actions</span></TH></tr></THead>
             <tbody>
               {team.map((m) => (
                 <TR key={m.userId}>
-                  <TD><div className="flex items-center gap-3"><Avatar name={m.name ?? m.email} /><div><div className="font-medium">{m.name ?? '—'}</div><div className="text-xs text-muted-foreground">{m.email}</div></div></div></TD>
-                  <TD>{m.role === 'owner' ? <Badge tone="dark">Owner</Badge> : <Badge>Agent</Badge>}</TD>
-                  <TD>{owner && m.role !== 'owner' && <Button size="sm" variant="ghost" aria-label={`Remove ${m.email}`} onClick={() => setRemoving(m)}><Trash2 className="size-4" /></Button>}</TD>
+                  <TD><div className="flex items-center gap-3"><Avatar name={m.name ?? m.email} className="size-8" /><div><div className="font-medium">{m.name ?? '—'}{m.userId === me?.user.id && <span className="ml-1.5 text-xs font-normal text-muted-foreground">(you)</span>}</div><div className="text-xs text-muted-foreground">{m.email}</div></div></div></TD>
+                  <TD>{m.role === 'owner' ? <Badge>Owner</Badge> : <span className="text-[13px] text-muted-foreground">Agent</span>}</TD>
+                  <TD><div className="flex justify-end">{owner && m.role !== 'owner' && <IconButton label={`Remove ${m.email}`} tone="danger" onClick={() => setRemoving(m)}><Trash2 /></IconButton>}</div></TD>
                 </TR>
               ))}
             </tbody>
           </Table>
         )}
+        <div className="border-t bg-muted/20 px-5 py-3 text-[13px] text-muted-foreground">Agents can reply to chats, manage orders and products. Only the owner can change settings, the team and the WhatsApp connection.</div>
       </Card>
-      <p className="mt-4 text-[13px] text-muted-foreground">Agents can reply to chats, manage orders and products. Only the owner can change settings, the team and the WhatsApp connection.</p>
 
       <Dialog open={adding} onClose={() => setAdding(false)} title="Add team member" description="They sign in with this email and password. Ask them to keep it private."
         footer={<><Button variant="ghost" onClick={() => setAdding(false)}>Cancel</Button><Button type="submit" form="team-form" loading={busy}>Add member</Button></>}>
