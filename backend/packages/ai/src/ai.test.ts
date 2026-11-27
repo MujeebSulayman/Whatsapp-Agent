@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createOpenRouterClient, pickModel } from './index.js';
+import { createOpenRouterClient, createOpenRouterEmbedder, pickModel } from './index.js';
 
 const ok = (body: unknown) => new Response(JSON.stringify(body), { status: 200 });
 
@@ -42,5 +42,16 @@ describe('pickModel', () => {
     expect(pickModel(cfg, { lastMessage: 'Hello!', hasOpenOrder: false })).toBe('f');
     expect(pickModel(cfg, { lastMessage: 'I want party pack', hasOpenOrder: false })).toBe('s');
     expect(pickModel(cfg, { lastMessage: 'ok', hasOpenOrder: true })).toBe('s');
+  });
+});
+
+describe('embedder', () => {
+  const vec = (n: number) => Array.from({ length: 1536 }, (_, i) => (i === n ? 1 : 0));
+  it('returns vectors in input order and rejects wrong dimensions', async () => {
+    const good = createOpenRouterEmbedder({ apiKey: 'k', model: 'm', fetchImpl: (async () => ok({ data: [{ index: 1, embedding: vec(1) }, { index: 0, embedding: vec(0) }] })) as unknown as typeof fetch });
+    const out = await good.embed(['a', 'b']);
+    expect([out[0]![0], out[1]![1]]).toEqual([1, 1]);
+    const bad = createOpenRouterEmbedder({ apiKey: 'k', model: 'm', fetchImpl: (async () => ok({ data: [{ index: 0, embedding: [1, 2, 3] }] })) as unknown as typeof fetch });
+    await expect(bad.embed(['a'])).rejects.toThrow(/1536/);
   });
 });

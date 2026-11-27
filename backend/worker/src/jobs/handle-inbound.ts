@@ -14,6 +14,8 @@ export interface Deps {
   models: ModelConfig;
   sendText: SendText;
   sendImage?: SendImage;
+  /** Embeds a search query; enables vector product search. */
+  embedQuery?: (text: string) => Promise<number[]>;
   encryptionKey: string;
   dryRun?: boolean;
   locker?: Locker;
@@ -122,7 +124,7 @@ async function turn(deps: Deps, job: InboundJob, tokenEnc: string, log: (m: stri
       : undefined;
     const result = await runAgent({
       llm: deps.llm, model, system: ctx.system, history: ctx.history,
-      ctx: { db, businessId: job.businessId, conversationId: job.conversationId, customerId: job.customerId, sendImage }
+      ctx: { db, businessId: job.businessId, conversationId: job.conversationId, customerId: job.customerId, sendImage, embed: deps.embedQuery }
     });
 
     await db.agentRun.create({

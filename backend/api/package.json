@@ -14,6 +14,7 @@
     "@nestjs/common": "^12.6.2",
     "@nestjs/core": "^12.6.2",
     "@nestjs/platform-express": "^12.6.2",
+    "@wa/ai": "workspace:*",
     "@wa/db": "workspace:*",
     "@wa/shared": "workspace:*",
     "@wa/whatsapp": "workspace:*",

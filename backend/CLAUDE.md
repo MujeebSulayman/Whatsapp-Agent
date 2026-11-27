@@ -18,4 +18,7 @@ Next.js App Router + Tailwind + shadcn (../frontend, a standalone pnpm project),
 Layout: repo root has only backend/ and frontend/. Run backend commands from backend/, frontend commands from frontend/.
 Env: backend/.env (copy backend/.env.example) and frontend/.env.local (copy frontend/.env.example); never put secrets in the frontend env.
 pnpm infra:up | pnpm dev | pnpm test | pnpm db:migrate | pnpm lint
+Agent (needs OPENROUTER_API_KEY): pnpm --filter @wa/worker chat | eval | embed:backfill
+Demo login after `pnpm --filter @wa/db db:seed`: demo@lekkichops.test / demo-password-1
+Product: a multi-tenant SaaS. Vendors sign up themselves; never assume a single business.
 (pnpm lives in ~/.local/bin on this machine: export PATH=~/.local/bin:$PATH)

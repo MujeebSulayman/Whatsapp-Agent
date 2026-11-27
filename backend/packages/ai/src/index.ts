@@ -107,3 +107,35 @@ export function pickModel(cfg: ModelConfig, o: { lastMessage: string; hasOpenOrd
   if (!o.hasOpenOrder && GREETING.test(o.lastMessage.trim())) return cfg.fast;
   return cfg.smart;
 }
+
+/* ---------------- Embeddings (OpenRouter /embeddings, OpenAI-compatible) ---------------- */
+export interface Embedder {
+  embed(texts: string[]): Promise<number[][]>;
+}
+export const EMBEDDING_DIMENSIONS = 1536;
+
+export function embeddingModelFromEnv(env: Record<string, string | undefined> = process.env): string {
+  return env.OPENROUTER_EMBEDDING_MODEL ?? 'openai/text-embedding-3-small';
+}
+
+export function createOpenRouterEmbedder(opts: { apiKey: string; model: string; baseUrl?: string; fetchImpl?: typeof fetch }): Embedder {
+  const base = opts.baseUrl ?? 'https://openrouter.ai/api/v1';
+  const doFetch = opts.fetchImpl ?? fetch;
+  return {
+    async embed(texts) {
+      if (texts.length === 0) return [];
+      const res = await doFetch(`${base}/embeddings`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${opts.apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: opts.model, input: texts })
+      });
+      if (!res.ok) throw new Error(`OpenRouter embeddings ${res.status}`);
+      const json = (await res.json()) as { data?: { index: number; embedding: number[] }[] };
+      const rows = [...(json.data ?? [])].sort((a, b) => a.index - b.index).map((d) => d.embedding);
+      if (rows.length !== texts.length || rows.some((r) => r.length !== EMBEDDING_DIMENSIONS)) {
+        throw new Error(`Embedding model must return ${EMBEDDING_DIMENSIONS}-dimension vectors`);
+      }
+      return rows;
+    }
+  };
+}

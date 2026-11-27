@@ -3,6 +3,7 @@ import type { Prisma, PrismaClient } from '@wa/db';
 import { z } from 'zod';
 import { Auth, AuthGuard, type AuthCtx } from '../common/auth.guard.js';
 import { parse } from '../common/validate.js';
+import { EmbeddingService } from '../common/embedding.js';
 import { PRISMA } from '../infra.module.js';
 import { parseCsv, productsFromCsv } from './csv.js';
 
@@ -21,7 +22,10 @@ const FaqInput = z.object({ question: z.string().min(3).max(200), answer: z.stri
 @Controller()
 @UseGuards(AuthGuard)
 export class CatalogController {
-  constructor(@Inject(PRISMA) private readonly db: PrismaClient) {}
+  constructor(
+    @Inject(PRISMA) private readonly db: PrismaClient,
+    @Inject(EmbeddingService) private readonly embeddings: EmbeddingService
+  ) {}
 
   // ---- products
   @Get('products')
@@ -38,10 +42,11 @@ export class CatalogController {
   @HttpCode(201)
   async createProduct(@Auth() a: AuthCtx, @Body() body: unknown) {
     const d = parse(ProductInput, body);
-    return this.db.product.create({
-      data: { businessId: a.businessId, ...d, variants: (d.variants ?? undefined) as Prisma.InputJsonValue | undefined, description: d.description ?? null },
-      
+    const created = await this.db.product.create({
+      data: { businessId: a.businessId, ...d, variants: (d.variants ?? undefined) as Prisma.InputJsonValue | undefined, description: d.description ?? null }
     });
+    this.embeddings.indexProducts(a.businessId, [created.id]);
+    return created;
   }
 
   @Patch('products/:id')
@@ -49,6 +54,7 @@ export class CatalogController {
     const d = parse(ProductInput.partial(), body);
     const res = await this.db.product.updateMany({ where: { id, businessId: a.businessId }, data: { ...d, variants: (d.variants ?? undefined) as Prisma.InputJsonValue | undefined } });
     if (res.count === 0) throw new NotFoundException();
+    this.embeddings.indexProducts(a.businessId, [id]);
     return this.db.product.findFirstOrThrow({ where: { id, businessId: a.businessId } });
   }
 
@@ -66,17 +72,20 @@ export class CatalogController {
     const { rows, errors } = productsFromCsv(parseCsv(csv));
     let created = 0;
     let updated = 0;
+    const touched: string[] = [];
     for (const r of rows) {
       const existing = await this.db.product.findFirst({ where: { businessId: a.businessId, name: { equals: r.name, mode: 'insensitive' } } });
       const data = { name: r.name, description: r.description, priceKobo: r.priceKobo, stockQty: r.stockQty, variants: (r.variants ?? undefined) as Prisma.InputJsonValue | undefined };
       if (existing) {
         await this.db.product.update({ where: { id: existing.id }, data });
+        touched.push(existing.id);
         updated++;
       } else {
-        await this.db.product.create({ data: { businessId: a.businessId, ...data } });
+        touched.push((await this.db.product.create({ data: { businessId: a.businessId, ...data } })).id);
         created++;
       }
     }
+    this.embeddings.indexProducts(a.businessId, touched);
     return { created, updated, errors };
   }
 

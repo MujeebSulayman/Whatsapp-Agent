@@ -1,6 +1,6 @@
 import { Worker } from 'bullmq';
 import { Redis } from 'ioredis';
-import { createOpenRouterClient, modelConfigFromEnv } from '@wa/ai';
+import { createOpenRouterClient, createOpenRouterEmbedder, embeddingModelFromEnv, modelConfigFromEnv } from '@wa/ai';
 import { createPrisma } from '@wa/db';
 import { InboundJob, QUEUES, maskPhone } from '@wa/shared';
 import { sendImage, sendText } from '@wa/whatsapp';
@@ -16,6 +16,8 @@ const db = createPrisma();
 const dryRun = process.env.WHATSAPP_DRY_RUN === 'true';
 const models = modelConfigFromEnv();
 const llm = createOpenRouterClient({ apiKey: apiKey ?? '', appTitle: 'WA Sales Agent' });
+const embedder = apiKey ? createOpenRouterEmbedder({ apiKey, model: embeddingModelFromEnv() }) : null;
+const embedQuery = embedder ? async (t: string) => (await embedder.embed([t]))[0]! : undefined;
 const locker = redisLocker(redis);
 const limiter = redisRateLimiter(redis);
 
@@ -25,7 +27,7 @@ const worker = new Worker(
     const data = InboundJob.parse(job.data);
     console.log(`[worker] inbound ${data.waMessageId} from ${maskPhone(data.from)} type=${data.type}`);
     await handleInbound(
-      { db, llm, models, sendText, sendImage, encryptionKey: process.env.WHATSAPP_TOKEN_ENCRYPTION_KEY ?? '', dryRun, locker, allow: (c) => limiter(c), batchWaitMs: 3000 },
+      { db, llm, models, sendText, sendImage, embedQuery, encryptionKey: process.env.WHATSAPP_TOKEN_ENCRYPTION_KEY ?? '', dryRun, locker, allow: (c) => limiter(c), batchWaitMs: 3000 },
       data
     );
   },

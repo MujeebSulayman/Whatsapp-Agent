@@ -6,6 +6,8 @@ export interface ToolContext {
   businessId: string;
   conversationId: string;
   customerId: string;
+  /** Optional: embeds a search query (enables vector search; keyword search is always the fallback). */
+  embed?: (text: string) => Promise<number[]>;
   /** Optional: lets a tool send a product photo into the chat. */
   sendImage?: (o: { url: string; caption?: string }) => Promise<void>;
   /** Mutable per-run state the tools can flag for the loop/handler. */

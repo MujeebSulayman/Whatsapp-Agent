@@ -68,7 +68,7 @@ function Bubble({ m }: { m: Message }) {
   const human = m.sentBy === 'human';
   return (
     <div className={cn('flex flex-col', mine ? 'items-end' : 'items-start')}>
-      <div className={cn('max-w-[78%] whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2 text-sm', !mine ? 'rounded-bl-sm bg-muted' : human ? 'rounded-br-sm bg-primary text-primary-foreground' : 'rounded-br-sm border bg-card')}>
+      <div className={cn('max-w-[78%] whitespace-pre-wrap wrap-break-word rounded-2xl px-3.5 py-2 text-sm', !mine ? 'rounded-bl-sm bg-muted' : human ? 'rounded-br-sm bg-primary text-primary-foreground' : 'rounded-br-sm border bg-card')}>
         {m.type === 'image' && m.mediaUrl && /* eslint-disable-next-line @next/next/no-img-element */ <img src={m.mediaUrl} alt="" className="mb-1 max-h-48 rounded-md" />}
         {m.body ?? (m.type !== 'text' ? `[${m.type}]` : '')}
       </div>

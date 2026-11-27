@@ -2,6 +2,7 @@ import { Controller, Get, Module } from '@nestjs/common';
 import { AnalyticsController } from './analytics/analytics.controller.js';
 import { AuthController } from './auth/auth.controller.js';
 import { BusinessController } from './businesses/business.controller.js';
+import { EmbeddingService } from './common/embedding.js';
 import { Messenger } from './common/messenger.js';
 import { ConversationsController } from './conversations/conversations.controller.js';
 import { CustomersController } from './customers/customers.controller.js';
@@ -23,6 +24,6 @@ class HealthController {
 @Module({
   imports: [InfraModule],
   controllers: [HealthController, WhatsappController, AuthController, BusinessController, CatalogController, ConversationsController, OrdersController, CustomersController, AnalyticsController, TeamController],
-  providers: [WhatsappService, Messenger]
+  providers: [WhatsappService, Messenger, EmbeddingService]
 })
 export class AppModule {}
