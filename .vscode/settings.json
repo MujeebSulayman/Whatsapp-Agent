@@ -1,0 +1,12 @@
+{
+  "files.exclude": {
+    "node_modules": true,
+    "package.json": true,
+    "pnpm-lock.yaml": true,
+    "pnpm-workspace.yaml": true,
+    "turbo.json": true,
+    "CLAUDE.md": true,
+    ".vscode": true,
+    ".git": true
+  }
+}

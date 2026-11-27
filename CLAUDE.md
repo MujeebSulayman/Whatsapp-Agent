@@ -1,5 +1,5 @@
 # WhatsApp AI Sales Agent
-Spec: docs/SPEC.md. Read it before starting any task.
+Spec: backend/docs/SPEC.md. Read it before starting any task.
 
 ## Stack
 pnpm + Turborepo (shared packages in backend/packages), TypeScript strict, NestJS (backend/api), BullMQ worker (backend/worker),
