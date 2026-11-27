@@ -17,6 +17,7 @@
   --color-warning-bg: var(--warning-bg);
   --color-danger: var(--danger);
   --color-danger-bg: var(--danger-bg);
+  --color-brand: var(--brand);
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
@@ -26,6 +27,7 @@
  */
 :root {
   color-scheme: dark; /* native controls, scrollbars and form popups follow the theme */
+  --brand: #10b981; /* the logo's emerald: used sparingly for glows, progress and highlights */
   --background: #09090b;
   --foreground: #f4f4f5;
   --card: #111113;
@@ -150,3 +152,20 @@
   main { padding: 0 !important; max-width: none !important; }
   * { box-shadow: none !important; }
 }
+
+/* Entrance and "typing" animations used on the sign-in / sign-up screens (all disabled by prefers-reduced-motion above). */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes typing-dot {
+  0%, 80%, 100% { opacity: 0.25; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-2px); }
+}
+@keyframes drift {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(0, -14px, 0); }
+}
+.animate-fade-up { animation: fade-up 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.animate-drift { animation: drift 9s ease-in-out infinite; }
+.typing-dot { animation: typing-dot 1.2s ease-in-out infinite; }
