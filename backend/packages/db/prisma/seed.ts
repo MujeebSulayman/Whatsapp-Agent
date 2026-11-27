@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { createPrisma } from '../src/index.js';
+import { encryptSecret } from '@wa/shared';
 
 const prisma = createPrisma();
 const naira = (n: number) => n * 100; // kobo
@@ -57,6 +58,19 @@ async function main() {
       }
     }
   });
+  const key = process.env.WHATSAPP_TOKEN_ENCRYPTION_KEY;
+  if (key && process.env.SEED_PHONE_NUMBER_ID) {
+    await prisma.whatsappAccount.create({
+      data: {
+        businessId: biz.id,
+        wabaId: process.env.SEED_WABA_ID ?? 'seed-waba',
+        phoneNumberId: process.env.SEED_PHONE_NUMBER_ID,
+        displayNumber: process.env.SEED_DISPLAY_NUMBER ?? 'test',
+        accessTokenEncrypted: encryptSecret(process.env.SEED_WHATSAPP_TOKEN ?? 'dev-token', key)
+      }
+    });
+    console.log('Attached WhatsApp account', process.env.SEED_PHONE_NUMBER_ID);
+  }
   console.log(`Seeded business ${biz.name} (${biz.id})`);
 }
 
