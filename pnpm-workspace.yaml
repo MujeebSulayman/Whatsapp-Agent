@@ -3,9 +3,8 @@ packages:
   - backend/api
   - backend/worker
   - backend/packages/*
-onlyBuiltDependencies:
-  - esbuild
-  - msgpackr-extract
-  - prisma
-  - "@prisma/engines"
-  - "@prisma/client"
+allowBuilds:
+  '@prisma/engines': true
+  esbuild: true
+  msgpackr-extract: true
+  prisma: true
