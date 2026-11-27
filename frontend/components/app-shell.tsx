@@ -9,17 +9,23 @@ import { cn } from '@/lib/utils';
 import { useLabels } from '@/lib/use-labels';
 import { Avatar, ThemeToggle } from './ui';
 
-const main = [
-  { href: '/inbox', label: 'Inbox', icon: MessageSquare },
-  { href: '/orders', label: 'Orders', icon: ShoppingBag },
-  { href: '/products', label: 'Products', icon: Package },
-  { href: '/customers', label: 'Customers', icon: Users },
-  { href: '/analytics', label: 'Analytics', icon: BarChart3 }
-];
-const settings = [
-  { href: '/ai-settings', label: 'AI assistant', icon: Bot },
-  { href: '/business', label: 'Business', icon: Store },
-  { href: '/team', label: 'Team', icon: UsersRound }
+/* Grouped by job: what you check every day, the records of what you sell, then setup. */
+type NavItem = { href: string; label: string; icon: typeof Bot };
+const groups: { title?: string; items: NavItem[] }[] = [
+  { items: [
+    { href: '/inbox', label: 'Inbox', icon: MessageSquare },
+    { href: '/analytics', label: 'Analytics', icon: BarChart3 }
+  ] },
+  { title: 'Sales', items: [
+    { href: '/orders', label: 'Orders', icon: ShoppingBag },
+    { href: '/products', label: 'Products', icon: Package },
+    { href: '/customers', label: 'Customers', icon: Users }
+  ] },
+  { title: 'Settings', items: [
+    { href: '/ai-settings', label: 'AI assistant', icon: Bot },
+    { href: '/business', label: 'Business', icon: Store },
+    { href: '/team', label: 'Team', icon: UsersRound }
+  ] }
 ];
 
 export function BrandMark({ className = 'size-8' }: { className?: string }) {
@@ -81,11 +87,14 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Rocket className="size-4 text-brand" strokeWidth={1.75} />Finish setup
           </Link>
         )}
-        <div className="space-y-0.5">{main.map((i) => <NavLink key={i.href} {...i} label={i.href === '/orders' ? labels.orders : i.href === '/products' ? labels.items : i.label} onNavigate={close} />)}</div>
-        <div>
-          <div className="mb-1 px-2.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">Configure</div>
-          <div className="space-y-0.5">{settings.map((i) => <NavLink key={i.href} {...i} onNavigate={close} />)}</div>
-        </div>
+        {groups.map((g) => (
+          <div key={g.title ?? 'main'}>
+            {g.title && <div className="mb-1 px-2.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">{g.title}</div>}
+            <div className="space-y-0.5">
+              {g.items.map((i) => <NavLink key={i.href} {...i} label={i.href === '/orders' ? labels.orders : i.href === '/products' ? labels.items : i.label} onNavigate={close} />)}
+            </div>
+          </div>
+        ))}
       </nav>
       <div className="space-y-2 p-3">
         {biz?.plan === 'trial' && biz.trialDaysLeft !== null && (

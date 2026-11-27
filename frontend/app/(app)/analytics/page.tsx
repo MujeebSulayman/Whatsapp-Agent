@@ -1,23 +1,34 @@
 'use client';
-import { useState } from 'react';
-import { Card, CardBody, CardHeader, EmptyState, Loading, PageHeader, Select, Stat } from '@/components/ui';
+import { Bot, Gauge, MessageSquare, ShoppingBag, Sparkles, Wallet } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
+import { Card, CardHeader, EmptyState, Loading, PageHeader, Select, StatGrid } from '@/components/ui';
 import { useApi } from '@/lib/api';
 import type { Analytics } from '@/lib/types';
 import { useLabels } from '@/lib/use-labels';
 import { useMoney } from '@/lib/use-money';
+import { cn } from '@/lib/utils';
 
 function BarChart({ data, format }: { data: { label: string; value: number }[]; format: (n: number) => string }) {
   const max = Math.max(1, ...data.map((d) => d.value));
   const step = Math.ceil(data.length / 6);
   return (
     <div>
-      <div className="flex h-40 items-end gap-[3px]" role="img" aria-label="Bar chart">
-        {data.map((d) => (
-          <div key={d.label} className="group relative flex h-full flex-1 items-end">
-            <div className="w-full rounded-t-sm bg-primary/85 transition-colors group-hover:bg-primary" style={{ height: `${Math.max(d.value > 0 ? 3 : 0, (d.value / max) * 100)}%` }} />
-            <div className="pointer-events-none absolute -top-8 left-1/2 z-10 hidden -translate-x-1/2 whitespace-nowrap rounded-md bg-primary px-2 py-1 text-xs text-primary-foreground group-hover:block">{d.label}: {format(d.value)}</div>
-          </div>
-        ))}
+      <div className="relative h-40">
+        {/* Faint guide lines at 0, 50% and 100% of the busiest day */}
+        <div className="pointer-events-none absolute inset-0 flex flex-col justify-between" aria-hidden="true">
+          {[0, 1, 2].map((i) => <div key={i} className="border-t border-dashed border-border/70" />)}
+        </div>
+        <div className="relative flex h-full items-end gap-[3px]" role="img" aria-label="Bar chart">
+          {data.map((d) => (
+            <div key={d.label} className="group relative flex h-full flex-1 items-end">
+              <div className={cn('w-full rounded-[3px] transition-colors', d.value > 0 ? 'bg-brand/70 group-hover:bg-brand' : 'h-[2px] bg-border')}
+                style={d.value > 0 ? { height: `${Math.max(3, (d.value / max) * 100)}%` } : undefined} />
+              <div className="pointer-events-none absolute -top-8 left-1/2 z-10 hidden -translate-x-1/2 whitespace-nowrap rounded-md border bg-card px-2 py-1 text-xs shadow-lg group-hover:block">
+                <span className="text-muted-foreground">{d.label}</span> <span className="font-medium tabular-nums">{format(d.value)}</span>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
       <div className="mt-2 flex gap-[3px] text-[11px] text-muted-foreground">
         {data.map((d, i) => <div key={d.label} className="flex-1 overflow-visible whitespace-nowrap">{i % step === 0 ? d.label : ''}</div>)}
@@ -26,11 +37,27 @@ function BarChart({ data, format }: { data: { label: string; value: number }[]; 
   );
 }
 
+/* Chart card: the period total sits under the title so the chart has a headline number. */
+function ChartCard({ title, total, children }: { title: string; total: string; children: ReactNode }) {
+  return (
+    <Card>
+      <div className="px-5 pt-4">
+        <h2 className="text-[13px] text-muted-foreground">{title}</h2>
+        <div className="mt-1 text-xl font-semibold tracking-tight tabular-nums">{total}</div>
+      </div>
+      <div className="px-5 pt-5 pb-4">{children}</div>
+    </Card>
+  );
+}
+
 export default function AnalyticsPage() {
   const money = useMoney();
   const labels = useLabels();
   const [days, setDays] = useState('30');
   const { data, isLoading } = useApi<Analytics>(`analytics/overview?days=${days}`, { refreshInterval: 30000 });
+  const totalOrders = data?.series.reduce((n, s) => n + s.orders, 0) ?? 0;
+  const totalRevenue = data?.series.reduce((n, s) => n + s.revenueMinor, 0) ?? 0;
+  const topRevenue = Math.max(1, ...(data?.topProducts.map((p) => p.revenueMinor) ?? []));
   const label = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 
   return (
@@ -38,29 +65,38 @@ export default function AnalyticsPage() {
       <PageHeader title="Analytics" description="How your WhatsApp sales are doing."
         actions={<Select value={days} onChange={(e) => setDays(e.target.value)} className="w-40" aria-label="Date range"><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option></Select>} />
       {isLoading || !data ? <Loading /> : (
-        <div className="space-y-6">
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            <Stat label="Active chats" value={data.conversations} />
-            <Stat label={labels.orders} value={data.orders} hint={data.conversionPct === null ? undefined : `${data.conversionPct}% of chats`} />
-            <Stat label="Revenue (paid)" value={money.fmt(data.revenueMinor)} hint={`${data.paidOrders} paid orders`} />
-            <Stat label="Handled by AI" value={data.aiHandledPct === null ? '—' : `${data.aiHandledPct}%`} hint="Chats that never needed a human" />
-            <Stat label="AI replies" value={data.aiRuns} />
-            <Stat label="AI cost" value={`$${Number(data.aiCostUsd).toFixed(2)}`} hint="Model usage in this period" />
-          </div>
-          <div className="grid gap-6 lg:grid-cols-2">
-            <Card><CardHeader title={`${labels.orders} per day`} /><CardBody><BarChart data={data.series.map((s) => ({ label: label(s.date), value: s.orders }))} format={(n) => `${n} orders`} /></CardBody></Card>
-            <Card><CardHeader title="Revenue per day" description="Paid orders only" /><CardBody><BarChart data={data.series.map((s) => ({ label: label(s.date), value: s.revenueMinor }))} format={money.fmt} /></CardBody></Card>
+        <div className="space-y-4">
+          <StatGrid className="sm:grid-cols-2 xl:grid-cols-3" stats={[
+            { label: 'Active chats', value: data.conversations, icon: MessageSquare },
+            { label: labels.orders, value: data.orders, icon: ShoppingBag, hint: data.conversionPct === null ? undefined : `${data.conversionPct}% of chats` },
+            { label: 'Revenue (paid)', value: money.fmt(data.revenueMinor), icon: Wallet, hint: `${data.paidOrders} paid orders` },
+            { label: 'Handled by AI', value: data.aiHandledPct === null ? '—' : `${data.aiHandledPct}%`, icon: Sparkles, hint: 'Chats that never needed a human' },
+            { label: 'AI replies', value: data.aiRuns, icon: Bot },
+            { label: 'AI cost', value: `$${Number(data.aiCostUsd).toFixed(2)}`, icon: Gauge, hint: 'Model usage in this period' }
+          ]} />
+          <div className="grid gap-4 lg:grid-cols-2">
+            <ChartCard title={`${labels.orders} per day`} total={`${totalOrders}`}>
+              <BarChart data={data.series.map((s) => ({ label: label(s.date), value: s.orders }))} format={(n) => `${n} ${n === 1 ? 'order' : 'orders'}`} />
+            </ChartCard>
+            <ChartCard title="Revenue per day · paid only" total={money.fmt(totalRevenue)}>
+              <BarChart data={data.series.map((s) => ({ label: label(s.date), value: s.revenueMinor }))} format={money.fmt} />
+            </ChartCard>
           </div>
           <Card>
-            <CardHeader title="Best sellers" />
+            <CardHeader title="Best sellers" description="Ranked by revenue in this period" />
             {data.topProducts.length === 0 ? <EmptyState title="No sales in this period" description="Your top products will show up here once orders come in." /> : (
-              <ul className="divide-y">
+              <ul className="px-2 pb-2">
                 {data.topProducts.map((p, i) => (
-                  <li key={p.name} className="flex items-center gap-4 px-5 py-3">
-                    <span className="w-5 text-sm text-muted-foreground tabular-nums">{i + 1}</span>
-                    <span className="flex-1 text-sm font-medium">{p.name}</span>
-                    <span className="text-[13px] text-muted-foreground tabular-nums">{p.quantity} sold</span>
-                    <span className="w-28 text-right text-sm font-medium tabular-nums">{money.fmt(p.revenueMinor)}</span>
+                  <li key={p.name} className="flex items-center gap-4 rounded-lg px-3 py-2.5 hover:bg-muted/40">
+                    <span className="w-4 text-xs text-muted-foreground tabular-nums">{i + 1}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-medium">{p.name}</div>
+                      <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-muted">
+                        <div className="h-full rounded-full bg-brand/70" style={{ width: `${(p.revenueMinor / topRevenue) * 100}%` }} />
+                      </div>
+                    </div>
+                    <span className="w-16 text-right text-[13px] text-muted-foreground tabular-nums">{p.quantity} sold</span>
+                    <span className="w-24 text-right text-sm font-medium tabular-nums">{money.fmt(p.revenueMinor)}</span>
                   </li>
                 ))}
               </ul>
