@@ -1,0 +1,10 @@
+node_modules
+dist
+.env
+.env.*
+!.env.example
+*.log
+*.tsbuildinfo
+.vite
+# generated Prisma client (run `pnpm --filter @wa/db db:generate`)
+packages/db/src/generated

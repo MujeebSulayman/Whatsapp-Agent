@@ -1,13 +1,8 @@
 node_modules
-dist
-.next
 .turbo
+.DS_Store
+*.log
+*.tsbuildinfo
 .env
 .env.*
 !.env.example
-*.log
-*.tsbuildinfo
-.DS_Store
-backend/packages/db/src/generated
-**/.vite
-.vitest-cache
