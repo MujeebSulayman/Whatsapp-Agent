@@ -214,7 +214,7 @@ importers:
         version: 12.6.2(@nestjs/common@12.6.2(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.6.2)(rxjs@7.8.2)
       '@wa/shared':
         specifier: workspace:*
-        version: link:../../packages/shared
+        version: link:../packages/shared
       bullmq:
         specifier: ^6.7.10
         version: 6.7.10(ioredis@6.1.0)
@@ -235,11 +235,27 @@ importers:
         specifier: ^5.1.2
         version: 5.1.2(@types/node@26.6.11)(vite@8.3.8(@types/node@26.6.11)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15))
 
+  backend/packages/ai: {}
+
+  backend/packages/db: {}
+
+  backend/packages/paystack: {}
+
+  backend/packages/shared:
+    dependencies:
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
+
+  backend/packages/ui: {}
+
+  backend/packages/whatsapp: {}
+
   backend/worker:
     dependencies:
       '@wa/shared':
         specifier: workspace:*
-        version: link:../../packages/shared
+        version: link:../packages/shared
       bullmq:
         specifier: ^6.7.10
         version: 6.7.10(ioredis@6.1.0)
@@ -281,22 +297,6 @@ importers:
       tailwindcss:
         specifier: ^4.3.5
         version: 4.3.5
-
-  packages/ai: {}
-
-  packages/db: {}
-
-  packages/paystack: {}
-
-  packages/shared:
-    dependencies:
-      zod:
-        specifier: ^4.6.7
-        version: 4.6.7
-
-  packages/ui: {}
-
-  packages/whatsapp: {}
 
 packages:
 

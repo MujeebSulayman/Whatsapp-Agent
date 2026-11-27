@@ -9,7 +9,7 @@ Customer → Meta Cloud API → API (NestJS; verify, dedupe, enqueue, return 200
 pnpm+Turborepo; NestJS; BullMQ/Redis; Postgres+Prisma+pgvector; Claude API with tool use (small model for greetings/FAQ, stronger for orders/haggling); Whisper-style STT; Next.js+Tailwind+shadcn; Socket.io; Paystack; R2/Supabase storage; Sentry.
 
 ## Layout
-backend/{api,worker}; frontend (Next.js dashboard); packages/{db,whatsapp,paystack,ai,shared,ui}; backend/tests/{fixtures,agent-evals}.
+backend/{api,worker}; frontend (Next.js dashboard); backend/packages/{db,whatsapp,paystack,ai,shared,ui}; backend/tests/{fixtures,agent-evals}.
 API modules: webhooks(whatsapp,paystack), businesses, conversations, products, orders, customers, broadcasts, billing, auth, onboarding.
 Worker: jobs(handle-inbound, transcribe-voice, describe-image, follow-ups, send-broadcast); agent(run-agent, system-prompt, context-builder, tools/*).
 

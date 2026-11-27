@@ -1,7 +1,8 @@
 packages:
   - frontend
-  - backend/*
-  - packages/*
+  - backend/api
+  - backend/worker
+  - backend/packages/*
 onlyBuiltDependencies:
   - esbuild
   - msgpackr-extract
