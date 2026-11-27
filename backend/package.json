@@ -1,5 +1,5 @@
 {
-  "name": "tradeline-backend",
+  "name": "converso-backend",
   "private": true,
   "packageManager": "pnpm@12.23.0",
   "engines": {

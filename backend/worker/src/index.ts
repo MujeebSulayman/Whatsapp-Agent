@@ -15,7 +15,7 @@ const redis = new Redis(redisUrl, { maxRetriesPerRequest: null });
 const db = createPrisma();
 const dryRun = process.env.WHATSAPP_DRY_RUN === 'true';
 const models = modelConfigFromEnv();
-const llm = createOpenRouterClient({ apiKey: apiKey ?? '', appTitle: 'Tradeline' });
+const llm = createOpenRouterClient({ apiKey: apiKey ?? '', appTitle: 'Converso' });
 const embedder = apiKey ? createOpenRouterEmbedder({ apiKey, model: embeddingModelFromEnv() }) : null;
 const embedQuery = embedder ? async (t: string) => (await embedder.embed([t]))[0]! : undefined;
 const locker = redisLocker(redis);
