@@ -36,7 +36,7 @@ export function Bubble({ from, time, children }: Msg) {
 
 export function WhatsAppPhone({ shop, initials, messages }: { shop: string; initials: string; messages: Msg[] }) {
   return (
-    <div className="relative w-[300px] rounded-[54px] border border-white/15 bg-[#0d0d0f] p-[11px] shadow-[0_50px_100px_-30px_rgb(0_0_0/0.9),inset_0_0_0_1px_rgb(255_255_255/0.04)] sm:w-[340px]">
+    <div className="relative w-[286px] rounded-[54px] border border-white/15 bg-[#0d0d0f] p-[11px] shadow-[0_50px_100px_-30px_rgb(0_0_0/0.9),inset_0_0_0_1px_rgb(255_255_255/0.04)] sm:w-[340px]">
       <div className="relative flex aspect-[9/19.3] flex-col overflow-hidden rounded-[44px] bg-[#0b141a]">
         {/* status bar + dynamic island */}
         <div className="relative z-10 flex h-[50px] shrink-0 items-center justify-between bg-[#1f2c34] px-[30px] pt-1 text-[14px] font-semibold text-white">
@@ -60,7 +60,8 @@ export function WhatsAppPhone({ shop, initials, messages }: { shop: string; init
         </div>
 
         {/* messages */}
-        <div className="flex flex-1 flex-col gap-1.5 overflow-hidden px-3 pt-3" style={{ backgroundImage: wallpaper }}>
+        {/* Anchored to the bottom like a real chat: on a narrow phone the oldest messages scroll off the top. */}
+        <div className="flex min-h-0 flex-1 flex-col justify-end gap-1.5 overflow-hidden px-3 pb-1 pt-3" style={{ backgroundImage: wallpaper }}>
           <span className="mx-auto mb-1.5 rounded-md bg-[#182229] px-2.5 py-1 text-[11px] text-[#8696a0]">Today</span>
           <p className="mx-auto mb-2 max-w-[88%] rounded-md bg-[#182229] px-2.5 py-1.5 text-center text-[10.5px] leading-snug text-[#ffd279]">
             This business uses a secure service from Meta to manage this chat.

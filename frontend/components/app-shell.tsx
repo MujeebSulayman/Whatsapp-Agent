@@ -2,7 +2,7 @@
 import { BarChart3, Bot, ListChecks, Loader2, LogOut, Menu, MessageSquare, Package, Rocket, ShoppingBag, Sparkles, Store, Users, UsersRound, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useId, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { api, useApi } from '@/lib/api';
 import type { BusinessDetail, Me } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -30,18 +30,17 @@ const groups: { title?: string; items: NavItem[] }[] = [
   ] }
 ];
 
+/**
+ * The Converso mark, "two voices": two open arcs facing each other, you (the text colour) and your customer (emerald).
+ * Drawn in a square frame so the existing square size classes keep working; the neutral arc follows the theme.
+ */
 export function BrandMark({ className = 'size-8' }: { className?: string }) {
-  const id = useId();
   return (
-    <svg viewBox="0 0 32 32" className={className} aria-hidden="true">
-      <defs>
-        <linearGradient id={id} x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#34D399" /><stop offset="1" stopColor="#047857" />
-        </linearGradient>
-      </defs>
-      <rect width="32" height="32" rx="8" fill={`url(#${id})`} />
-      <path transform="translate(1.6 -0.6)" d="M22.01 9.99A8.5 8.5 0 0 0 7.79 18.2L6.2 25.8l5.55-2.44A8.5 8.5 0 0 0 22.01 22.01"
-        fill="none" stroke="#fff" strokeWidth="3.3" strokeLinecap="round" strokeLinejoin="round" />
+    <svg viewBox="0 0 56 56" className={className} aria-hidden="true" fill="none" strokeWidth="6" strokeLinecap="round">
+      <g transform="translate(0 6)">
+        <path d="M23.33 8.69A14 14 0 1 0 23.33 35.31" stroke="currentColor" />
+        <path d="M32.67 8.69A14 14 0 1 1 32.67 35.31" stroke="#10b981" />
+      </g>
     </svg>
   );
 }
