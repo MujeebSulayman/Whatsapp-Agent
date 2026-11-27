@@ -1,11 +1,52 @@
+name: wa-sales-agent
+
 services:
   postgres:
     image: pgvector/pgvector:pg16
+    restart: unless-stopped
     environment: { POSTGRES_USER: wa, POSTGRES_PASSWORD: wa, POSTGRES_DB: wa }
     ports: ["5432:5432"]
     volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wa -d wa"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   redis:
     image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
     ports: ["6379:6379"]
+    volumes: [redisdata:/data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Production-like containers: `pnpm app:up` (profile "app"). Day-to-day dev runs them with `pnpm dev`.
+  api:
+    profiles: ["app"]
+    build: { context: .., dockerfile: backend/Dockerfile, args: { APP: api } }
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://wa:wa@postgres:5432/wa
+      REDIS_URL: redis://redis:6379
+    ports: ["4000:4000"]
+    depends_on: { postgres: { condition: service_healthy }, redis: { condition: service_healthy } }
+
+  worker:
+    profiles: ["app"]
+    build: { context: .., dockerfile: backend/Dockerfile, args: { APP: worker } }
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://wa:wa@postgres:5432/wa
+      REDIS_URL: redis://redis:6379
+    depends_on: { postgres: { condition: service_healthy }, redis: { condition: service_healthy } }
+
 volumes:
   pgdata:
+  redisdata:

@@ -6,3 +6,6 @@ packages:
 onlyBuiltDependencies:
   - esbuild
   - msgpackr-extract
+  - prisma
+  - "@prisma/engines"
+  - "@prisma/client"
