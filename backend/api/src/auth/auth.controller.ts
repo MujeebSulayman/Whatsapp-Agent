@@ -1,63 +1,34 @@
-import { randomBytes } from 'node:crypto';
-import { BadRequestException, Body, ConflictException, Controller, Get, HttpCode, HttpException, HttpStatus, Inject, Post, Req, UnauthorizedException, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpException, HttpStatus, Inject, Post, Req, UnauthorizedException, UseGuards } from '@nestjs/common';
 import type { PrismaClient } from '@wa/db';
 import type { Redis } from 'ioredis';
 import { z } from 'zod';
 import { Auth, AuthGuard, type AuthCtx } from '../common/auth.guard.js';
-import { isCountryCode, defaultCurrencyFor, isCurrencyCode, isTimezone } from '@wa/shared';
 import { hashPassword, signToken, verifyPassword } from '../common/security.js';
 import { parse } from '../common/validate.js';
 import { PRISMA, REDIS } from '../infra.module.js';
+import { AccountsService, BusinessProfile } from './accounts.service.js';
 
-const Signup = z.object({
+const Signup = BusinessProfile.extend({
   email: z.string().email().max(200),
   password: z.string().min(8).max(200),
-  name: z.string().min(1).max(100),
-  businessName: z.string().min(2).max(100),
-  category: z.string().trim().min(2).max(60),
-  kind: z.enum(['goods', 'services', 'both']).default('goods'),
-  city: z.string().min(2).max(60),
-  country: z.string().refine(isCountryCode, "Choose a valid country"),
-  /** Optional: normally derived from the country (US -> USD). */
-  currency: z.string().refine(isCurrencyCode, "Choose a valid currency").optional(),
-  timezone: z.string().refine(isTimezone, "Invalid timezone").default("UTC")
+  name: z.string().min(1).max(100)
 });
 const Login = z.object({ email: z.string().email().max(200), password: z.string().min(1).max(200) });
-
-const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'business';
 
 @Controller('auth')
 export class AuthController {
   constructor(
     @Inject(PRISMA) private readonly db: PrismaClient,
-    @Inject(REDIS) private readonly redis: Redis
+    @Inject(REDIS) private readonly redis: Redis,
+    @Inject(AccountsService) private readonly accounts: AccountsService
   ) {}
 
   /** Self-serve: every signup creates a brand new, isolated business with a 14-day trial. */
   @Post('signup')
   @HttpCode(201)
   async signup(@Body() body: unknown) {
-    const input = parse(Signup, body);
-    const currency = input.currency ?? defaultCurrencyFor(input.country);
-    if (!currency) throw new BadRequestException("We could not work out a currency for that country");
-    const email = input.email.toLowerCase();
-    if (await this.db.user.findUnique({ where: { email } })) throw new ConflictException('An account with this email already exists');
-    const passwordHash = await hashPassword(input.password);
-    const slug = `${slugify(input.businessName)}-${randomBytes(2).toString('hex')}`;
-    const trialEndsAt = new Date(Date.now() + 14 * 24 * 3600 * 1000);
-
-    const { user, business } = await this.db.$transaction(async (tx) => {
-      const user = await tx.user.create({ data: { email, name: input.name, passwordHash } });
-      const business = await tx.business.create({
-        data: {
-          name: input.businessName, slug, category: input.category, kind: input.kind, city: input.city, country: input.country, currency, timezone: input.timezone, trialEndsAt, plan: 'trial',
-          aiRules: { create: { maxDiscountPct: 0, escalateKeywords: ['refund', 'complaint', 'lawyer', 'police'], forbiddenTopics: [] } },
-          memberships: { create: { userId: user.id, role: 'owner' } }
-        }
-      });
-      return { user, business };
-    });
-    return { token: await signToken(user.id, business.id), user: { id: user.id, email, name: user.name }, business: { id: business.id, name: business.name, country: business.country, currency: business.currency, kind: business.kind } };
+    const { email, password, name, ...profile } = parse(Signup, body);
+    return this.accounts.create({ email, name, passwordHash: await hashPassword(password), profile });
   }
 
   @Post('login')

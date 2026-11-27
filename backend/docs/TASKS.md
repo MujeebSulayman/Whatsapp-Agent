@@ -39,6 +39,11 @@ Legend: [x] done and tested · [~] built, needs a live key/account to verify · 
 - [ ] Languages: the agent replies in the customer's language; dashboard text is English only
 - [ ] Appointment calendar and availability for service businesses (bookings record a preferred time for now)
 
+## Sign-in options
+- [x] First screen offers sign-in options, with "Continue with email" one click away (email form shows directly when no other method is set up)
+- [x] Sign in with Google: server-side OpenID Connect with PKCE, single-use tickets, links to an existing account by verified email (11 tests; needs your Google credentials, see docs/GOOGLE-SIGNIN.md)
+- [ ] Microsoft, Facebook and Apple sign-in (same flow, one client class each)
+
 ## Left out on purpose
 - [ ] Paystack payments, payment links, subscriptions and wallet: test payments first
 - [ ] Voice notes and image understanding: need a speech-to-text / vision provider chosen

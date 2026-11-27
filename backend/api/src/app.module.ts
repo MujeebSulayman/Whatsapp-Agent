@@ -1,6 +1,9 @@
 import { Controller, Get, Module } from '@nestjs/common';
 import { AnalyticsController } from './analytics/analytics.controller.js';
+import { AccountsService } from './auth/accounts.service.js';
 import { AuthController } from './auth/auth.controller.js';
+import { GOOGLE_CLIENT, GoogleClient } from './auth/google.client.js';
+import { SocialAuthController } from './auth/social.controller.js';
 import { BusinessController } from './businesses/business.controller.js';
 import { EmbeddingService } from './common/embedding.js';
 import { Messenger } from './common/messenger.js';
@@ -23,7 +26,7 @@ class HealthController {
 
 @Module({
   imports: [InfraModule],
-  controllers: [HealthController, WhatsappController, AuthController, BusinessController, CatalogController, ConversationsController, OrdersController, CustomersController, AnalyticsController, TeamController],
-  providers: [WhatsappService, Messenger, EmbeddingService]
+  controllers: [HealthController, WhatsappController, AuthController, SocialAuthController, BusinessController, CatalogController, ConversationsController, OrdersController, CustomersController, AnalyticsController, TeamController],
+  providers: [WhatsappService, Messenger, EmbeddingService, AccountsService, { provide: GOOGLE_CLIENT, useFactory: () => new GoogleClient() }]
 })
 export class AppModule {}

@@ -106,6 +106,7 @@ model User {
   passwordHash String?     @map("password_hash")
   createdAt   DateTime     @default(now()) @map("created_at")
   memberships Membership[]
+  identities  AuthIdentity[]
 
   @@map("users")
 }
@@ -345,4 +346,19 @@ model AuditLog {
 
   @@index([businessId, createdAt])
   @@map("audit_logs")
+}
+
+/// A sign-in method linked to a user besides their password (e.g. Google). provider + subject is unique platform-wide.
+model AuthIdentity {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  provider  String
+  subject   String
+  email     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, subject])
+  @@index([userId])
+  @@map("auth_identities")
 }
