@@ -40,7 +40,7 @@ function strength(pw: string): { score: number; label: string } {
   return { score, label: pw.length === 0 ? '' : ['Too short', 'Okay', 'Good', 'Strong'][pw.length < 8 ? 0 : score] ?? '' };
 }
 
-const inputClass = 'h-11 rounded-xl border-white/10 bg-white/[0.06] px-3.5';
+const inputClass = 'h-11 rounded-xl border-white/10 bg-white/[0.06] px-3.5 lg:h-14 lg:rounded-2xl lg:px-5 lg:text-[16px]';
 
 function SignupForm() {
   const router = useRouter();
@@ -124,7 +124,7 @@ function SignupForm() {
         <div className="flex flex-1 gap-1.5">
           {Array.from({ length: totalSteps }, (_, i) => i + 1).map((i) => <span key={i} className={cn('h-1 flex-1 rounded-full transition-colors duration-500', shownStep >= i ? 'bg-white' : 'bg-white/10')} />)}
         </div>
-        <span className="text-xs tabular-nums text-muted-foreground">Step {shownStep} of {totalSteps}</span>
+        <span className="text-xs tabular-nums text-muted-foreground lg:text-sm">Step {shownStep} of {totalSteps}</span>
       </div>
       )}
 
@@ -159,8 +159,8 @@ function SignupForm() {
         ) : (
           <>
             <div>
-              <h1 className="text-[17px] font-medium tracking-tight">{social ? 'One last step' : 'About your business'}</h1>
-              <p className="mt-1 text-[13px] text-muted-foreground">This sets up your assistant. You can change it any time.</p>
+              <h1 className="text-[17px] font-medium tracking-tight lg:text-[26px]">{social ? 'One last step' : 'About your business'}</h1>
+              <p className="mt-1 text-[13px] text-muted-foreground lg:mt-2 lg:text-[16px]">This sets up your assistant. You can change it any time.</p>
               {social && <p className="mt-3 inline-flex max-w-full items-center gap-2 rounded-lg border border-white/10 bg-white/[0.06] px-2.5 py-1.5 text-[13px]"><Check className="size-3.5 shrink-0" /><span className="truncate">Signed in with Google as <strong className="font-medium">{social.email}</strong></span></p>}
             </div>
             {error && <ErrorNote>{error}</ErrorNote>}
@@ -168,28 +168,28 @@ function SignupForm() {
             <Field label="Business name"><Input className={inputClass} required autoFocus minLength={2} value={f.businessName} onChange={set('businessName')} placeholder="e.g. Sunrise Bakery" /></Field>
 
             <div>
-              <div className="mb-2 text-[13px] font-medium">What does your business do?</div>
-              <div className="grid grid-cols-2 gap-2" role="group" aria-label="Business category">
+              <div className="mb-2 text-[13px] font-medium lg:mb-3 lg:text-[15px]">What does your business do?</div>
+              <div className="grid grid-cols-2 gap-2 lg:gap-3" role="group" aria-label="Business category">
                 {CATEGORIES.map((c) => {
                   const { title, examples } = splitName(c.name);
                   const Icon = ICONS[c.name] ?? Shapes;
                   const on = categoryChoice === c.name;
                   return (
                     <button key={c.name} type="button" aria-pressed={on} onClick={() => pickCategory(c.name)}
-                      className={cn('group relative flex items-start gap-2.5 rounded-xl border p-2.5 text-left transition-colors', on ? 'border-white/60 bg-white/[0.1]' : 'border-white/10 bg-white/[0.04] hover:bg-white/[0.08]')}>
-                      <span className={cn('mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md', on ? 'bg-white text-black' : 'bg-white/[0.08] text-muted-foreground group-hover:text-foreground')}><Icon className="size-3.5" /></span>
+                      className={cn('group relative flex items-start gap-2.5 rounded-xl border p-2.5 text-left lg:gap-3.5 lg:rounded-2xl lg:p-4 transition-colors', on ? 'border-white/60 bg-white/[0.1]' : 'border-white/10 bg-white/[0.04] hover:bg-white/[0.08]')}>
+                      <span className={cn('mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md lg:size-10 lg:rounded-lg', on ? 'bg-white text-black' : 'bg-white/[0.08] text-muted-foreground group-hover:text-foreground')}><Icon className="size-3.5 lg:size-5" /></span>
                       <span className="min-w-0">
-                        <span className="block text-[13px] font-medium leading-snug">{title}</span>
-                        {examples && <span className="block truncate text-[11px] text-muted-foreground">{examples}</span>}
+                        <span className="block text-[13px] font-medium leading-snug lg:text-[15px]">{title}</span>
+                        {examples && <span className="block truncate text-[11px] text-muted-foreground lg:text-[13px]">{examples}</span>}
                       </span>
                       {on && <Check className="absolute right-2 top-2 size-3.5" />}
                     </button>
                   );
                 })}
                 <button type="button" aria-pressed={categoryChoice === CUSTOM_CATEGORY} onClick={() => pickCategory(CUSTOM_CATEGORY)}
-                  className={cn('group relative flex items-center gap-2.5 rounded-xl border border-dashed p-2.5 text-left transition-colors', categoryChoice === CUSTOM_CATEGORY ? 'border-white/60 bg-white/[0.1]' : 'border-white/15 bg-white/[0.02] hover:bg-white/[0.08]')}>
-                  <span className={cn('flex size-7 shrink-0 items-center justify-center rounded-md', categoryChoice === CUSTOM_CATEGORY ? 'bg-white text-black' : 'bg-white/[0.08] text-muted-foreground')}><Shapes className="size-3.5" /></span>
-                  <span className="text-[13px] font-medium">Other</span>
+                  className={cn('group relative flex items-center gap-2.5 rounded-xl border border-dashed p-2.5 text-left lg:gap-3.5 lg:rounded-2xl lg:p-4 transition-colors', categoryChoice === CUSTOM_CATEGORY ? 'border-white/60 bg-white/[0.1]' : 'border-white/15 bg-white/[0.02] hover:bg-white/[0.08]')}>
+                  <span className={cn('flex size-7 shrink-0 items-center justify-center rounded-md lg:size-10 lg:rounded-lg', categoryChoice === CUSTOM_CATEGORY ? 'bg-white text-black' : 'bg-white/[0.08] text-muted-foreground')}><Shapes className="size-3.5 lg:size-5" /></span>
+                  <span className="text-[13px] font-medium lg:text-[15px]">Other</span>
                 </button>
               </div>
               {categoryChoice === CUSTOM_CATEGORY && (
@@ -198,16 +198,16 @@ function SignupForm() {
             </div>
 
             <div>
-              <div className="mb-2 text-[13px] font-medium">How do customers buy from you?</div>
+              <div className="mb-2 text-[13px] font-medium lg:mb-3 lg:text-[15px]">How do customers buy from you?</div>
               <div className="grid grid-cols-3 gap-1 rounded-xl border border-white/10 bg-white/[0.04] p-1" role="radiogroup" aria-label="Business type">
                 {KIND_OPTIONS.map((o) => (
                   <button key={o.value} type="button" role="radio" aria-checked={kind === o.value} onClick={() => setKind(o.value)}
-                    className={cn('rounded-lg px-2 py-1.5 text-[13px] font-medium transition-colors', kind === o.value ? 'bg-white text-black' : 'text-muted-foreground hover:text-foreground')}>
+                    className={cn('rounded-lg px-2 py-1.5 text-[13px] font-medium transition-colors lg:rounded-xl lg:py-2.5 lg:text-[15px]', kind === o.value ? 'bg-white text-black' : 'text-muted-foreground hover:text-foreground')}>
                     {o.value === 'both' ? 'Both' : o.label}
                   </button>
                 ))}
               </div>
-              <p className="mt-1.5 text-xs text-muted-foreground">{KIND_OPTIONS.find((o) => o.value === kind)?.hint}</p>
+              <p className="mt-1.5 text-xs text-muted-foreground lg:mt-2 lg:text-[14px]">{KIND_OPTIONS.find((o) => o.value === kind)?.hint}</p>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -229,7 +229,7 @@ function SignupForm() {
 
       <div className="mt-6">
         {social
-          ? <p className="text-center text-[13px]"><a href="/signup" className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">Use a different account</a></p>
+          ? <p className="text-center text-[13px] lg:text-[15px]"><a href="/signup" className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">Use a different account</a></p>
           : <SwitchLink prompt="Already have an account?" href="/login" label="Sign in" />}
       </div>
     </div>

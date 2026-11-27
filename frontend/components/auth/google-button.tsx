@@ -35,7 +35,7 @@ export function AuthButton({ tone = 'dark', badge, loading, className, children,
     <button
       disabled={disabled || loading}
       className={cn(
-        'relative flex h-11 w-full items-center justify-center gap-2 rounded-xl text-[14px] font-medium transition-[background-color,transform] active:scale-[0.99] disabled:pointer-events-none disabled:opacity-60',
+        'relative flex h-11 w-full items-center justify-center gap-2 rounded-xl text-[14px] font-medium lg:h-14 lg:gap-2.5 lg:rounded-2xl lg:text-[16px] transition-[background-color,transform] active:scale-[0.99] disabled:pointer-events-none disabled:opacity-60',
         tone === 'light' ? 'bg-white text-black hover:bg-white/90' : 'bg-white/[0.09] text-white hover:bg-white/[0.14]',
         className
       )}
@@ -43,26 +43,26 @@ export function AuthButton({ tone = 'dark', badge, loading, className, children,
     >
       {loading && <Loader2 className="size-4 animate-spin" />}
       {children}
-      {badge && <span className="absolute -top-2 right-3 rounded-full border border-white/10 bg-zinc-800 px-2 py-0.5 text-[10px] font-medium leading-none text-white/90 shadow-sm">{badge}</span>}
+      {badge && <span className="absolute -top-2 right-3 rounded-full border border-white/10 bg-zinc-800 px-2 py-0.5 text-[10px] lg:text-[11px] font-medium leading-none text-white/90 shadow-sm">{badge}</span>}
     </button>
   );
 }
 
 export const AuthInput = ({ className, ...p }: InputHTMLAttributes<HTMLInputElement>) => (
-  <input className={cn('h-11 w-full rounded-xl border border-white/10 bg-white/[0.06] px-3.5 text-[14px] text-white placeholder:text-white/40 transition-colors focus-visible:border-white/30 focus-visible:outline-none', className)} {...p} />
+  <input className={cn('h-11 w-full rounded-xl border border-white/10 bg-white/[0.06] px-3.5 text-[14px] lg:h-14 lg:rounded-2xl lg:px-5 lg:text-[16px] text-white placeholder:text-white/40 transition-colors focus-visible:border-white/30 focus-visible:outline-none', className)} {...p} />
 );
 
 export function BackLink({ onClick, children = 'All options' }: { onClick: () => void; children?: ReactNode }) {
   return (
-    <button type="button" onClick={onClick} className="mx-auto flex items-center gap-1.5 text-[13px] text-muted-foreground transition-colors hover:text-foreground">
-      <ArrowLeft className="size-3.5" />{children}
+    <button type="button" onClick={onClick} className="mx-auto flex items-center gap-1.5 text-[13px] text-muted-foreground transition-colors hover:text-foreground lg:text-[15px]">
+      <ArrowLeft className="size-3.5 lg:size-4" />{children}
     </button>
   );
 }
 
 export function SwitchLink({ prompt, href, label }: { prompt: string; href: string; label: string }) {
   return (
-    <p className="text-center text-[13px] text-muted-foreground">
+    <p className="text-center text-[13px] text-muted-foreground lg:text-[15px]">
       {prompt} <Link href={href} className="text-foreground underline-offset-4 hover:underline">{label}</Link>
     </p>
   );
@@ -70,7 +70,7 @@ export function SwitchLink({ prompt, href, label }: { prompt: string; href: stri
 
 function GoogleMark() {
   return (
-    <svg viewBox="0 0 48 48" className="size-[17px]" aria-hidden>
+    <svg viewBox="0 0 48 48" className="size-[17px] lg:size-5" aria-hidden>
       <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
       <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
       <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
@@ -103,7 +103,7 @@ export function AuthOptions({ preview, onEmail }: { preview: boolean; onEmail: (
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 lg:space-y-4">
       <AuthButton tone="light" loading={busy} onClick={google} badge={last === 'google' ? 'Last used' : null}>
         {!busy && <GoogleMark />}Continue with Google
       </AuthButton>
