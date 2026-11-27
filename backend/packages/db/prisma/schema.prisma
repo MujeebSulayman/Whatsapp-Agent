@@ -1,0 +1,331 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  extensions = [vector]
+}
+
+enum Role {
+  owner
+  agent
+}
+enum ConversationStatus {
+  ai
+  human
+  closed
+}
+enum Direction {
+  inbound
+  outbound
+}
+enum MessageType {
+  text
+  audio
+  image
+  interactive
+}
+enum SentBy {
+  ai
+  human
+  customer
+}
+enum OrderStatus {
+  pending
+  paid
+  dispatched
+  delivered
+  cancelled
+}
+enum PaymentStatus {
+  unpaid
+  pending
+  paid
+  failed
+  refunded
+}
+enum PaymentProvider {
+  paystack
+  flutterwave
+}
+
+// Prices are integer kobo (BigInt-free: Int is enough up to ₦21M per value). Never floats.
+
+model Business {
+  id            String   @id @default(cuid())
+  name          String
+  slug          String   @unique
+  category      String
+  city          String   @default("Lagos")
+  timezone      String   @default("Africa/Lagos")
+  plan          String   @default("trial")
+  aiEnabled     Boolean  @default(true) @map("ai_enabled")
+  tone          String   @default("friendly")
+  businessHours Json?    @map("business_hours")
+  paymentInfo   String?  @map("payment_info")
+  returnPolicy  String?  @map("return_policy")
+  ownerPhone    String?  @map("owner_phone")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  memberships      Membership[]
+  whatsappAccounts WhatsappAccount[]
+  products         Product[]
+  faqs             Faq[]
+  deliveryZones    DeliveryZone[]
+  aiRules          AiRules?
+  customers        Customer[]
+  conversations    Conversation[]
+  orders           Order[]
+  broadcasts       Broadcast[]
+  usageLedger      UsageLedger[]
+  auditLogs        AuditLog[]
+
+  @@map("businesses")
+}
+
+model User {
+  id          String       @id @default(cuid())
+  email       String       @unique
+  phone       String?
+  name        String?
+  createdAt   DateTime     @default(now()) @map("created_at")
+  memberships Membership[]
+
+  @@map("users")
+}
+
+model Membership {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id")
+  businessId String   @map("business_id")
+  role       Role     @default(agent)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, businessId])
+  @@index([businessId])
+  @@map("memberships")
+}
+
+model WhatsappAccount {
+  id                   String   @id @default(cuid())
+  businessId           String   @map("business_id")
+  wabaId               String   @map("waba_id")
+  phoneNumberId        String   @unique @map("phone_number_id")
+  displayNumber        String   @map("display_number")
+  accessTokenEncrypted String   @map("access_token_encrypted")
+  status               String   @default("active")
+  createdAt            DateTime @default(now()) @map("created_at")
+  business             Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId])
+  @@map("whatsapp_accounts")
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  businessId  String   @map("business_id")
+  name        String
+  description String?
+  priceKobo   Int      @map("price_kobo")
+  variants    Json?
+  stockQty    Int      @default(0) @map("stock_qty")
+  imageUrls   String[] @map("image_urls")
+  active      Boolean  @default(true)
+  embedding   Unsupported("vector(1536)")?
+  createdAt   DateTime @default(now()) @map("created_at")
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId, active])
+  @@map("products")
+}
+
+model Faq {
+  id         String   @id @default(cuid())
+  businessId String   @map("business_id")
+  question   String
+  answer     String
+  embedding  Unsupported("vector(1536)")?
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId])
+  @@map("faqs")
+}
+
+model DeliveryZone {
+  id         String   @id @default(cuid())
+  businessId String   @map("business_id")
+  areaName   String   @map("area_name")
+  feeKobo    Int      @map("fee_kobo")
+  etaText    String   @map("eta_text")
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, areaName])
+  @@map("delivery_zones")
+}
+
+model AiRules {
+  id                 String   @id @default(cuid())
+  businessId         String   @unique @map("business_id")
+  maxDiscountPct     Int      @default(0) @map("max_discount_pct")
+  escalateKeywords   String[] @map("escalate_keywords")
+  forbiddenTopics    String[] @map("forbidden_topics")
+  customInstructions String?  @map("custom_instructions")
+  business           Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@map("ai_rules")
+}
+
+model Customer {
+  id                 String    @id @default(cuid())
+  businessId         String    @map("business_id")
+  waId               String    @map("wa_id")
+  name               String?
+  phone              String?
+  tags               String[]
+  notes              String?
+  totalSpentKobo     Int       @default(0) @map("total_spent_kobo")
+  lastOrderAt        DateTime? @map("last_order_at")
+  optedInMarketing   Boolean   @default(false) @map("opted_in_marketing")
+  business           Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  conversations      Conversation[]
+  orders             Order[]
+
+  @@unique([businessId, waId])
+  @@map("customers")
+}
+
+model Conversation {
+  id               String             @id @default(cuid())
+  businessId       String             @map("business_id")
+  customerId       String             @map("customer_id")
+  status           ConversationStatus @default(ai)
+  assignedTo       String?            @map("assigned_to")
+  lastMessageAt    DateTime           @default(now()) @map("last_message_at")
+  windowExpiresAt  DateTime?          @map("window_expires_at")
+  business         Business           @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customer         Customer           @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  messages         Message[]
+  agentRuns        AgentRun[]
+
+  @@index([businessId, status, lastMessageAt])
+  @@map("conversations")
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  businessId     String       @map("business_id")
+  conversationId String       @map("conversation_id")
+  direction      Direction
+  type           MessageType  @default(text)
+  body           String?
+  mediaUrl       String?      @map("media_url")
+  transcript     String?
+  waMessageId    String?      @unique @map("wa_message_id")
+  status         String       @default("received")
+  sentBy         SentBy       @map("sent_by")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@index([businessId])
+  @@map("messages")
+}
+
+model Order {
+  id              String        @id @default(cuid())
+  businessId      String        @map("business_id")
+  customerId      String        @map("customer_id")
+  items           Json
+  subtotalKobo    Int           @map("subtotal_kobo")
+  deliveryFeeKobo Int           @default(0) @map("delivery_fee_kobo")
+  discountKobo    Int           @default(0) @map("discount_kobo")
+  totalKobo       Int           @map("total_kobo")
+  address         String?
+  notes           String?
+  status          OrderStatus   @default(pending)
+  paymentStatus   PaymentStatus @default(unpaid) @map("payment_status")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  business        Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customer        Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  payments        Payment[]
+
+  @@index([businessId, status])
+  @@map("orders")
+}
+
+model Payment {
+  id          String          @id @default(cuid())
+  businessId  String          @map("business_id")
+  orderId     String          @map("order_id")
+  provider    PaymentProvider @default(paystack)
+  reference   String          @unique
+  amountKobo  Int             @map("amount_kobo")
+  status      PaymentStatus   @default(pending)
+  paidAt      DateTime?       @map("paid_at")
+  rawWebhook  Json?           @map("raw_webhook")
+  order       Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([businessId])
+  @@map("payments")
+}
+
+model Broadcast {
+  id               String    @id @default(cuid())
+  businessId       String    @map("business_id")
+  templateName     String    @map("template_name")
+  audienceFilter   Json?     @map("audience_filter")
+  scheduledAt      DateTime? @map("scheduled_at")
+  sentCount        Int       @default(0) @map("sent_count")
+  costEstimateKobo Int       @default(0) @map("cost_estimate_kobo")
+  business         Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId])
+  @@map("broadcasts")
+}
+
+model AgentRun {
+  id             String       @id @default(cuid())
+  businessId     String       @map("business_id")
+  conversationId String       @map("conversation_id")
+  model          String
+  inputTokens    Int          @default(0) @map("input_tokens")
+  outputTokens   Int          @default(0) @map("output_tokens")
+  toolCalls      Json?        @map("tool_calls")
+  latencyMs      Int          @default(0) @map("latency_ms")
+  costUsd        Decimal      @default(0) @map("cost_usd") @db.Decimal(10, 6)
+  createdAt      DateTime     @default(now()) @map("created_at")
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([businessId, createdAt])
+  @@map("agent_runs")
+}
+
+model UsageLedger {
+  id               String   @id @default(cuid())
+  businessId       String   @map("business_id")
+  period           String
+  aiReplies        Int      @default(0) @map("ai_replies")
+  waMessagesBilled Int      @default(0) @map("wa_messages_billed")
+  metaCostUsd      Decimal  @default(0) @map("meta_cost_usd") @db.Decimal(10, 4)
+  business         Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, period])
+  @@map("usage_ledger")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  businessId String   @map("business_id")
+  actor      String
+  action     String
+  payload    Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId, createdAt])
+  @@map("audit_logs")
+}
