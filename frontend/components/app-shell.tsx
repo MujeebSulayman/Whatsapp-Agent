@@ -120,12 +120,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen md:pl-60">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 border-r border-border/60 bg-background md:block">{sidebar}</aside>
-      {open && <div className="fixed inset-0 z-40 bg-black/40 md:hidden" onClick={close} />}
-      <aside className={cn('fixed inset-y-0 left-0 z-50 w-64 border-r bg-background transition-transform md:hidden', open ? 'translate-x-0' : '-translate-x-full')}>{sidebar}</aside>
+      {open && <div className="animate-fade-in fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px] md:hidden" onClick={close} />}
+      <aside className={cn('fixed inset-y-0 left-0 z-50 w-64 border-r bg-background transition-transform duration-300 ease-[var(--ease-out)] md:hidden', open ? 'translate-x-0' : '-translate-x-full')}>{sidebar}</aside>
       <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b bg-background/85 px-4 backdrop-blur md:hidden">
         <button onClick={() => setOpen(true)} aria-label="Open menu"><Menu className="size-5" /></button><Logo />
       </header>
-      <main className={pathname.startsWith('/inbox') ? 'w-full' : 'mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-8'}>{!me && !biz ? <div className="flex justify-center py-24"><Loader2 className="size-5 animate-spin text-muted-foreground" /></div> : children}</main>
+      <main className={pathname.startsWith('/inbox') ? 'w-full' : 'mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-8'}>{!me && !biz ? <div className="flex justify-center py-24"><Loader2 className="size-5 animate-spin text-muted-foreground" /></div> : <div key={pathname} className="animate-page">{children}</div>}</main>
     </div>
   );
 }

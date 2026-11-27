@@ -1,7 +1,7 @@
 'use client';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import { useEffect, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode } from 'react';
+import { useEffect, useId, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode } from 'react';
 import { ErrorNote } from '@/components/ui';
 import { api, useApi } from '@/lib/api';
 import { cn } from '@/lib/utils';
@@ -35,7 +35,7 @@ export function AuthButton({ tone = 'dark', badge, loading, className, children,
     <button
       disabled={disabled || loading}
       className={cn(
-        'relative flex h-11 w-full items-center justify-center gap-2 rounded-xl text-[14px] font-medium lg:h-14 lg:gap-2.5 lg:rounded-2xl lg:text-[16px] transition-[background-color,transform] active:scale-[0.99] disabled:pointer-events-none disabled:opacity-60',
+        'relative flex h-12 w-full items-center justify-center gap-2 rounded-xl text-[14px] font-medium lg:h-14 lg:gap-2.5 lg:rounded-2xl lg:text-[16px] transition-[background-color,transform] duration-150 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60',
         tone === 'light' ? 'bg-white text-black hover:bg-white/90' : 'bg-white/[0.09] text-white hover:bg-white/[0.14]',
         className
       )}
@@ -48,9 +48,39 @@ export function AuthButton({ tone = 'dark', badge, loading, className, children,
   );
 }
 
-export const AuthInput = ({ className, ...p }: InputHTMLAttributes<HTMLInputElement>) => (
-  <input className={cn('h-11 w-full rounded-xl border border-white/10 bg-white/[0.06] px-3.5 text-[14px] lg:h-14 lg:rounded-2xl lg:px-5 lg:text-[16px] text-white placeholder:text-white/40 transition-colors focus-visible:border-white/30 focus-visible:outline-none', className)} {...p} />
-);
+/*
+ * Floating-label field: the placeholder text is the label. It sits in the middle of the box, then glides up and
+ * shrinks once the field has focus or a value (including browser autofill), so the label never disappears.
+ */
+export function AuthInput({ className, placeholder, id, ...p }: InputHTMLAttributes<HTMLInputElement>) {
+  const auto = useId();
+  const fid = id ?? auto;
+  return (
+    <div className="relative">
+      <input id={fid} placeholder=" "
+        className={cn(
+          'peer h-12 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3.5 pt-4 text-[14px] text-white outline-none lg:h-14 lg:rounded-2xl lg:px-5 lg:pt-5 lg:text-[16px]',
+          'shadow-[inset_0_1px_0_rgb(255_255_255/0.03)] transition-[border-color,background-color,box-shadow] duration-200',
+          'hover:border-white/20 focus-visible:border-white/40 focus-visible:bg-white/[0.06] focus-visible:ring-4 focus-visible:ring-white/[0.06]',
+          'aria-[invalid=true]:border-danger/60 aria-[invalid=true]:focus-visible:ring-danger/10',
+          !placeholder && 'pt-0 lg:pt-0',
+          className
+        )}
+        {...p} />
+      {placeholder && (
+        <label htmlFor={fid}
+          className={cn(
+            'pointer-events-none absolute left-3.5 top-1/2 origin-left -translate-y-1/2 text-[14px] text-white/40 transition-all duration-200 ease-[var(--ease-out)] lg:left-5 lg:text-[16px]',
+            'peer-focus:top-3 peer-focus:translate-y-0 peer-focus:text-[11px] peer-focus:text-white/55 lg:peer-focus:top-3.5 lg:peer-focus:text-[12px]',
+            'peer-[:not(:placeholder-shown)]:top-3 peer-[:not(:placeholder-shown)]:translate-y-0 peer-[:not(:placeholder-shown)]:text-[11px] lg:peer-[:not(:placeholder-shown)]:top-3.5 lg:peer-[:not(:placeholder-shown)]:text-[12px]',
+            'peer-autofill:top-3 peer-autofill:translate-y-0 peer-autofill:text-[11px] peer-autofill:text-white/55 lg:peer-autofill:top-3.5 lg:peer-autofill:text-[12px]'
+          )}>
+          {placeholder}
+        </label>
+      )}
+    </div>
+  );
+}
 
 export function BackLink({ onClick, children = 'All options' }: { onClick: () => void; children?: ReactNode }) {
   return (

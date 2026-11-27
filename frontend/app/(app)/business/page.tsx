@@ -208,7 +208,7 @@ function Faqs() {
     <Card>
       <CardHeader title="Frequently asked questions" description="The assistant answers these in your voice." action={<Button size="sm" onClick={() => setTarget('new')}><Plus className="size-3.5" />Add FAQ</Button>} />
       {isLoading ? <Loading /> : !faqs?.length ? <EmptyState icon={<HelpCircle />} title="No FAQs yet" description="Add opening hours, returns, how to pay, and anything customers often ask." /> : (
-        <ul className="divide-y divide-border/60 border-t">
+        <ul className="stagger divide-y divide-border/60 border-t">
           {faqs.map((x) => (
             <li key={x.id} className="group flex items-start justify-between gap-4 px-5 py-4">
               <div className="min-w-0"><div className="text-sm font-medium">{x.question}</div><p className="mt-1 whitespace-pre-wrap text-[13px] text-muted-foreground">{x.answer}</p></div>

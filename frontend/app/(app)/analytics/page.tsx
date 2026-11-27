@@ -19,11 +19,12 @@ function BarChart({ data, format }: { data: { label: string; value: number }[]; 
           {[0, 1, 2].map((i) => <div key={i} className="border-t border-dashed border-border/70" />)}
         </div>
         <div className="relative flex h-full items-end gap-[3px]" role="img" aria-label="Bar chart">
-          {data.map((d) => (
+          {data.map((d, i) => (
             <div key={d.label} className="group relative flex h-full flex-1 items-end">
-              <div className={cn('w-full rounded-[3px] transition-colors', d.value > 0 ? 'bg-brand/70 group-hover:bg-brand' : 'h-[2px] bg-border')}
-                style={d.value > 0 ? { height: `${Math.max(3, (d.value / max) * 100)}%` } : undefined} />
-              <div className="pointer-events-none absolute -top-8 left-1/2 z-10 hidden -translate-x-1/2 whitespace-nowrap rounded-md border bg-card px-2 py-1 text-xs shadow-lg group-hover:block">
+              {/* Bars grow up from the baseline, left to right, when the chart first appears */}
+              <div className={cn('animate-grow-y w-full rounded-[3px] transition-colors', d.value > 0 ? 'bg-brand/70 group-hover:bg-brand' : 'h-[2px] bg-border')}
+                style={{ animationDelay: `${i * 12}ms`, ...(d.value > 0 ? { height: `${Math.max(3, (d.value / max) * 100)}%` } : {}) }} />
+              <div className="pointer-events-none absolute -top-8 left-1/2 z-10 -translate-x-1/2 translate-y-1 whitespace-nowrap rounded-md border bg-card px-2 py-1 text-xs opacity-0 shadow-lg transition-[opacity,transform] duration-150 group-hover:translate-y-0 group-hover:opacity-100">
                 <span className="text-muted-foreground">{d.label}</span> <span className="font-medium tabular-nums">{format(d.value)}</span>
               </div>
             </div>
@@ -85,14 +86,14 @@ export default function AnalyticsPage() {
           <Card>
             <CardHeader title="Best sellers" description="Ranked by revenue in this period" />
             {data.topProducts.length === 0 ? <EmptyState title="No sales in this period" description="Your top products will show up here once orders come in." /> : (
-              <ul className="px-2 pb-2">
+              <ul className="stagger px-2 pb-2">
                 {data.topProducts.map((p, i) => (
                   <li key={p.name} className="flex items-center gap-4 rounded-lg px-3 py-2.5 hover:bg-muted/40">
                     <span className="w-4 text-xs text-muted-foreground tabular-nums">{i + 1}</span>
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-sm font-medium">{p.name}</div>
                       <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-muted">
-                        <div className="h-full rounded-full bg-brand/70" style={{ width: `${(p.revenueMinor / topRevenue) * 100}%` }} />
+                        <div className="animate-grow-x h-full rounded-full bg-brand/70" style={{ width: `${(p.revenueMinor / topRevenue) * 100}%`, animationDelay: `${150 + i * 60}ms` }} />
                       </div>
                     </div>
                     <span className="w-16 text-right text-[13px] text-muted-foreground tabular-nums">{p.quantity} sold</span>

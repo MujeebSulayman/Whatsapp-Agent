@@ -34,7 +34,8 @@ export function Bubble({ from, time, children }: Msg) {
   );
 }
 
-export function WhatsAppPhone({ shop, initials, messages }: { shop: string; initials: string; messages: Msg[] }) {
+/** `animate`: messages arrive one by one, like a live chat, the first time the phone appears. */
+export function WhatsAppPhone({ shop, initials, messages, animate }: { shop: string; initials: string; messages: Msg[]; animate?: boolean }) {
   return (
     <div className="relative w-[286px] rounded-[54px] border border-white/15 bg-[#0d0d0f] p-[11px] shadow-[0_50px_100px_-30px_rgb(0_0_0/0.9),inset_0_0_0_1px_rgb(255_255_255/0.04)] sm:w-[340px]">
       <div className="relative flex aspect-[9/19.3] flex-col overflow-hidden rounded-[44px] bg-[#0b141a]">
@@ -66,7 +67,9 @@ export function WhatsAppPhone({ shop, initials, messages }: { shop: string; init
           <p className="mx-auto mb-2 max-w-[88%] rounded-md bg-[#182229] px-2.5 py-1.5 text-center text-[10.5px] leading-snug text-[#ffd279]">
             This business uses a secure service from Meta to manage this chat.
           </p>
-          {messages.map((m, i) => <Bubble key={i} {...m} />)}
+          {messages.map((m, i) => animate
+            ? <div key={i} className={`animate-bubble ${m.from === 'customer' ? 'origin-bottom-right' : 'origin-bottom-left'}`} style={{ animationDelay: `${1.1 + i * 0.55}s` }}><Bubble {...m} /></div>
+            : <Bubble key={i} {...m} />)}
         </div>
 
         {/* message bar */}

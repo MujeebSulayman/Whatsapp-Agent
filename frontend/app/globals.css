@@ -18,6 +18,8 @@
   --color-danger: var(--danger);
   --color-danger-bg: var(--danger-bg);
   --color-brand: var(--brand);
+  --color-input: var(--input);
+  --color-input-border: var(--input-border);
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
@@ -44,6 +46,10 @@
   --warning-bg: rgb(234 179 8 / 0.12);
   --danger: #f87171;
   --danger-bg: rgb(239 68 68 / 0.12);
+  /* Form fields sit slightly recessed into the card, with a faint inner shadow. */
+  --input: #0c0c0e;
+  --input-border: #2a2a2e;
+  --input-shadow: inset 0 1px 2px rgb(0 0 0 / 0.35);
 }
 :root[data-theme="light"] {
   color-scheme: light;
@@ -63,6 +69,9 @@
   --warning-bg: #fefce8;
   --danger: #b91c1c;
   --danger-bg: #fef2f2;
+  --input: #ffffff;
+  --input-border: #e4e4e7;
+  --input-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
 }
 
 /*
@@ -188,6 +197,9 @@
   --ring: #71717a;
   --danger: #f87171;
   --danger-bg: rgb(239 68 68 / 0.12);
+  --input: #0c0c0e;
+  --input-border: #2a2a2e;
+  --input-shadow: inset 0 1px 2px rgb(0 0 0 / 0.35);
 }
 
 /* A planet's edge lit from behind: dark sphere, bright rim brightest at the centre, faint atmosphere and stars. */
@@ -257,4 +269,75 @@
 @media (min-width: 1024px) {
   .horizon { height: 100%; min-height: 0; }
   .horizon-planet { top: 58%; width: max(1000px, 130vw); }
+}
+
+/*
+ * Motion. Short, one-shot and purposeful: things arrive, nothing loops. Easing is a soft "ease-out-expo".
+ * Everything here is switched off by the prefers-reduced-motion block near the top of this file.
+ */
+:root { --ease-out: cubic-bezier(0.16, 1, 0.3, 1); }
+
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes rise-lg { from { opacity: 0; transform: translateY(18px); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes grow-y { from { transform: scaleY(0); } to { transform: none; } }
+@keyframes grow-x { from { transform: scaleX(0); } to { transform: none; } }
+@keyframes pop { from { opacity: 0; transform: scale(0.6) rotate(-30deg); } to { opacity: 1; transform: none; } }
+@keyframes dialog-in { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: none; } }
+@keyframes toast-in { from { opacity: 0; transform: translateY(12px) scale(0.96); } to { opacity: 1; transform: none; } }
+@keyframes bubble-in { from { opacity: 0; transform: translateY(8px) scale(0.96); } to { opacity: 1; transform: none; } }
+
+.animate-rise { animation: rise 0.45s var(--ease-out) both; }
+.animate-rise-lg { animation: rise-lg 0.9s var(--ease-out) both; }
+.animate-page { animation: rise 0.4s var(--ease-out) both; }
+.animate-fade-in { animation: fade-in 0.4s ease-out both; }
+.animate-grow-y { animation: grow-y 0.7s var(--ease-out) both; transform-origin: bottom; }
+.animate-grow-x { animation: grow-x 0.9s var(--ease-out) both; transform-origin: left; }
+.animate-pop { animation: pop 0.35s var(--ease-out) both; }
+.animate-toast-in { animation: toast-in 0.35s var(--ease-out) both; }
+.animate-bubble { animation: bubble-in 0.4s var(--ease-out) both; }
+/* The spinner only appears if loading takes a moment, so fast loads don't flash. */
+.animate-delayed-in { animation: fade-in 0.3s ease-out 0.2s both; }
+
+/* Children arrive one after another: table rows, list items, cards. */
+.stagger > *, .stagger-rows > tbody > * { animation: rise 0.45s var(--ease-out) both; }
+.stagger > :nth-child(2), .stagger-rows > tbody > :nth-child(2) { animation-delay: 30ms; }
+.stagger > :nth-child(3), .stagger-rows > tbody > :nth-child(3) { animation-delay: 60ms; }
+.stagger > :nth-child(4), .stagger-rows > tbody > :nth-child(4) { animation-delay: 90ms; }
+.stagger > :nth-child(5), .stagger-rows > tbody > :nth-child(5) { animation-delay: 120ms; }
+.stagger > :nth-child(6), .stagger-rows > tbody > :nth-child(6) { animation-delay: 150ms; }
+.stagger > :nth-child(7), .stagger-rows > tbody > :nth-child(7) { animation-delay: 180ms; }
+.stagger > :nth-child(8), .stagger-rows > tbody > :nth-child(8) { animation-delay: 210ms; }
+.stagger > :nth-child(9), .stagger-rows > tbody > :nth-child(9) { animation-delay: 240ms; }
+.stagger > :nth-child(n + 10), .stagger-rows > tbody > :nth-child(n + 10) { animation-delay: 270ms; }
+
+dialog[open] { animation: dialog-in 0.22s var(--ease-out); }
+dialog[open]::backdrop { animation: fade-in 0.22s ease-out; }
+
+/* Sunrise: on first paint the planet edge rises and the light comes up. Shared by sign-in and the landing page. */
+@keyframes planet-rise { from { opacity: 0; transform: translate(-50%, 90px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@keyframes flare-in { from { opacity: 0; transform: translate(-50%, -50%) scaleX(0.15); } to { opacity: 1; transform: translate(-50%, -50%); } }
+@keyframes glow-in { from { opacity: 0; } to { opacity: 1; } }
+.horizon-planet { animation: planet-rise 1.6s var(--ease-out) both; }
+.horizon-glow { animation: glow-in 2s ease-out 0.4s both; }
+.horizon-flare { animation: flare-in 1.4s var(--ease-out) 0.7s both; }
+.horizon-stars { animation: glow-in 2.4s ease-out 0.2s both; }
+
+/* Landing hero: the phone rises out of the horizon after the headline. */
+@keyframes phone-rise { from { opacity: 0; transform: translateY(70px); } to { opacity: 1; transform: none; } }
+.phone-rise { animation: phone-rise 1.3s var(--ease-out) 0.55s both; }
+
+/* Landing page: sections ease in as they scroll into view (browsers without scroll timelines just show them). */
+@supports (animation-timeline: view()) {
+  .reveal { animation: rise-lg linear both; animation-timeline: view(); animation-range: entry 5% entry 45%; }
+}
+/* FAQ answers open smoothly instead of snapping (where the browser supports it). */
+@supports selector(::details-content) {
+  :root { interpolate-size: allow-keywords; }
+  details::details-content { block-size: 0; overflow: clip; transition: block-size 0.35s var(--ease-out), content-visibility 0.35s allow-discrete; }
+  details[open]::details-content { block-size: auto; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reveal, .phone-rise, .stagger > *, .stagger-rows > tbody > *, [class*="animate-"], .horizon > *, dialog[open], dialog[open]::backdrop { animation: none !important; }
+  details::details-content { transition: none !important; }
 }

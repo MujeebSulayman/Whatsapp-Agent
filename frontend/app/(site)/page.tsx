@@ -18,7 +18,7 @@ const TERMS_URL = process.env.NEXT_PUBLIC_TERMS_URL ?? '/terms';
 const CONTACT_URL = process.env.NEXT_PUBLIC_CONTACT_URL || '#contact';
 const contactProps = /^https?:/.test(CONTACT_URL) ? { target: '_blank', rel: 'noreferrer' } : {};
 
-const btn = 'inline-flex h-11 items-center justify-center rounded-lg px-5 text-[15px] font-medium transition-colors';
+const btn = 'inline-flex h-11 items-center justify-center rounded-lg px-5 text-[15px] font-medium transition-[color,background-color,transform] duration-200 hover:-translate-y-px active:translate-y-0 active:scale-[0.98]';
 const primary = `${btn} bg-primary text-primary-foreground hover:bg-primary/90`;
 const secondary = `${btn} border border-white/15 text-foreground hover:bg-white/5`;
 const navLinks = [{ href: '#how', label: 'How it works' }, { href: '#features', label: 'Features' }, { href: '#faq', label: 'FAQ' }];
@@ -94,14 +94,14 @@ export default function LandingPage() {
           <div className="max-sm:hidden"><Horizon className="[--h:60%] lg:[--h:57%]" /></div>
           <div className="relative mx-auto max-w-6xl px-4 pt-12 sm:px-5 sm:pt-20 lg:pt-24">
             <div className="mx-auto max-w-2xl text-center">
-              <h1 className="text-[34px] font-medium leading-[1.1] tracking-[-0.025em] sm:text-[52px] lg:text-[60px]">
+              <h1 className="animate-rise-lg text-[34px] font-medium leading-[1.1] tracking-[-0.025em] [animation-delay:100ms] sm:text-[52px] lg:text-[60px]">
                 An AI salesperson for your WhatsApp.
               </h1>
-              <p className="mt-4 text-[14px] text-muted-foreground">14-day free trial. No card needed.</p>
-              <p className="mx-auto mt-5 max-w-xl text-[16px] leading-relaxed text-muted-foreground sm:mt-6 sm:text-[17px]">
+              <p className="animate-rise-lg mt-4 text-[14px] text-muted-foreground [animation-delay:250ms]">14-day free trial. No card needed.</p>
+              <p className="animate-rise-lg [animation-delay:350ms] mx-auto mt-5 max-w-xl text-[16px] leading-relaxed text-muted-foreground sm:mt-6 sm:text-[17px]">
                 It answers your customers on WhatsApp in seconds, quotes from your own price list and takes the order, day or night. When a chat needs you, it hands it over.
               </p>
-              <div id="hero-actions" className="mt-7 grid grid-cols-2 gap-3 sm:mt-8 sm:flex sm:justify-center">
+              <div id="hero-actions" className="animate-rise-lg [animation-delay:500ms] mt-7 grid grid-cols-2 gap-3 sm:mt-8 sm:flex sm:justify-center">
                 <Link href="/signup" className={primary}>Get started</Link>
                 <a href={CONTACT_URL} {...contactProps} className={secondary}>Contact us</a>
               </div>
@@ -109,10 +109,10 @@ export default function LandingPage() {
 
             <div className="relative mx-auto mt-10 flex max-w-4xl justify-center sm:mt-14 lg:mt-16">
               {/* What happens on your side while the customer chats */}
-              <Widget className="left-0 top-[22%]" icon={<ShoppingBag className="size-4" strokeWidth={1.75} />} title="New order #ABYKZ9" line="Party Pack × 1 · ₦14,000" />
-              <Widget className="right-0 top-[48%]" icon={<Clock className="size-4" strokeWidth={1.75} />} title="Replied in 3 seconds" line="9:41 PM, after closing time" />
-              <div className="pb-12 sm:pb-24">
-                <WhatsAppPhone shop="Mama Put" initials="MP" messages={[
+              <Widget className="animate-rise-lg left-0 top-[22%] [animation-delay:4.1s]" icon={<ShoppingBag className="size-4" strokeWidth={1.75} />} title="New order #ABYKZ9" line="Party Pack × 1 · ₦14,000" />
+              <Widget className="animate-rise-lg right-0 top-[48%] [animation-delay:1.9s]" icon={<Clock className="size-4" strokeWidth={1.75} />} title="Replied in 3 seconds" line="9:41 PM, after closing time" />
+              <div className="phone-rise pb-12 sm:pb-24">
+                <WhatsAppPhone animate shop="Mama Put" initials="MP" messages={[
                   { from: 'customer', time: '9:41 PM', children: 'Good evening, how much be party pack?' },
                   { from: 'shop', time: '9:41 PM', children: <>Good evening! 👋 The Party Pack (serves 10) is <b className="font-semibold">₦12,000</b>: puff puff, samosa, spring rolls and wings. Should I add one for you?</> },
                   { from: 'customer', time: '9:42 PM', children: 'Yes abeg. Deliver to Lekki Phase 1' },
@@ -126,10 +126,10 @@ export default function LandingPage() {
         </section>
 
         <section id="how" className="mx-auto max-w-6xl scroll-mt-20 px-4 pt-20 sm:px-5 sm:pt-28 lg:pt-40">
-          <h2 className={`max-w-2xl ${h2}`}>From price list to taking orders, in three steps.</h2>
+          <h2 className={`reveal max-w-2xl ${h2}`}>From price list to taking orders, in three steps.</h2>
           <ol className="-mx-4 mt-8 flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-px-4 px-4 pb-2 [scrollbar-width:none] sm:mt-12 md:mx-0 md:grid md:snap-none md:grid-cols-3 md:gap-px md:overflow-hidden md:rounded-2xl md:border md:border-white/10 md:bg-white/10 md:p-0 [&::-webkit-scrollbar]:hidden">
             {steps.map((s) => (
-              <li key={s.n} className="w-[82%] shrink-0 snap-start rounded-2xl border border-white/10 bg-[#0a0a0b] p-6 md:w-auto md:rounded-none md:border-0 md:bg-black md:p-7">
+              <li key={s.n} className="reveal w-[82%] shrink-0 snap-start rounded-2xl border border-white/10 bg-[#0a0a0b] p-6 md:w-auto transition-colors duration-300 hover:bg-[#0f0f11] md:rounded-none md:border-0 md:bg-black md:p-7">
                 <div className="flex items-center justify-between text-muted-foreground">
                   <s.icon className="size-5" strokeWidth={1.5} />
                   <span className="font-mono text-[13px]">{s.n}</span>
@@ -143,11 +143,11 @@ export default function LandingPage() {
         </section>
 
         <section id="features" className="mx-auto max-w-6xl scroll-mt-20 px-4 pt-20 sm:px-5 sm:pt-28 lg:pt-40">
-          <h2 className={`max-w-2xl ${h2}`}>Helpful to customers. Careful with your business.</h2>
+          <h2 className={`reveal max-w-2xl ${h2}`}>Helpful to customers. Careful with your business.</h2>
           <p className="mt-4 max-w-2xl text-[16px] leading-relaxed text-muted-foreground sm:text-[17px]">An assistant that sells is only useful if you can trust it. These limits are built in, not bolted on.</p>
           <div className="mt-12 space-y-16 sm:mt-16 sm:space-y-20 lg:mt-20 lg:space-y-28">
             {featureRows.map((f, i) => (
-              <div key={f.t} className="grid items-center gap-6 sm:gap-8 lg:grid-cols-2 lg:gap-16">
+              <div key={f.t} className="reveal grid items-center gap-6 sm:gap-8 lg:grid-cols-2 lg:gap-16">
                 <div className={i % 2 ? 'lg:order-2' : ''}>
                   <h3 className="text-[20px] font-medium tracking-[-0.01em] sm:text-[24px]">{f.t}</h3>
                   <p className="mt-2.5 max-w-md text-[15px] leading-relaxed text-muted-foreground sm:mt-3 sm:text-[16px]">{f.d}</p>
@@ -158,7 +158,7 @@ export default function LandingPage() {
           </div>
           <div className="mt-16 grid gap-x-12 gap-y-7 border-t border-white/10 pt-8 sm:mt-20 sm:grid-cols-3 sm:gap-y-10 sm:pt-10 lg:mt-28">
             {moreFeatures.map((f) => (
-              <div key={f.t} className="flex gap-4 sm:block">
+              <div key={f.t} className="reveal flex gap-4 sm:block">
                 <f.icon className="mt-0.5 size-5 shrink-0 text-muted-foreground" strokeWidth={1.5} />
                 <div>
                   <h3 className="text-[16px] font-medium sm:mt-4 sm:text-[17px]">{f.t}</h3>
@@ -170,7 +170,7 @@ export default function LandingPage() {
         </section>
 
         <section className="mx-auto max-w-6xl px-4 pt-20 sm:px-5 sm:pt-28 lg:pt-40">
-          <div className="grid items-start gap-8 rounded-2xl border border-white/10 bg-card p-6 sm:gap-10 sm:p-12 lg:grid-cols-2">
+          <div className="reveal grid items-start gap-8 rounded-2xl border border-white/10 bg-card p-6 sm:gap-10 sm:p-12 lg:grid-cols-2">
             <div>
               <h2 className={h2}>You stay in charge of every conversation.</h2>
               <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground sm:text-[16px]">Read any chat, jump in whenever you like, and turn the assistant off for one customer or for the whole business with a single switch.</p>
@@ -186,7 +186,7 @@ export default function LandingPage() {
         </section>
 
         <section id="faq" className="mx-auto max-w-3xl scroll-mt-20 px-4 pt-20 sm:px-5 sm:pt-28 lg:pt-40">
-          <h2 className={h2}>Questions</h2>
+          <h2 className={`reveal ${h2}`}>Questions</h2>
           <div className="mt-8 divide-y divide-white/10 border-y border-white/10">
             {faqs.map((f) => (
               <details key={f.q} className="group py-4 sm:py-5">
@@ -206,7 +206,7 @@ export default function LandingPage() {
         <section id="contact" className="relative mt-20 scroll-mt-20 overflow-hidden sm:mt-28 lg:mt-40">
           <Horizon className="[--h:80%] sm:[--h:76%] lg:[--h:70%]" />
           <div className="relative mx-auto max-w-6xl px-4 pb-32 pt-12 text-center sm:px-5 sm:pb-44 sm:pt-24 lg:pb-56">
-            <h2 className={`mx-auto max-w-xl ${h2} sm:text-[40px]`}>Let your next customer get an answer in seconds.</h2>
+            <h2 className={`reveal mx-auto max-w-xl ${h2} sm:text-[40px]`}>Let your next customer get an answer in seconds.</h2>
             <div className="mt-8 grid grid-cols-2 gap-3 sm:mt-9 sm:flex sm:justify-center">
               <Link href="/signup" className={primary}>Get started</Link>
               <a href={CONTACT_URL} {...contactProps} className={secondary}>Contact us</a>

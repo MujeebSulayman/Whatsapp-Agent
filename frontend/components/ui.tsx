@@ -1,6 +1,6 @@
 'use client';
 import { AlertCircle, CheckCircle2, Loader2, Moon, Search, Sun, X } from 'lucide-react';
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 import { cn, initials } from '@/lib/utils';
 
 /* ---------- Button ---------- */
@@ -10,10 +10,10 @@ export function Button({ variant = 'primary', size = 'md', loading, className, c
     <button
       disabled={disabled || loading}
       className={cn(
-        'inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:pointer-events-none disabled:opacity-50',
+        'inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium transition-[color,background-color,border-color,box-shadow,transform] duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 disabled:pointer-events-none disabled:opacity-50',
         size === 'sm' ? 'h-8 px-3 text-[13px]' : 'h-9 px-4 text-sm',
         variant === 'primary' && 'bg-primary text-primary-foreground hover:bg-primary/90',
-        variant === 'secondary' && 'border bg-card text-foreground hover:bg-muted',
+        variant === 'secondary' && 'border bg-card text-foreground shadow-[var(--input-shadow)] hover:border-ring/60 hover:bg-muted',
         variant === 'ghost' && 'text-foreground hover:bg-muted',
         variant === 'danger' && 'border border-danger/30 bg-card text-danger hover:bg-danger-bg',
         className
@@ -29,34 +29,62 @@ export function Button({ variant = 'primary', size = 'md', loading, className, c
 export function IconButton({ label, className, children, tone = 'default', ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { label: string; tone?: 'default' | 'danger' }) {
   return (
     <button type="button" aria-label={label} title={label}
-      className={cn('inline-flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 [&_svg]:size-4',
+      className={cn('inline-flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-[color,background-color,transform] duration-150 active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 [&_svg]:size-4',
         tone === 'danger' ? 'hover:bg-danger-bg hover:text-danger' : 'hover:bg-muted hover:text-foreground', className)}
       {...props}>{children}</button>
   );
 }
 
 /* ---------- Form controls ---------- */
-const control = 'w-full rounded-md border bg-card px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:bg-muted disabled:opacity-70';
+/*
+ * Text fields: recessed into the surface with a faint inner shadow; the border lifts on hover; focus gets a soft
+ * brand-green ring. Invalid fields turn red only after the person has interacted with them (:user-invalid).
+ */
+const control = cn(
+  'w-full rounded-lg border border-input-border bg-input px-3 text-sm text-foreground shadow-[var(--input-shadow)] outline-none',
+  'transition-[border-color,box-shadow,background-color] duration-150 placeholder:text-muted-foreground/60',
+  'hover:border-ring/70 focus-visible:border-brand/70 focus-visible:ring-[3px] focus-visible:ring-brand/20',
+  'user-invalid:border-danger/70 user-invalid:focus-visible:ring-danger/20 aria-[invalid=true]:border-danger/70 aria-[invalid=true]:focus-visible:ring-danger/20',
+  'disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-input-border'
+);
 export const Input = ({ className, ...p }: InputHTMLAttributes<HTMLInputElement>) => <input className={cn(control, 'h-9', className)} {...p} />;
-export const Textarea = ({ className, ...p }: TextareaHTMLAttributes<HTMLTextAreaElement>) => <textarea className={cn(control, 'min-h-20 py-2', className)} {...p} />;
+export const Textarea = ({ className, ...p }: TextareaHTMLAttributes<HTMLTextAreaElement>) => <textarea className={cn(control, 'min-h-20 resize-y py-2 leading-relaxed', className)} {...p} />;
 export const Select = ({ className, children, ...p }: SelectHTMLAttributes<HTMLSelectElement>) => (
   <select className={cn(control, 'h-9 pr-8', className)} {...p}>{children}</select>
 );
 export function SearchInput({ className, ...p }: InputHTMLAttributes<HTMLInputElement>) {
   return (
     <div className={cn('relative', className)}>
-      <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" strokeWidth={1.75} />
-      <input type="search" className={cn(control, 'h-9 pl-8')} {...p} />
+      <input type="search" className={cn(control, 'peer h-9 pl-8 [&::-webkit-search-cancel-button]:hidden')} {...p} />
+      <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground transition-colors peer-focus-visible:text-brand" strokeWidth={1.75} />
     </div>
   );
 }
 /* Pill filter group for switching a list's view (statuses). Underline Tabs stay for page sections. */
+/* Measures the selected tab so an indicator can glide to it. */
+function useIndicator(value: unknown) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [box, setBox] = useState<{ left: number; width: number } | null>(null);
+  useLayoutEffect(() => {
+    const el = ref.current?.querySelector<HTMLElement>('[aria-selected="true"]');
+    if (!el) return;
+    const update = () => setBox({ left: el.offsetLeft, width: el.offsetWidth });
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [value]);
+  return { ref, box };
+}
+
 export function Segmented<T extends string>({ options, value, onChange, className }: { options: { id: T; label: string; count?: number }[]; value: T; onChange: (v: T) => void; className?: string }) {
+  const { ref, box } = useIndicator(value);
   return (
-    <div role="tablist" className={cn('inline-flex max-w-full items-center gap-0.5 overflow-x-auto rounded-lg border bg-card p-0.5', className)}>
+    <div ref={ref} role="tablist" className={cn('relative inline-flex max-w-full items-center gap-0.5 overflow-x-auto rounded-lg border bg-card p-0.5 [scrollbar-width:none]', className)}>
+      {box && <span aria-hidden className="absolute inset-y-0.5 rounded-md bg-muted shadow-sm ring-1 ring-border/60 transition-[left,width] duration-300 ease-[var(--ease-out)]" style={box} />}
       {options.map((o) => (
         <button key={o.id} role="tab" aria-selected={value === o.id} onClick={() => onChange(o.id)}
-          className={cn('h-7 shrink-0 whitespace-nowrap rounded-md px-2.5 text-[13px] font-medium transition-colors', value === o.id ? 'bg-muted text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}>
+          className={cn('relative h-7 shrink-0 whitespace-nowrap rounded-md px-2.5 text-[13px] font-medium transition-colors', value === o.id ? 'text-foreground' : 'text-muted-foreground hover:text-foreground')}>
           {o.label}{o.count !== undefined && <span className="ml-1.5 text-xs text-muted-foreground tabular-nums">{o.count}</span>}
         </button>
       ))}
@@ -65,8 +93,8 @@ export function Segmented<T extends string>({ options, value, onChange, classNam
 }
 export function Field({ label, hint, error, children, className }: { label: string; hint?: string; error?: string | null; children: ReactNode; className?: string }) {
   return (
-    <label className={cn('block space-y-1.5', className)}>
-      <span className="text-[13px] font-medium">{label}</span>
+    <label className={cn('group/field block space-y-1.5', className)}>
+      <span className="block text-[13px] font-medium text-foreground/90 transition-colors group-focus-within/field:text-foreground">{label}</span>
       {children}
       {hint && !error && <span className="block text-xs text-muted-foreground">{hint}</span>}
       {error && <span className="block text-xs text-danger">{error}</span>}
@@ -76,8 +104,8 @@ export function Field({ label, hint, error, children, className }: { label: stri
 export function Switch({ checked, onChange, disabled, label }: { checked: boolean; onChange: (v: boolean) => void; disabled?: boolean; label: string }) {
   return (
     <button type="button" role="switch" aria-checked={checked} aria-label={label} disabled={disabled} onClick={() => onChange(!checked)}
-      className={cn('relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50', checked ? 'bg-primary' : 'bg-muted-foreground/40')}>
-      <span className={cn('inline-block size-4 rounded-full bg-primary-foreground shadow transition-transform', checked ? 'translate-x-4.5' : 'translate-x-0.5')} />
+      className={cn('relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50', checked ? 'bg-brand' : 'bg-muted-foreground/30')}>
+      <span className={cn('inline-block size-4 rounded-full bg-white shadow-sm transition-transform duration-300 ease-[var(--ease-out)]', checked ? 'translate-x-4.5' : 'translate-x-0.5')} />
     </button>
   );
 }
@@ -142,7 +170,7 @@ export const Stat = (p: StatProps) => <Card className="p-5"><StatContent {...p} 
 export function StatGrid({ stats, className }: { stats: StatProps[]; className?: string }) {
   return (
     <div className={cn(surface, 'grid gap-px overflow-hidden bg-border', className)}>
-      {stats.map((s) => <div key={s.label} className="bg-card p-5"><StatContent {...s} /></div>)}
+      {stats.map((s, i) => <div key={s.label} className="bg-card p-5"><div className="animate-rise" style={{ animationDelay: `${i * 50}ms` }}><StatContent {...s} /></div></div>)}
     </div>
   );
 }
@@ -171,7 +199,7 @@ export const Avatar = ({ name, className }: { name?: string | null; className?: 
 
 /* ---------- Table ---------- */
 export const Table = ({ children }: { children: ReactNode }) => (
-  <div className="overflow-x-auto"><table className="w-full text-left text-sm">{children}</table></div>
+  <div className="overflow-x-auto"><table className="stagger-rows w-full text-left text-sm">{children}</table></div>
 );
 export const THead = ({ children }: { children: ReactNode }) => <thead className="border-b text-xs text-muted-foreground">{children}</thead>;
 export const TH = ({ className, ...p }: React.ThHTMLAttributes<HTMLTableCellElement>) => <th className={cn('h-10 px-4 font-medium first:pl-5 last:pr-5', className)} {...p} />;
@@ -182,11 +210,13 @@ export const TD = ({ className, ...p }: React.TdHTMLAttributes<HTMLTableCellElem
 
 /* ---------- Tabs ---------- */
 export function Tabs<T extends string>({ tabs, value, onChange }: { tabs: { id: T; label: string; count?: number }[]; value: T; onChange: (v: T) => void }) {
+  const { ref, box } = useIndicator(value);
   return (
-    <div className="flex gap-1 border-b">
+    <div ref={ref} role="tablist" className="relative flex gap-1 overflow-x-auto border-b [scrollbar-width:none]">
+      {box && <span aria-hidden className="absolute bottom-0 h-0.5 rounded-full bg-foreground transition-[left,width] duration-300 ease-[var(--ease-out)]" style={box} />}
       {tabs.map((t) => (
-        <button key={t.id} onClick={() => onChange(t.id)}
-          className={cn('-mb-px border-b-2 px-3 py-2 text-sm font-medium transition-colors', value === t.id ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground')}>
+        <button key={t.id} role="tab" aria-selected={value === t.id} onClick={() => onChange(t.id)}
+          className={cn('shrink-0 px-3 py-2 text-sm font-medium transition-colors', value === t.id ? 'text-foreground' : 'text-muted-foreground hover:text-foreground')}>
           {t.label}{t.count !== undefined && <span className="ml-1.5 text-xs text-muted-foreground">{t.count}</span>}
         </button>
       ))}
@@ -225,10 +255,10 @@ export function Dialog({ open, onClose, title, description, children, footer, wi
 
 /* ---------- States ---------- */
 export const Spinner = () => <Loader2 className="size-5 animate-spin text-muted-foreground" />;
-export const Loading = () => <div className="flex items-center justify-center py-16"><Spinner /></div>;
+export const Loading = () => <div className="animate-delayed-in flex items-center justify-center py-16"><Spinner /></div>;
 export function EmptyState({ icon, title, description, action }: { icon?: ReactNode; title: string; description?: string; action?: ReactNode }) {
   return (
-    <div className="flex flex-col items-center justify-center px-6 py-14 text-center">
+    <div className="animate-rise flex flex-col items-center justify-center px-6 py-14 text-center">
       {icon && <div className="mb-4 flex size-10 items-center justify-center rounded-xl border bg-muted/50 text-muted-foreground [&_svg]:size-[18px]">{icon}</div>}
       <div className="text-sm font-medium">{title}</div>
       {description && <p className="mt-1 max-w-sm text-[13px] text-muted-foreground">{description}</p>}
@@ -253,7 +283,7 @@ export function ThemeToggle({ className }: { className?: string }) {
   return (
     <button onClick={toggle} aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`} title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
       className={cn('rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground', className)}>
-      {theme === 'dark' ? <Sun className="size-4" /> : <Moon className="size-4" />}
+      <span key={theme} className="animate-pop block">{theme === 'dark' ? <Sun className="size-4" /> : <Moon className="size-4" />}</span>
     </button>
   );
 }
@@ -274,7 +304,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       <div className="pointer-events-none fixed bottom-4 right-4 z-100 flex flex-col gap-2">
         {items.map((t) => (
-          <div key={t.id} className="pointer-events-auto flex items-center gap-2 rounded-md border bg-card px-3.5 py-2.5 text-sm shadow-lg">
+          <div key={t.id} className="animate-toast-in pointer-events-auto flex items-center gap-2 rounded-lg border bg-card px-3.5 py-2.5 text-sm shadow-xl">
             {t.tone === 'success' ? <CheckCircle2 className="size-4 text-success" /> : <AlertCircle className="size-4 text-danger" />}
             {t.text}
           </div>

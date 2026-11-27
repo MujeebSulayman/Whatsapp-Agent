@@ -35,7 +35,7 @@ export default function OnboardingPage() {
         </div>
         <ArrowRight className="size-4 text-muted-foreground" />
       </Link>
-      <Card className="divide-y divide-border/60">
+      <Card className="stagger divide-y divide-border/60">
         {steps.map((s, i) => (
           <div key={s.title} className="flex items-center gap-4 p-5">
             <span className={cn('flex size-7 shrink-0 items-center justify-center rounded-full border text-xs font-medium tabular-nums', s.done ? 'border-brand/40 bg-brand/15 text-brand' : 'text-muted-foreground')}>

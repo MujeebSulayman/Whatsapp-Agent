@@ -28,10 +28,10 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
       <div className="absolute inset-x-0 top-0 lg:sticky lg:inset-x-auto lg:top-0 lg:h-dvh lg:self-start lg:overflow-hidden lg:border-r lg:border-white/10">
         <Horizon />
         <div className="relative hidden flex-col justify-between p-12 xl:p-16 lg:flex lg:h-full">
-          <Logo className="gap-3" markClassName="size-10" textClassName="text-[24px]" />
+          <Logo className="animate-fade-in gap-3" markClassName="size-10" textClassName="text-[24px]" />
           <div className="max-w-[480px]">
-            <h2 className="text-[44px] font-semibold leading-[1.08] tracking-tight xl:text-[52px]">Never miss a sale because you replied late.</h2>
-            <p className="mt-5 max-w-[420px] text-[17px] leading-relaxed text-muted-foreground">An AI salesperson for your WhatsApp. It answers questions, takes orders and bookings, and calls you in when it should.</p>
+            <h2 className="animate-rise-lg text-[44px] font-semibold leading-[1.08] tracking-tight [animation-delay:500ms] xl:text-[52px]">Never miss a sale because you replied late.</h2>
+            <p className="animate-rise-lg mt-5 max-w-[420px] text-[17px] leading-relaxed text-muted-foreground [animation-delay:700ms]">An AI salesperson for your WhatsApp. It answers questions, takes orders and bookings, and calls you in when it should.</p>
           </div>
         </div>
       </div>

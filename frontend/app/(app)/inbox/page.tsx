@@ -33,7 +33,7 @@ export default function InboxPage() {
           <Segmented className="w-full [&>button]:flex-1" value={filter} onChange={setFilter}
             options={[{ id: 'all', label: 'All' }, { id: 'human', label: 'Needs you' }, { id: 'ai', label: 'AI' }, { id: 'closed', label: 'Closed' }]} />
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
+        <div className="stagger min-h-0 flex-1 overflow-y-auto px-2 pb-2">
           {isLoading ? <Loading /> : !rows?.length ? (
             <EmptyState icon={<MessageSquare />} title="No conversations yet" description="When customers message your WhatsApp number, their chats appear here." />
           ) : rows.map((c) => (
@@ -70,7 +70,7 @@ function Bubble({ m }: { m: Message }) {
   const mine = m.direction === 'outbound';
   const human = m.sentBy === 'human';
   return (
-    <div className={cn('flex flex-col', mine ? 'items-end' : 'items-start')}>
+    <div className={cn('animate-bubble flex flex-col', mine ? 'origin-bottom-right items-end' : 'origin-bottom-left items-start')}>
       <div className={cn('max-w-[75%] whitespace-pre-wrap wrap-break-word rounded-2xl px-3.5 py-2 text-sm leading-relaxed',
         !mine ? 'rounded-bl-md bg-muted' : human ? 'rounded-br-md bg-primary text-primary-foreground' : 'rounded-br-md border border-brand/20 bg-brand/10')}>
         {m.type === 'image' && m.mediaUrl && /* eslint-disable-next-line @next/next/no-img-element */ <img src={m.mediaUrl} alt="" className="mb-1 max-h-48 rounded-lg" />}
@@ -126,7 +126,7 @@ function Thread({ id, listKey, onBack }: { id: string; listKey: string; onBack: 
 
   return (
     <>
-      <section className="flex min-h-0 flex-col">
+      <section key={id} className="animate-fade-in flex min-h-0 flex-col">
         <header className="flex h-16 shrink-0 items-center gap-3 border-b border-border/60 px-4">
           <button className="lg:hidden" onClick={onBack} aria-label="Back"><ArrowLeft className="size-5" /></button>
           <Avatar name={customer.name ?? customer.waId} />
@@ -156,7 +156,7 @@ function Thread({ id, listKey, onBack }: { id: string; listKey: string; onBack: 
               <p className="rounded-lg border border-warning/20 bg-warning-bg px-3 py-2.5 text-[13px] text-warning">The 24-hour reply window has closed. WhatsApp only allows an approved template message until the customer writes again.</p>
             ) : (
               <>
-                <div className="flex items-end gap-2 rounded-xl border bg-card p-1.5 pl-3.5 shadow-sm focus-within:ring-2 focus-within:ring-ring">
+                <div className="flex items-end gap-2 rounded-xl border border-input-border bg-input p-1.5 pl-3.5 shadow-[var(--input-shadow)] transition-[border-color,box-shadow] duration-150 hover:border-ring/70 focus-within:border-brand/70 focus-within:ring-[3px] focus-within:ring-brand/20">
                   <textarea rows={1} aria-label="Reply" className="max-h-32 min-h-8 flex-1 resize-none bg-transparent py-1.5 text-sm outline-none placeholder:text-muted-foreground" placeholder="Write a reply…" value={text}
                     onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send(); } }} />
                   <Button size="sm" className="size-8 px-0" onClick={send} loading={busy === 'send'} disabled={!text.trim()} aria-label="Send">{busy !== 'send' && <ArrowUp className="size-4" />}</Button>

@@ -40,7 +40,7 @@ function strength(pw: string): { score: number; label: string } {
   return { score, label: pw.length === 0 ? '' : ['Too short', 'Okay', 'Good', 'Strong'][pw.length < 8 ? 0 : score] ?? '' };
 }
 
-const inputClass = 'h-11 rounded-xl border-white/10 bg-white/[0.06] px-3.5 lg:h-14 lg:rounded-2xl lg:px-5 lg:text-[16px]';
+const inputClass = 'h-12 rounded-xl border-white/10 bg-white/[0.04] px-3.5 shadow-[inset_0_1px_0_rgb(255_255_255/0.03)] hover:border-white/20 focus-visible:border-white/40 focus-visible:bg-white/[0.06] focus-visible:ring-4 focus-visible:ring-white/[0.06] lg:h-14 lg:rounded-2xl lg:px-5 lg:text-[16px]';
 
 function SignupForm() {
   const router = useRouter();
@@ -139,7 +139,7 @@ function SignupForm() {
               <div>
                 <div className="relative">
                   <AuthInput className="pr-11" type={show ? 'text' : 'password'} required minLength={8} aria-label="Password" value={f.password} onChange={set('password')} autoComplete="new-password" placeholder="Password" />
-                  <button type="button" onClick={() => setShow(!show)} aria-label={show ? 'Hide password' : 'Show password'} className="absolute right-3 top-3 rounded p-0.5 text-white/40 hover:text-white">
+                  <button type="button" onClick={() => setShow(!show)} aria-label={show ? 'Hide password' : 'Show password'} className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-0.5 text-white/40 transition-colors hover:text-white lg:right-4">
                     {show ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                   </button>
                 </div>
