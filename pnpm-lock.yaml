@@ -253,7 +253,11 @@ importers:
         specifier: ^5.1.2
         version: 5.1.2(@types/node@26.6.11)(vite@8.3.8(@types/node@26.6.11)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
 
-  backend/packages/ai: {}
+  backend/packages/ai:
+    devDependencies:
+      vitest:
+        specifier: ^5.1.2
+        version: 5.1.2(@types/node@26.6.11)(vite@8.3.8(@types/node@26.6.11)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
 
   backend/packages/db:
     dependencies:
@@ -312,6 +316,9 @@ importers:
 
   backend/worker:
     dependencies:
+      '@wa/ai':
+        specifier: workspace:*
+        version: link:../packages/ai
       '@wa/db':
         specifier: workspace:*
         version: link:../packages/db

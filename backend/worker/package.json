@@ -11,6 +11,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@wa/ai": "workspace:*",
     "@wa/db": "workspace:*",
     "@wa/shared": "workspace:*",
     "@wa/whatsapp": "workspace:*",

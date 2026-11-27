@@ -3,7 +3,7 @@ Spec: backend/docs/SPEC.md. Read it before starting any task.
 
 ## Stack
 pnpm + Turborepo (shared packages in backend/packages), TypeScript strict, NestJS (backend/api), BullMQ worker (backend/worker),
-Next.js App Router + Tailwind + shadcn (frontend), Postgres + Prisma (packages/db), Redis.
+Next.js App Router + Tailwind + shadcn (frontend), Postgres + Prisma (packages/db), Redis. LLM: OpenRouter (@wa/ai), not the Anthropic SDK.
 
 ## Rules
 - Every table and query is scoped by business_id. Never write an unscoped query.

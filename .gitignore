@@ -1,1 +1,13 @@
-src/generated
+node_modules
+dist
+.next
+.turbo
+.env
+.env.*
+!.env.example
+*.log
+*.tsbuildinfo
+.DS_Store
+backend/packages/db/src/generated
+**/.vite
+.vitest-cache

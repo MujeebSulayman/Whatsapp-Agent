@@ -6,7 +6,7 @@ AI salesperson for Nigerian WhatsApp vendors: English/Pidgin, takes orders, coll
 Customer → Meta Cloud API → API (NestJS; verify, dedupe, enqueue, return 200) → Redis/BullMQ → Worker (context from Postgres+pgvector, Claude with tools, reply via Cloud API). Paystack webhook confirms payment. Dashboard (Next.js) reads via API.
 
 ## Stack
-pnpm+Turborepo; NestJS; BullMQ/Redis; Postgres+Prisma+pgvector; Claude API with tool use (small model for greetings/FAQ, stronger for orders/haggling); Whisper-style STT; Next.js+Tailwind+shadcn; Socket.io; Paystack; R2/Supabase storage; Sentry.
+pnpm+Turborepo; NestJS; BullMQ/Redis; Postgres+Prisma+pgvector; LLM via OpenRouter (OpenAI-compatible tool calling; cheap model for greetings, stronger for orders/haggling; models set by OPENROUTER_MODEL_FAST/SMART); Whisper-style STT; Next.js+Tailwind+shadcn; Socket.io; Paystack; R2/Supabase storage; Sentry.
 
 ## Layout
 backend/{api,worker}; frontend (Next.js dashboard); backend/packages/{db,whatsapp,paystack,ai,shared,ui}; backend/tests/{fixtures,agent-evals}.
@@ -42,4 +42,4 @@ v2/v3 and idea list: see original PDF.
 Starter ₦15–25k (~300 convos), Growth ₦40–70k (~1,000), Business custom. Meta fees passed through via prepaid wallet; AI auto-pauses at zero balance.
 
 ## Build phases
-1 Scaffold ✅ · 2 Database (Prisma + seed: Lekki small chops, 8 products, 5 zones, 6 FAQs) · 3 WhatsApp webhook + echo · 4 Agent loop · 5 Payments · 6 Voice notes · 7 Dashboard · 8 Multi-tenant onboarding · 9 Billing · 10 Hardening/evals (30 scripted chats).
+1 Scaffold ✅ · 2 Database ✅ · 3 WhatsApp webhook ✅ · 4 Agent loop ✅ (tests with a scripted model; live check needs OPENROUTER_API_KEY) · 5 Payments · 6 Voice notes · 7 Dashboard · 8 Multi-tenant onboarding · 9 Billing · 10 Hardening/evals (30 scripted chats).
