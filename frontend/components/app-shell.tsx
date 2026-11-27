@@ -1,8 +1,8 @@
 'use client';
-import { BarChart3, Bot, Loader2, LogOut, Menu, MessageCircle, MessageSquare, Package, Rocket, ShoppingBag, Store, Users, UsersRound, X } from 'lucide-react';
+import { BarChart3, Bot, Loader2, LogOut, Menu, MessageSquare, Package, Rocket, ShoppingBag, Store, Users, UsersRound, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useState, type ReactNode } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import { api, useApi } from '@/lib/api';
 import type { BusinessDetail, Me } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -21,11 +21,27 @@ const settings = [
   { href: '/team', label: 'Team', icon: UsersRound }
 ];
 
+export function BrandMark({ className = 'size-8' }: { className?: string }) {
+  const id = useId();
+  return (
+    <svg viewBox="0 0 32 32" className={className} aria-hidden="true">
+      <defs>
+        <linearGradient id={id} x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#34D399" /><stop offset="1" stopColor="#047857" />
+        </linearGradient>
+      </defs>
+      <rect width="32" height="32" rx="8" fill={`url(#${id})`} />
+      <path transform="translate(1.6 -0.6)" d="M22.01 9.99A8.5 8.5 0 0 0 7.79 18.2L6.2 25.8l5.55-2.44A8.5 8.5 0 0 0 22.01 22.01"
+        fill="none" stroke="#fff" strokeWidth="3.3" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function Logo() {
   return (
     <div className="flex items-center gap-2.5">
-      <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground"><MessageCircle className="size-4" /></span>
-      <span className="text-[15px] font-semibold tracking-tight">{process.env.NEXT_PUBLIC_APP_NAME ?? 'Tradeline'}</span>
+      <BrandMark />
+      <span className="text-[15px] font-semibold tracking-tight">{process.env.NEXT_PUBLIC_APP_NAME ?? 'Converso'}</span>
     </div>
   );
 }

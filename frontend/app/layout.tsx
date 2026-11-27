@@ -2,7 +2,7 @@ import './globals.css';
 import type { ReactNode } from 'react';
 import { ToastProvider } from '@/components/ui';
 
-export const metadata = { title: 'Tradeline', description: 'Your AI salesperson on WhatsApp' };
+export const metadata = { title: 'Converso', description: 'Your AI salesperson on WhatsApp' };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
