@@ -1,4 +1,4 @@
-# Build context is the repo root:  docker build -f backend/Dockerfile --build-arg APP=api .
+# Build context is backend/:  docker build --build-arg APP=api .
 FROM node:22-slim AS base
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 ENV PNPM_HOME=/pnpm PATH=/pnpm:$PATH

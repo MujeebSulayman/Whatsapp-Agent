@@ -1,5 +1,5 @@
 {
-  "name": "wa-sales-agent",
+  "name": "wa-sales-agent-backend",
   "private": true,
   "packageManager": "pnpm@12.23.0",
   "engines": {
@@ -11,11 +11,11 @@
     "test": "turbo run test",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
-    "infra:up": "docker compose -f backend/docker-compose.yml up -d",
-    "infra:down": "docker compose -f backend/docker-compose.yml down",
+    "infra:up": "docker compose -f docker-compose.yml up -d",
+    "infra:down": "docker compose -f docker-compose.yml down",
     "db:migrate": "pnpm --filter @wa/db db:migrate",
-    "app:up": "docker compose -f backend/docker-compose.yml --profile app up -d --build",
-    "app:down": "docker compose -f backend/docker-compose.yml --profile app down"
+    "app:up": "docker compose -f docker-compose.yml --profile app up -d --build",
+    "app:down": "docker compose -f docker-compose.yml --profile app down"
   },
   "devDependencies": {
     "@types/node": "^26.6.11",

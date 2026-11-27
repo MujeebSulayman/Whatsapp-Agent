@@ -1,5 +1,3 @@
-name: wa-sales-agent
-
 services:
   postgres:
     image: pgvector/pgvector:pg16
@@ -28,7 +26,7 @@ services:
   # Production-like containers: `pnpm app:up` (profile "app"). Day-to-day dev runs them with `pnpm dev`.
   api:
     profiles: ["app"]
-    build: { context: .., dockerfile: backend/Dockerfile, args: { APP: api } }
+    build: { context: ., dockerfile: Dockerfile, args: { APP: api } }
     restart: unless-stopped
     env_file: .env
     environment:
@@ -39,7 +37,7 @@ services:
 
   worker:
     profiles: ["app"]
-    build: { context: .., dockerfile: backend/Dockerfile, args: { APP: worker } }
+    build: { context: ., dockerfile: Dockerfile, args: { APP: worker } }
     restart: unless-stopped
     env_file: .env
     environment:

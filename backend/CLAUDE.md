@@ -1,9 +1,9 @@
 # WhatsApp AI Sales Agent
-Spec: backend/docs/SPEC.md. Read it before starting any task.
+Spec: docs/SPEC.md (this file lives in backend/). Read it before starting any task.
 
 ## Stack
-pnpm + Turborepo (shared packages in backend/packages), TypeScript strict, NestJS (backend/api), BullMQ worker (backend/worker),
-Next.js App Router + Tailwind + shadcn (frontend), Postgres + Prisma (packages/db), Redis. LLM: OpenRouter (@wa/ai), not the Anthropic SDK.
+pnpm + Turborepo (shared packages in packages/), TypeScript strict, NestJS (api), BullMQ worker (worker),
+Next.js App Router + Tailwind + shadcn (../frontend, a standalone pnpm project), Postgres + Prisma (packages/db), Redis. LLM: OpenRouter (@wa/ai), not the Anthropic SDK.
 
 ## Rules
 - Every table and query is scoped by business_id. Never write an unscoped query.
@@ -15,6 +15,7 @@ Next.js App Router + Tailwind + shadcn (frontend), Postgres + Prisma (packages/d
 - Write tests for tools, webhooks and tenant isolation. Run `pnpm test` before finishing.
 
 ## Commands
+Layout: repo root has only backend/ and frontend/. Run backend commands from backend/, frontend commands from frontend/.
 Env: backend/.env (copy backend/.env.example) and frontend/.env.local (copy frontend/.env.example); never put secrets in the frontend env.
 pnpm infra:up | pnpm dev | pnpm test | pnpm db:migrate | pnpm lint
 (pnpm lives in ~/.local/bin on this machine: export PATH=~/.local/bin:$PATH)

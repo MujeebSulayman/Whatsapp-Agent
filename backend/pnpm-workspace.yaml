@@ -1,8 +1,7 @@
 packages:
-  - frontend
-  - backend/api
-  - backend/worker
-  - backend/packages/*
+  - api
+  - worker
+  - packages/*
 allowBuilds:
   '@prisma/engines': true
   esbuild: true

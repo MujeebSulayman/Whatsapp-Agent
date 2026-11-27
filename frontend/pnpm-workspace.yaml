@@ -1,0 +1,5 @@
+# Makes frontend/ its own standalone pnpm project (not part of backend's workspace).
+packages: []
+allowBuilds:
+  sharp: true
+  unrs-resolver: true
