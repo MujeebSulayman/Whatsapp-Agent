@@ -19,7 +19,7 @@ function LoginForm() {
   const [busy, setBusy] = useState(false);
 
   // First screen: the quick options. Email is one click away, and is the only option when nothing else is set up.
-  const choosing = providers.google && !wantsEmail;
+  const choosing = providers.offer && !wantsEmail;
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -45,7 +45,7 @@ function LoginForm() {
         <div className="h-[132px]" aria-hidden />
       ) : choosing ? (
         <div className="space-y-4">
-          <GoogleButton />
+          <GoogleButton preview={providers.preview} />
           <OrDivider />
           <Button type="button" variant="secondary" className="h-11 w-full rounded-lg" onClick={() => setWantsEmail(true)}><Mail className="size-4" />Continue with email</Button>
         </div>
@@ -61,7 +61,7 @@ function LoginForm() {
             </div>
           </Field>
           <Button type="submit" className="h-11 w-full rounded-lg" loading={busy}>Sign in<ArrowRight className="size-4" /></Button>
-          {providers.google && <button type="button" onClick={() => setWantsEmail(false)} className="w-full text-center text-[13px] text-muted-foreground hover:text-foreground">Other sign-in options</button>}
+          {providers.offer && <button type="button" onClick={() => setWantsEmail(false)} className="w-full text-center text-[13px] text-muted-foreground hover:text-foreground">Other sign-in options</button>}
         </form>
       )}
 

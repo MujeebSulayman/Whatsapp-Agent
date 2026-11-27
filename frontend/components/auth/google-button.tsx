@@ -6,7 +6,10 @@ import { api, useApi } from '@/lib/api';
 /** Which sign-in methods the server has set up. A method that isn't configured is simply not offered. */
 export function useProviders() {
   const { data, isLoading } = useApi<{ google: boolean }>('auth/providers', { revalidateOnFocus: false });
-  return { google: !!data?.google, loading: isLoading };
+  const google = !!data?.google;
+  // While building (never in production) the button is shown even before Google is set up, so the screen can be reviewed.
+  const preview = !google && process.env.NODE_ENV !== 'production';
+  return { google, preview, offer: google || preview, loading: isLoading };
 }
 
 function GoogleMark() {
@@ -20,11 +23,12 @@ function GoogleMark() {
   );
 }
 
-export function GoogleButton() {
+export function GoogleButton({ preview = false }: { preview?: boolean }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function go() {
+    if (preview) return setError('Google sign-in is not set up yet. Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to backend/.env (steps in backend/docs/GOOGLE-SIGNIN.md). This note only appears while developing.');
     setBusy(true);
     setError(null);
     try {

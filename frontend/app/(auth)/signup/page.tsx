@@ -102,13 +102,13 @@ function SignupForm() {
   }
 
   // First screen: quick options, with email one click away. Hidden when we are finishing a Google sign-up.
-  if (!socialTicket && !providers.loading && providers.google && !wantsEmail) {
+  if (!socialTicket && !providers.loading && providers.offer && !wantsEmail) {
     return (
       <div className="animate-fade-up">
         <h1 className="text-[26px] font-semibold tracking-tight">Create your account</h1>
         <p className="mb-8 mt-1.5 text-sm text-muted-foreground">Start your 14-day free trial. No card needed.</p>
         <div className="space-y-4">
-          <GoogleButton />
+          <GoogleButton preview={providers.preview} />
           <OrDivider />
           <Button type="button" variant="secondary" className="h-11 w-full rounded-lg" onClick={() => setWantsEmail(true)}><Mail className="size-4" />Continue with email</Button>
         </div>
@@ -163,7 +163,7 @@ function SignupForm() {
               </Field>
             </div>
             <Button type="submit" className="h-11 w-full rounded-lg" disabled={!step1Ok}>Continue<ArrowRight className="size-4" /></Button>
-            {providers.google && <button type="button" onClick={() => setWantsEmail(false)} className="w-full text-center text-[13px] text-muted-foreground hover:text-foreground">Other sign-up options</button>}
+            {providers.offer && <button type="button" onClick={() => setWantsEmail(false)} className="w-full text-center text-[13px] text-muted-foreground hover:text-foreground">Other sign-up options</button>}
           </>
         ) : (
           <>
