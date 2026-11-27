@@ -2,11 +2,11 @@ import { config } from 'dotenv';
 config({ path: new URL('../../.env', import.meta.url).pathname });
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createPrisma } from '@wa/db';
-import { buildContext } from '../src/agent/context-builder.js';
-import { checkStock } from '../src/agent/tools/check-stock.js';
-import { createOrder } from '../src/agent/tools/create-order.js';
-import { searchProducts } from '../src/agent/tools/search-products.js';
-import type { ToolContext } from '../src/agent/tools/types.js';
+import { buildContext } from '@wa/agent';
+import { checkStock } from '@wa/agent';
+import { createOrder } from '@wa/agent';
+import { searchProducts } from '@wa/agent';
+import type { ToolContext } from '@wa/agent';
 
 const prisma = createPrisma();
 type Shop = { id: string; customerId: string; serviceId: string; kind: ToolContext['kind'] };

@@ -55,35 +55,49 @@ export function Switch({ checked, onChange, disabled, label }: { checked: boolea
 /* ---------- Layout ---------- */
 export function PageHeader({ title, description, actions }: { title: string; description?: string; actions?: ReactNode }) {
   return (
-    <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+    <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
-        {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
+        <h1 className="text-lg font-semibold tracking-tight">{title}</h1>
+        {description && <p className="mt-0.5 text-[13px] text-muted-foreground">{description}</p>}
       </div>
       {actions && <div className="flex items-center gap-2">{actions}</div>}
     </div>
   );
 }
-export const Card = ({ className, ...p }: React.HTMLAttributes<HTMLDivElement>) => <div className={cn('rounded-lg border bg-card', className)} {...p} />;
+/* One surface recipe everywhere: 12px radius, hairline border, a faint top highlight in dark mode. */
+export const surface = 'rounded-xl border bg-card shadow-[inset_0_1px_0_0_rgb(255_255_255/0.03)]';
+export const Card = ({ className, ...p }: React.HTMLAttributes<HTMLDivElement>) => <div className={cn(surface, className)} {...p} />;
 export function CardHeader({ title, description, action }: { title: string; description?: string; action?: ReactNode }) {
   return (
-    <div className="flex items-start justify-between gap-3 border-b px-5 py-4">
+    <div className="flex items-start justify-between gap-3 px-5 pt-4 pb-3">
       <div>
-        <h2 className="text-sm font-semibold">{title}</h2>
+        <h2 className="text-sm font-medium">{title}</h2>
         {description && <p className="mt-0.5 text-[13px] text-muted-foreground">{description}</p>}
       </div>
       {action}
     </div>
   );
 }
-export const CardBody = ({ className, ...p }: React.HTMLAttributes<HTMLDivElement>) => <div className={cn('p-5', className)} {...p} />;
-export function Stat({ label, value, hint }: { label: string; value: ReactNode; hint?: string }) {
+/* A body right under a CardHeader needs only a little top padding: the header already has its own. */
+export const CardBody = ({ className, ...p }: React.HTMLAttributes<HTMLDivElement>) => <div className={cn('p-5 not-first:pt-1', className)} {...p} />;
+
+type StatProps = { label: string; value: ReactNode; hint?: string; icon?: typeof Loader2 };
+function StatContent({ label, value, hint, icon: Icon }: StatProps) {
   return (
-    <Card className="p-5">
-      <div className="text-[13px] text-muted-foreground">{label}</div>
+    <>
+      <div className="flex items-center gap-1.5 text-[13px] text-muted-foreground">{Icon && <Icon className="size-3.5" strokeWidth={2} />}{label}</div>
       <div className="mt-2 text-2xl font-semibold tracking-tight tabular-nums">{value}</div>
       {hint && <div className="mt-1 text-xs text-muted-foreground">{hint}</div>}
-    </Card>
+    </>
+  );
+}
+export const Stat = (p: StatProps) => <Card className="p-5"><StatContent {...p} /></Card>;
+/* Several stats as one surface split by hairlines, instead of a wall of separate boxes. */
+export function StatGrid({ stats, className }: { stats: StatProps[]; className?: string }) {
+  return (
+    <div className={cn(surface, 'grid gap-px overflow-hidden bg-border', className)}>
+      {stats.map((s) => <div key={s.label} className="bg-card p-5"><StatContent {...s} /></div>)}
+    </div>
   );
 }
 
@@ -106,7 +120,7 @@ export const Avatar = ({ name, className }: { name?: string | null; className?: 
 export const Table = ({ children }: { children: ReactNode }) => (
   <div className="overflow-x-auto"><table className="w-full text-left text-sm">{children}</table></div>
 );
-export const THead = ({ children }: { children: ReactNode }) => <thead className="border-b bg-muted/50 text-xs font-medium text-muted-foreground">{children}</thead>;
+export const THead = ({ children }: { children: ReactNode }) => <thead className="border-b text-xs font-medium text-muted-foreground">{children}</thead>;
 export const TH = ({ className, ...p }: React.ThHTMLAttributes<HTMLTableCellElement>) => <th className={cn('px-5 py-2.5 font-medium', className)} {...p} />;
 export const TR = ({ className, onClick, ...p }: React.HTMLAttributes<HTMLTableRowElement>) => (
   <tr onClick={onClick} className={cn('border-b last:border-0', onClick && 'cursor-pointer hover:bg-muted/50', className)} {...p} />

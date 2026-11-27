@@ -4,12 +4,12 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { ChatMessage, LlmClient } from '@wa/ai';
 import { createPrisma } from '@wa/db';
 import { encryptSecret, type InboundJob } from '@wa/shared';
-import { applyDiscount } from '../src/agent/tools/apply-discount.js';
-import { checkOrderStatus } from '../src/agent/tools/check-order-status.js';
-import { checkStock } from '../src/agent/tools/check-stock.js';
-import { saveCustomerDetail } from '../src/agent/tools/save-customer-detail.js';
-import { sendProductImage } from '../src/agent/tools/send-product-image.js';
-import type { ToolContext } from '../src/agent/tools/types.js';
+import { applyDiscount } from '@wa/agent';
+import { checkOrderStatus } from '@wa/agent';
+import { checkStock } from '@wa/agent';
+import { saveCustomerDetail } from '@wa/agent';
+import { sendProductImage } from '@wa/agent';
+import type { ToolContext } from '@wa/agent';
 import { FALLBACK_TEXT, handleInbound } from '../src/jobs/handle-inbound.js';
 
 const KEY = 'f'.repeat(64);

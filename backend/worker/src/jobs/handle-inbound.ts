@@ -1,8 +1,8 @@
 import type { PrismaClient } from '@wa/db';
 import { pickModel, type LlmClient, type ModelConfig } from '@wa/ai';
 import { decryptSecret, maskPhone, type InboundJob } from '@wa/shared';
-import { buildContext } from '../agent/context-builder.js';
-import { runAgent } from '../agent/run-agent.js';
+import { buildContext } from '@wa/agent';
+import { runAgent } from '@wa/agent';
 import type { Locker } from '../lock.js';
 
 export type SendText = (o: { phoneNumberId: string; accessToken: string; to: string; body: string }) => Promise<string>;

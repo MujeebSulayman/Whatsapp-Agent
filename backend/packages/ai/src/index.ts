@@ -7,6 +7,12 @@ export type ChatMessage = {
   tool_call_id?: string;
 };
 
+/** A piece of a multimodal message: text or an image (https URL or a base64 data URL). */
+export type ContentPart = { type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } };
+
+/** What we send. Replies from the model are plain {@link ChatMessage}s (string or null content). */
+export type ChatInputMessage = Omit<ChatMessage, 'content'> & { content: string | ContentPart[] | null };
+
 export type ToolDef = {
   type: 'function';
   function: { name: string; description: string; parameters: Record<string, unknown> };
@@ -18,7 +24,7 @@ export type ChatResult = {
 };
 
 export interface LlmClient {
-  chat(req: { model: string; messages: ChatMessage[]; tools?: ToolDef[]; temperature?: number }): Promise<ChatResult>;
+  chat(req: { model: string; messages: ChatInputMessage[]; tools?: ToolDef[]; temperature?: number; /** ask for a single JSON object */ json?: boolean; maxTokens?: number }): Promise<ChatResult>;
 }
 
 export interface OpenRouterOptions {
@@ -39,7 +45,7 @@ export function createOpenRouterClient(opts: OpenRouterOptions): LlmClient {
   const maxAttempts = opts.maxAttempts ?? 3;
 
   return {
-    async chat({ model, messages, tools, temperature }) {
+    async chat({ model, messages, tools, temperature, json, maxTokens }) {
       let lastErr: Error = new Error('LLM call failed');
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         try {
@@ -55,6 +61,8 @@ export function createOpenRouterClient(opts: OpenRouterOptions): LlmClient {
               messages,
               ...(tools?.length ? { tools, tool_choice: 'auto' } : {}),
               temperature: temperature ?? 0.3,
+              ...(json ? { response_format: { type: 'json_object' } } : {}),
+              ...(maxTokens ? { max_tokens: maxTokens } : {}),
               usage: { include: true }
             })
           });
@@ -63,18 +71,18 @@ export function createOpenRouterClient(opts: OpenRouterOptions): LlmClient {
             // 4xx other than 429 will not succeed on retry.
             throw Object.assign(new Error(`OpenRouter ${res.status}: ${(await res.text()).slice(0, 200)}`), { fatal: true });
           }
-          const json = (await res.json()) as {
+          const data = (await res.json()) as {
             choices?: { message?: ChatMessage }[];
             usage?: { prompt_tokens?: number; completion_tokens?: number; cost?: number };
           };
-          const message = json.choices?.[0]?.message;
+          const message = data.choices?.[0]?.message;
           if (!message) throw new Error('OpenRouter returned no message');
           return {
             message: { role: 'assistant', content: message.content ?? null, tool_calls: message.tool_calls },
             usage: {
-              inputTokens: json.usage?.prompt_tokens ?? 0,
-              outputTokens: json.usage?.completion_tokens ?? 0,
-              costUsd: json.usage?.cost ?? 0
+              inputTokens: data.usage?.prompt_tokens ?? 0,
+              outputTokens: data.usage?.completion_tokens ?? 0,
+              costUsd: data.usage?.cost ?? 0
             }
           };
         } catch (e) {
@@ -138,4 +146,18 @@ export function createOpenRouterEmbedder(opts: { apiKey: string; model: string; 
       return rows;
     }
   };
+}
+
+/** Pull one JSON object out of a model reply, tolerating ```json fences and chatter around it. Returns null if there isn't one. */
+export function extractJson(text: string | null): unknown {
+  if (!text) return null;
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1] ?? text;
+  const start = fenced.indexOf('{');
+  const end = fenced.lastIndexOf('}');
+  if (start < 0 || end <= start) return null;
+  try {
+    return JSON.parse(fenced.slice(start, end + 1));
+  } catch {
+    return null;
+  }
 }

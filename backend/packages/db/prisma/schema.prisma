@@ -308,7 +308,10 @@ model Broadcast {
 model AgentRun {
   id             String       @id @default(cuid())
   businessId     String       @map("business_id")
-  conversationId String       @map("conversation_id")
+  /// null for AI work that isn't a customer chat (setup help, assistant preview)
+  conversationId String?      @map("conversation_id")
+  /// chat | setup | preview: all of it counts towards the business's daily AI spend cap
+  kind           String       @default("chat")
   model          String
   inputTokens    Int          @default(0) @map("input_tokens")
   outputTokens   Int          @default(0) @map("output_tokens")
@@ -316,7 +319,7 @@ model AgentRun {
   latencyMs      Int          @default(0) @map("latency_ms")
   costUsd        Decimal      @default(0) @map("cost_usd") @db.Decimal(10, 6)
   createdAt      DateTime     @default(now()) @map("created_at")
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@index([businessId, createdAt])
   @@map("agent_runs")

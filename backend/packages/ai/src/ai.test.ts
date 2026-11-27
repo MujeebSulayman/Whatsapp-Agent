@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createOpenRouterClient, createOpenRouterEmbedder, pickModel } from './index.js';
+import { createOpenRouterClient, createOpenRouterEmbedder, extractJson, pickModel } from './index.js';
 
 const ok = (body: unknown) => new Response(JSON.stringify(body), { status: 200 });
 
@@ -53,5 +53,23 @@ describe('embedder', () => {
     expect([out[0]![0], out[1]![1]]).toEqual([1, 1]);
     const bad = createOpenRouterEmbedder({ apiKey: 'k', model: 'm', fetchImpl: (async () => ok({ data: [{ index: 0, embedding: [1, 2, 3] }] })) as unknown as typeof fetch });
     await expect(bad.embed(['a'])).rejects.toThrow(/1536/);
+  });
+});
+
+describe('json + images', () => {
+  it('asks for JSON mode and passes image parts through untouched', async () => {
+    let body: { response_format?: unknown; messages: { content: unknown }[] } | undefined;
+    const client = createOpenRouterClient({ apiKey: 'k', fetchImpl: (async (_u: string, init: RequestInit) => { body = JSON.parse(init.body as string); return ok({ choices: [{ message: { content: '{"a":1}' } }] }); }) as unknown as typeof fetch });
+    await client.chat({ model: 'm', json: true, messages: [{ role: 'user', content: [{ type: 'text', text: 'read this' }, { type: 'image_url', image_url: { url: 'data:image/png;base64,AAAA' } }] }] });
+    expect(body?.response_format).toEqual({ type: 'json_object' });
+    expect(JSON.stringify(body?.messages[0]?.content)).toContain('data:image/png;base64,AAAA');
+  });
+  it('extracts JSON from fenced or chatty replies and returns null otherwise', () => {
+    expect(extractJson('{"x":1}')).toEqual({ x: 1 });
+    expect(extractJson('Sure!\n```json\n{"x":[1,2]}\n```\nHope that helps')).toEqual({ x: [1, 2] });
+    expect(extractJson('here you go: {"x": 2} thanks')).toEqual({ x: 2 });
+    expect(extractJson('no json here')).toBeNull();
+    expect(extractJson('{broken')).toBeNull();
+    expect(extractJson(null)).toBeNull();
   });
 });

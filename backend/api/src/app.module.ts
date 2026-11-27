@@ -1,4 +1,5 @@
 import { Controller, Get, Module } from '@nestjs/common';
+import { createOpenRouterClient, createOpenRouterEmbedder, embeddingModelFromEnv } from '@wa/ai';
 import { AnalyticsController } from './analytics/analytics.controller.js';
 import { AccountsService } from './auth/accounts.service.js';
 import { AuthController } from './auth/auth.controller.js';
@@ -10,6 +11,8 @@ import { Messenger } from './common/messenger.js';
 import { ConversationsController } from './conversations/conversations.controller.js';
 import { CustomersController } from './customers/customers.controller.js';
 import { InfraModule } from './infra.module.js';
+import { SetupAiController } from './setup-ai/setup-ai.controller.js';
+import { LLM_CLIENT, QUERY_EMBEDDER, SetupAiService } from './setup-ai/setup-ai.service.js';
 import { OrdersController } from './orders/orders.controller.js';
 import { CatalogController } from './products/catalog.controller.js';
 import { TeamController } from './team/team.controller.js';
@@ -26,7 +29,18 @@ class HealthController {
 
 @Module({
   imports: [InfraModule],
-  controllers: [HealthController, WhatsappController, AuthController, SocialAuthController, BusinessController, CatalogController, ConversationsController, OrdersController, CustomersController, AnalyticsController, TeamController],
-  providers: [WhatsappService, Messenger, EmbeddingService, AccountsService, { provide: GOOGLE_CLIENT, useFactory: () => new GoogleClient() }]
+  controllers: [HealthController, WhatsappController, AuthController, SocialAuthController, SetupAiController, BusinessController, CatalogController, ConversationsController, OrdersController, CustomersController, AnalyticsController, TeamController],
+  providers: [WhatsappService, Messenger, EmbeddingService, AccountsService, { provide: GOOGLE_CLIENT, useFactory: () => new GoogleClient() },
+    SetupAiService,
+    { provide: LLM_CLIENT, useFactory: () => createOpenRouterClient({ apiKey: process.env.OPENROUTER_API_KEY ?? '', appTitle: 'Converso' }) },
+    {
+      provide: QUERY_EMBEDDER,
+      useFactory: () => {
+        const key = process.env.OPENROUTER_API_KEY;
+        if (!key) return undefined;
+        const embedder = createOpenRouterEmbedder({ apiKey: key, model: embeddingModelFromEnv() });
+        return async (t: string) => (await embedder.embed([t]))[0]!;
+      }
+    }]
 })
 export class AppModule {}

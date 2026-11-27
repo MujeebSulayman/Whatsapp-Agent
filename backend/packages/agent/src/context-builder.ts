@@ -11,7 +11,7 @@ export interface AgentContext {
 }
 
 /** business + rules + customer + last 20 messages + open order. All reads are scoped by businessId. */
-export async function buildContext(db: PrismaClient, o: { businessId: string; conversationId: string; customerId: string }): Promise<AgentContext> {
+export async function buildContext(db: PrismaClient, o: { businessId: string; conversationId: string; customerId: string; /** Use this history instead of the stored messages (assistant preview). */ history?: ChatMessage[] }): Promise<AgentContext> {
   const { businessId } = o;
   const [business, rules, faqs, customer, recent, openOrder] = await Promise.all([
     db.business.findUniqueOrThrow({ where: { id: businessId } }),
@@ -22,7 +22,7 @@ export async function buildContext(db: PrismaClient, o: { businessId: string; co
     db.order.findFirst({ where: { businessId, customerId: o.customerId, status: 'pending', paymentStatus: { in: ['unpaid', 'pending'] } }, orderBy: { createdAt: 'desc' } })
   ]);
 
-  const history: ChatMessage[] = recent
+  const history: ChatMessage[] = o.history ?? recent
     .reverse()
     .filter((m) => (m.body ?? m.transcript))
     .map((m) => ({ role: m.direction === 'inbound' ? 'user' : 'assistant', content: (m.body ?? m.transcript) as string }));

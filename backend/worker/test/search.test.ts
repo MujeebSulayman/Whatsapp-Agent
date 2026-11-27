@@ -2,8 +2,8 @@ import { config } from 'dotenv';
 config({ path: new URL('../../.env', import.meta.url).pathname });
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createPrisma, setProductEmbedding } from '@wa/db';
-import { searchProducts } from '../src/agent/tools/search-products.js';
-import type { ToolContext } from '../src/agent/tools/types.js';
+import { searchProducts } from '@wa/agent';
+import type { ToolContext } from '@wa/agent';
 
 const prisma = createPrisma();
 const unit = (i: number) => Array.from({ length: 1536 }, (_, k) => (k === i ? 1 : 0));
