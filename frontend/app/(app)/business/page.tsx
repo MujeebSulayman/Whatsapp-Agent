@@ -8,7 +8,7 @@ import { Badge, Button, Card, CardBody, CardHeader, Dialog, EmptyState, ErrorNot
 import { api, useApi, useMe } from '@/lib/api';
 import type { BusinessDetail, Faq, Zone } from '@/lib/types';
 import { COUNTRIES, currencyOptions, timezoneOptions } from '@/lib/countries';
-import { ALL_CATEGORIES, KIND_OPTIONS, type Kind } from '@/lib/categories';
+import { CATEGORIES, KIND_OPTIONS, type Kind } from '@/lib/categories';
 import { useLabels } from '@/lib/use-labels';
 import { useMoney } from '@/lib/use-money';
 
@@ -73,7 +73,7 @@ function Profile({ biz, owner }: { biz: BusinessDetail; owner: boolean }) {
           {!owner && <ErrorNote>Only the account owner can edit these details.</ErrorNote>}
           <div className="grid gap-4 sm:grid-cols-3">
             <Field label="Business name"><Input required value={f.name} onChange={set('name')} disabled={!owner} /></Field>
-            <Field label="What your business does" hint="Pick a suggestion or type your own."><Input required list="category-suggestions" value={f.category} onChange={set('category')} disabled={!owner} /><datalist id="category-suggestions">{ALL_CATEGORIES.map((c) => <option key={c.name} value={c.name} />)}</datalist></Field>
+            <Field label="What your business does" hint="Pick a suggestion or type your own."><Input required list="category-suggestions" value={f.category} onChange={set('category')} disabled={!owner} /><datalist id="category-suggestions">{CATEGORIES.map((c) => <option key={c.name} value={c.name} />)}</datalist></Field>
             <Field label="City"><Input required value={f.city} onChange={set('city')} disabled={!owner} /></Field>
           </div>
           <Field label="How customers buy from you" hint={KIND_OPTIONS.find((o) => o.value === f.kind)?.hint}>

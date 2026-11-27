@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { Button, ErrorNote, Field, Input, Select } from '@/components/ui';
 import { api } from '@/lib/api';
-import { ALL_CATEGORIES, CATEGORY_GROUPS, CUSTOM_CATEGORY, KIND_OPTIONS, kindFor, type Kind } from '@/lib/categories';
+import { CATEGORIES, CUSTOM_CATEGORY, KIND_OPTIONS, kindFor, type Kind } from '@/lib/categories';
 import { COUNTRIES, autoTimezone } from '@/lib/countries';
 import { cn } from '@/lib/utils';
 
@@ -21,6 +21,7 @@ export default function SignupPage() {
   const router = useRouter();
   const [f, setF] = useState({ name: '', businessName: '', city: '', country: 'NG', email: '', password: '' });
   const [show, setShow] = useState(false);
+  const [confirm, setConfirm] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [categoryChoice, setCategoryChoice] = useState('');
@@ -38,6 +39,7 @@ export default function SignupPage() {
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (!f.country) return setError('Please choose your country.');
+    if (f.password !== confirm) return setError("The two passwords don't match.");
     if (category.length < 2) return setError('Please choose or type what your business does.');
     setBusy(true);
     setError(null);
@@ -64,8 +66,8 @@ export default function SignupPage() {
           <Field label="What does your business do?">
             <Select required value={categoryChoice} aria-label="Business category" onChange={(e) => { const v = e.target.value; setCategoryChoice(v); const k = kindFor(v); if (k) setKind(k); }}>
               <option value="" disabled>Choose a category…</option>
-              {CATEGORY_GROUPS.map((grp) => <optgroup key={grp.label} label={grp.label}>{grp.items.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}</optgroup>)}
-              <option value={CUSTOM_CATEGORY}>Other (type your own)…</option>
+              {CATEGORIES.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
+              <option value={CUSTOM_CATEGORY}>Other (type your own)</option>
             </Select>
           </Field>
           {categoryChoice === CUSTOM_CATEGORY && (
@@ -102,6 +104,9 @@ export default function SignupPage() {
               <div className="flex flex-1 gap-1">{[1, 2, 3].map((i) => <span key={i} className={cn('h-1 flex-1 rounded-full', f.password.length >= 8 && pw.score >= i ? 'bg-primary' : 'bg-muted')} />)}</div>
               <span className="w-16 text-right text-xs text-muted-foreground">{pw.label || 'Min. 8 characters'}</span>
             </div>
+          </Field>
+          <Field label="Confirm password" error={confirm.length > 0 && confirm !== f.password ? "Passwords don't match" : null}>
+            <Input type={show ? 'text' : 'password'} required minLength={8} value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" aria-invalid={confirm.length > 0 && confirm !== f.password} />
           </Field>
         </fieldset>
 
