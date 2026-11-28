@@ -47,6 +47,7 @@ export const scenarios: Scenario[] = [
   // ---- customer-support quality: browsing, empathy, honesty, closing the loop
   { name: 'what do you sell: browses the catalogue', turns: ['what do you sell?'], expect: { tools: ['list_catalog'], reply: [/Party Pack/i, /Chapman/i, /Samosa/i], replyNot: [/full list/i] } },
   { name: 'list them all: shows everything', turns: ['what do you sell?', 'list them all'], expect: { tools: ['list_catalog'], reply: [/Party Pack/i, /Mini Pack/i, /Puff Puff/i, /Chapman/i, /Spring Rolls/i, /Wings/i] } },
+  { name: 'budget question: suggests items that fit, no handoff', turns: ['What do you offer', 'My budget is 100k, what can i get'], expect: { reply: [/45,?000|38,?000|12,?000/], handedOff: false, noOrder: true } },
   { name: 'standard English gets standard English', turns: ['What do you have?'], expect: { replyNot: [/\b(abeg|wetin|dey|make i|na so|oga)\b/i] } },
   { name: 'greeting is warm and short', turns: ['Hi'], expect: { reply: [/welcome|hello|hi|good/i], maxChars: 320, noTools: ['create_order'] } },
   { name: 'upset about a late order: sorry first, then a person', turns: ['This is the third time my order is late and nobody is replying to me!'], expect: { reply: [/sorry|apolog/i], tools: ['handoff_to_human'], handedOff: true } },

@@ -99,6 +99,13 @@ describe('a customer who says no', () => {
     expect(seen[1]!.messages.at(-1)).toMatchObject({ role: 'system', content: expect.stringMatching(/said no for the first time/) });
   });
 
+  it('an owner who prefers to let customers go is never nudged to keep them', async () => {
+    const { llm, seen } = scripted([say('No wahala! Come back any time.')]);
+    const r = await runAgent({ llm, model: 'm', system: 's', history: [u('how much?'), a('₦12,000.'), u('No, i am not interested')], ctx: { ...base }, tools: [search, handoff], keepCustomers: false });
+    expect(r.reply).toBe('No wahala! Come back any time.');
+    expect(seen).toHaveLength(1);
+  });
+
   it('is not needed when the first reply already makes an attempt', async () => {
     const { llm, seen } = scripted([say('Understood. Was the price the worry?')]);
     await go(llm, {}, [u('how much?'), a('₦12,000.'), u('too expensive')]);

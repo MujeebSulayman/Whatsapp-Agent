@@ -26,7 +26,9 @@ const AiRules = z.object({
   maxDiscountPct: z.number().int().min(0).max(50),
   escalateKeywords: z.array(z.string().min(1).max(40)).max(30),
   forbiddenTopics: z.array(z.string().min(1).max(40)).max(30),
-  customInstructions: z.string().max(1500).nullable()
+  customInstructions: z.string().max(1500).nullable(),
+  /** Omitted = leave the current choice alone. */
+  keepCustomers: z.boolean().optional()
 });
 
 const ConnectWhatsapp = z.object({

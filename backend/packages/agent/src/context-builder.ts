@@ -1,6 +1,7 @@
 import type { PrismaClient } from '@wa/db';
 import type { ChatMessage } from '@wa/ai';
 import { countryName, formatMoney, parseSteps } from '@wa/shared';
+import { recentLookups } from './memory.js';
 import { buildSystemPrompt } from './system-prompt.js';
 
 export interface AgentContext {
@@ -10,12 +11,14 @@ export interface AgentContext {
   lastCustomerText: string;
   /** True when this business has online payments set up, so the assistant may be given a payment-link port. */
   onlinePayments: boolean;
+  /** Owner choice: try once to keep a customer who says no (true, the default) or let them go. */
+  keepCustomers: boolean;
 }
 
 /** business + rules + customer + last 20 messages + open order. All reads are scoped by businessId. */
 export async function buildContext(db: PrismaClient, o: { businessId: string; conversationId: string; customerId: string; /** Use this history instead of the stored messages (assistant preview). */ history?: ChatMessage[] }): Promise<AgentContext> {
   const { businessId } = o;
-  const [business, rules, faqs, customer, recent, openOrder, playbooks, run] = await Promise.all([
+  const [business, rules, faqs, customer, recent, openOrder, playbooks, run, lookupRuns] = await Promise.all([
     db.business.findUniqueOrThrow({ where: { id: businessId } }),
     db.aiRules.findUnique({ where: { businessId } }),
     db.faq.findMany({ where: { businessId }, take: 20 }),
@@ -23,7 +26,8 @@ export async function buildContext(db: PrismaClient, o: { businessId: string; co
     db.message.findMany({ where: { businessId, conversationId: o.conversationId }, orderBy: { seq: 'desc' }, take: 20 }),
     db.order.findFirst({ where: { businessId, customerId: o.customerId, status: 'pending', paymentStatus: { in: ['unpaid', 'pending'] } }, orderBy: { createdAt: 'desc' } }),
     db.playbook.findMany({ where: { businessId, active: true }, orderBy: { createdAt: 'asc' }, take: 10 }),
-    db.playbookRun.findFirst({ where: { businessId, customerId: o.customerId, status: 'active' }, orderBy: { createdAt: 'desc' }, include: { playbook: true } })
+    db.playbookRun.findFirst({ where: { businessId, customerId: o.customerId, status: 'active' }, orderBy: { createdAt: 'desc' }, include: { playbook: true } }),
+    db.agentRun.findMany({ where: { businessId, conversationId: o.conversationId, kind: 'chat' }, orderBy: { createdAt: 'desc' }, take: 6, select: { toolCalls: true } })
   ]);
 
   const history: ChatMessage[] = o.history ?? recent
@@ -43,6 +47,8 @@ export async function buildContext(db: PrismaClient, o: { businessId: string; co
 
   const system = buildSystemPrompt({
     onlinePayments: !!business.paystackSubaccountCode,
+    keepCustomers: rules?.keepCustomers ?? true,
+    recentLookups: recentLookups(lookupRuns),
     playbooks: playbooks.map((b) => ({ id: b.id, name: b.name, whenToUse: b.whenToUse, steps: parseSteps(b.steps) })).filter((b) => b.steps.length),
     playbookInProgress,
     businessName: business.name,
@@ -65,5 +71,5 @@ export async function buildContext(db: PrismaClient, o: { businessId: string; co
     openOrder: openOrder ? `${openOrder.id} total ${formatMoney(openOrder.totalMinor, business.currency)} (${openOrder.paymentStatus})` : null
   });
 
-  return { system, history, hasOpenOrder: !!openOrder, lastCustomerText, onlinePayments: !!business.paystackSubaccountCode };
+  return { system, history, hasOpenOrder: !!openOrder, lastCustomerText, onlinePayments: !!business.paystackSubaccountCode, keepCustomers: rules?.keepCustomers ?? true };
 }

@@ -19,8 +19,12 @@ export interface PromptInput {
   playbooks?: { id: string; name: string; whenToUse: string; steps: { id: string; ask: string; required: boolean }[] }[];
   /** A playbook this customer is partway through, so the assistant can pick up where it left off. */
   playbookInProgress?: string | null;
+  /** Owner choice: false = let customers who say no go politely, with no attempt to change their mind. Default true. */
+  keepCustomers?: boolean;
   /** True when this business has online payments set up (the assistant can send Paystack links). */
   onlinePayments?: boolean;
+  /** Items and delivery fees this assistant already looked up in this conversation. */
+  recentLookups?: string | null;
   customerName?: string | null;
   openOrder?: string | null;
 }
@@ -46,7 +50,10 @@ const SOLD_OUT = `WHEN SOMETHING IS SOLD OUT
 - Say a restock date or note ONLY if a tool returned the owner's restock_note. Otherwise say the shop will message them if it comes back, and never promise that it will.
 - Never offer an alternative that a tool did not return, and never claim it is the same as what they asked for.`;
 
-const declineSection = (p: PromptInput) => `WHEN A CUSTOMER SAYS NO
+const declineSection = (p: PromptInput) => p.keepCustomers === false
+  ? `WHEN A CUSTOMER SAYS NO
+- The owner wants customers to be let go gracefully. If a customer says no, "not interested" or "too expensive", accept it warmly, thank them, say they are welcome back any time, and stop. Do not ask why, do not offer alternatives or discounts, and do not try to change their mind. If they then ask about something else, just help.`
+  : `WHEN A CUSTOMER SAYS NO
 - A first "no" or "not interested" is often a question in disguise. Do not just say goodbye. If you have NOT already tried once in this conversation, send ONE short, warm message that does one of these: ask what held them back (price, size, timing, something else), or offer one relevant alternative from search_products / suggest_alternatives (a different size, a smaller or cheaper option, something similar).
 - If the worry is price${p.maxDiscountPct > 0 ? `, you may offer a discount of up to ${p.maxDiscountPct}% (never more)` : ' there is no discount to offer: do not hint at one'}. Never invent offers, deadlines, scarcity or pressure ("last chance", "only 1 left") unless a tool returned it.
 - If they say no again, say stop or leave me alone, show annoyance, or the first message already tried: thank them warmly, say they are welcome back any time, and stop. Never ask a third time and never guilt them. Respect a clear no completely.
@@ -72,6 +79,7 @@ const SERVICE_STANDARDS = `SERVICE STANDARDS (how an excellent customer-support 
 const BROWSING = `BROWSING WHAT YOU SELL
 - If asked what you sell, for the menu, the price list, "list them all" or "what else": call list_catalog, not search_products. Use search_products only to find one specific item.
 - Say how many items there are in total. Show a clean numbered list (name and price). If has_more is true, say how many are left and offer to show the rest or to help them narrow it down. Never call a partial list "the full list" or "everything", and never repeat items you already showed when they ask "what else" (continue from next_offset). If they ask to see the list again, show it again; never reply "I already listed them". For "list them all" call list_catalog with limit 30, then offer the rest.
+- If a customer gives a budget ("my budget is 100k, what can I get?"): look at the items and prices you have (call list_catalog if you have not yet), then suggest 2 to 4 items or sensible pairs that fit under it, naming each item with its own price. Do not add prices up into a new total (the exact total is confirmed when the order is created), and ask which they prefer. Never reply with only a question.
 - If asked which areas you deliver to or cover, call list_delivery_areas and list them with their fees and times. Do not name areas from memory.`;
 
 const playbookSection = (p: PromptInput) =>
@@ -118,7 +126,7 @@ ${p.customInstructions ? `Owner instructions: ${p.customInstructions}` : ''}
 FAQ
 ${p.faqs.map((f) => `Q: ${f.question}\nA: ${f.answer}`).join('\n') || '(none)'}
 
-CUSTOMER
+${p.recentLookups ? `${p.recentLookups}\n\n` : ''}CUSTOMER
 Name: ${p.customerName ?? 'unknown'}
 ${p.openOrder ? `Open order: ${p.openOrder}` : 'No open order.'}`;
 }

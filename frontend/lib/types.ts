@@ -4,7 +4,7 @@ export interface BusinessDetail {
   id: string; name: string; slug: string; category: string; city: string; country: string; currency: string; kind: 'goods' | 'services' | 'both'; timezone: string; tone: string; aiEnabled: boolean; plan: string;
   businessHours: Record<string, string> | null; paymentInfo: string | null; returnPolicy: string | null; ownerPhone: string | null;
   trialDaysLeft: number | null;
-  aiRules: { maxDiscountPct: number; escalateKeywords: string[]; forbiddenTopics: string[]; customInstructions: string | null } | null;
+  aiRules: { maxDiscountPct: number; escalateKeywords: string[]; forbiddenTopics: string[]; customInstructions: string | null; keepCustomers: boolean } | null;
   whatsappAccounts: { id: string; displayNumber: string; phoneNumberId: string; status: string; wabaId: string }[];
   usage: { period: string; aiReplies: number; waMessagesBilled: number };
   setup: { whatsapp: boolean; products: boolean; zones: boolean; faqs: boolean };

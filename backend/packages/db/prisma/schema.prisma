@@ -204,6 +204,8 @@ model AiRules {
   escalateKeywords   String[] @map("escalate_keywords")
   forbiddenTopics    String[] @map("forbidden_topics")
   customInstructions String?  @map("custom_instructions")
+  /// true: when a customer first says no, the assistant makes one friendly attempt to keep them. false: it lets them go politely.
+  keepCustomers      Boolean  @default(true) @map("keep_customers")
   business           Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   @@map("ai_rules")

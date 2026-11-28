@@ -183,7 +183,7 @@ export class SetupAiService {
         const ctx = await buildContext(db, { businessId, conversationId: conversation.id, customerId: customer.id, history: messages });
         const model = pickModel(modelConfigFromEnv(), { lastMessage: ctx.lastCustomerText, hasOpenOrder: false });
         captured = await runAgent({
-          llm: this.llm, model, system: ctx.system, history: ctx.history,
+          llm: this.llm, model, system: ctx.system, history: ctx.history, keepCustomers: ctx.keepCustomers,
           ctx: { db, businessId, currency: business.currency, kind: business.kind, conversationId: conversation.id, customerId: customer.id, embed: this.embedQuery,
             // Practice mode never touches Paystack: it shows the same behaviour with a link that goes nowhere.
             payments: !ctx.onlinePayments ? undefined : { createLink: async (orderId) => (business.paystackSubaccountCode ? { url: 'https://checkout.paystack.com/practice-mode-link', amount: (await db.order.findFirst({ where: { id: orderId, businessId } }).then((o) => (o ? formatMoney(o.totalMinor, business.currency) : ''))) } : { error: 'This business has not set up online payments.' }) } }

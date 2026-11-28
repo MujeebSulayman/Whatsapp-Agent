@@ -1,6 +1,9 @@
 import type { ChatMessage, LlmClient } from '@wa/ai';
 import { TOOLS, toolDefs } from './tools/index.js';
+import { ungroundedAmounts, unknownNames } from './grounding.js';
 import type { Tool, ToolContext } from './tools/types.js';
+
+export { ungroundedAmounts, unknownNames };
 
 export const MAX_STEPS = 8;
 
@@ -27,27 +30,6 @@ export const CLAIM_CHECKS: { tool: string; /** Any of these tools running succes
 const OFFER = /(would you like|do you want|want me to|should i|shall i|can i|may i|if you(?:'d| would)? (?:like|want)|let me know if)/i;
 export function claims(re: RegExp, text: string): boolean {
   return text.split(/(?<=[.!?])\s+/).some((sentence) => re.test(sentence) && !/\?\s*$/.test(sentence) && !OFFER.test(sentence));
-}
-
-const NUM = /\d[\d,]*(?:\.\d+)?/g;
-const norm = (n: string) => String(Number(n.replace(/,/g, '')));
-/** Amounts that look like money in a reply: next to a currency symbol or code, or written with thousands separators. */
-const MONEY = /(?:[₦$€£¥₹]|\b(?:NGN|USD|GHS|KES|ZAR|EUR|GBP|CFA|XOF)\b)\s?(\d[\d,]*(?:\.\d+)?)|(\d{1,3}(?:,\d{3})+(?:\.\d+)?)/g;
-
-/**
- * Amounts in the reply that no tool returned and nobody in the chat mentioned. The assistant may never state a price from memory
- * or guess one, so any such amount means it made it up (or did its own sums).
- */
-export function ungroundedAmounts(reply: string, history: { content: string | null }[], toolOutputs: unknown[]): string[] {
-  const known = new Set<string>();
-  const sources = [...history.map((m) => m.content ?? ''), ...toolOutputs.map((o) => JSON.stringify(o))];
-  for (const text of sources) for (const m of text.matchAll(NUM)) known.add(norm(m[0]));
-  const bad: string[] = [];
-  for (const m of reply.matchAll(MONEY)) {
-    const raw = (m[1] ?? m[2])!;
-    if (!known.has(norm(raw)) && Number(norm(raw)) > 0) bad.push(raw);
-  }
-  return [...new Set(bad)];
 }
 
 /** Calling a list "the full list" when only part of it was shown. */
@@ -114,6 +96,8 @@ export async function runAgent(o: {
   history: ChatMessage[];
   ctx: Omit<ToolContext, 'state'>;
   tools?: Tool[];
+  /** Owner choice. false = never nudge the model to win back a customer who says no. Default true. */
+  keepCustomers?: boolean;
 }): Promise<AgentResult> {
   // The payment-link tool is only offered when this business actually has online payments set up.
   const tools = (o.tools ?? TOOLS).filter((t) => t.name !== 'create_payment_link' || !!o.ctx.payments);
@@ -133,7 +117,8 @@ export async function runAgent(o: {
     if (!message.tool_calls?.length) {
       const text = (message.content ?? '').trim();
       const unbacked = CLAIM_CHECKS.find((c) => claims(c.claim, text) && !result.toolCalls.some((t) => (c.satisfiedBy ?? [c.tool]).includes(t.name) && !(t.result as { error?: unknown } | null)?.error) && !nudged.has(c.tool));
-      const madeUp = ungroundedAmounts(text, o.history, result.toolCalls.map((t) => t.result));
+      // The assistant's own instructions (owner notes, FAQs, what it looked up earlier) are legitimate sources too.
+      const madeUp = ungroundedAmounts(text, [...o.history, { content: o.system }], result.toolCalls.map((t) => t.result));
       if (madeUp.length) {
         if (!nudged.has('grounding') && step < MAX_STEPS - 1) {
           nudged.add('grounding');
@@ -146,6 +131,12 @@ export async function runAgent(o: {
         result.reply = "I'd like to double-check that price for you. Let me confirm with the team and get back to you shortly.";
         result.handedOff = state.handedOff;
         return result;
+      }
+      const invented = unknownNames(text, [o.system, ...o.history.map((m) => m.content ?? ''), ...result.toolCalls.map((t) => JSON.stringify(t.result))]);
+      if (invented.length && !nudged.has('names') && step < MAX_STEPS - 1) {
+        nudged.add('names');
+        messages.push(message, { role: 'system', content: `Your reply names "${invented.join('", "')}", which is not in the catalogue results, the chat or the business info. Never name a product, service or brand you did not get from a tool. Call search_products or list_catalog now and name only real items from the results, or say you will check with the team.` });
+        continue;
       }
       if (needsCatalogCall(o.history, result.toolCalls) && !nudged.has('catalog') && step < MAX_STEPS - 1) {
         nudged.add('catalog');
@@ -164,7 +155,7 @@ export async function runAgent(o: {
         messages.push(message, { role: 'system', content: partial });
         continue;
       }
-      if (!unbacked && !nudged.has('save') && step < MAX_STEPS - 1 && needsSaveAttempt(o.history, text)) {
+      if (o.keepCustomers !== false && !unbacked && !nudged.has('save') && step < MAX_STEPS - 1 && needsSaveAttempt(o.history, text)) {
         nudged.add('save');
         messages.push(message, { role: 'system', content: 'The customer just said no for the first time. Do not say goodbye yet. Send ONE short, warm message that asks what held them back (price, size, timing, something else) OR offers one relevant alternative. Any alternative MUST come from search_products or suggest_alternatives in this turn: call it first and name only what it returns, never a product or price from memory. No pressure, no invented offers or deadlines. If they say no again later, let them go gracefully.' });
         continue;
