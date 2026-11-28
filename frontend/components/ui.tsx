@@ -267,8 +267,61 @@ export function EmptyState({ icon, title, description, action }: { icon?: ReactN
   );
 }
 export const ErrorNote = ({ children }: { children: ReactNode }) => (
-  <div className="flex items-start gap-2 rounded-md border border-danger/20 bg-danger-bg px-3 py-2 text-[13px] text-danger"><AlertCircle className="mt-0.5 size-4 shrink-0" />{children}</div>
+  <div className="animate-rise flex items-start gap-2 rounded-lg border border-danger/20 bg-danger-bg px-3 py-2 text-[13px] text-danger"><AlertCircle className="mt-0.5 size-4 shrink-0" />{children}</div>
 );
+/* A calm heads-up (not an error): something is off or limited, and what that means. */
+export function Notice({ tone = 'info', icon, title, children, className }: { tone?: 'info' | 'warning'; icon?: ReactNode; title?: string; children?: ReactNode; className?: string }) {
+  return (
+    <div className={cn('animate-rise flex items-start gap-3 rounded-xl border px-4 py-3 text-[13px] [&_svg]:size-4',
+      tone === 'warning' ? 'border-warning/25 bg-warning-bg text-warning' : 'border-border bg-muted/40 text-muted-foreground', className)}>
+      <span className="mt-0.5 shrink-0">{icon ?? <AlertCircle />}</span>
+      <div className="min-w-0">{title && <div className={cn('font-medium', tone === 'info' && 'text-foreground')}>{title}</div>}{children && <div className={cn(title && 'mt-0.5')}>{children}</div>}</div>
+    </div>
+  );
+}
+/* Checkbox in the same family as the inputs: recessed box, brand green with a white tick when on. */
+export const Checkbox = ({ className, ...p }: Omit<InputHTMLAttributes<HTMLInputElement>, 'type'>) => (
+  <input type="checkbox" {...p}
+    className={cn('peer size-4 shrink-0 appearance-none rounded-[5px] border border-input-border bg-input shadow-[var(--input-shadow)] transition-[background-color,border-color,box-shadow] duration-150',
+      'hover:border-ring/70 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-brand/20 disabled:cursor-not-allowed disabled:opacity-50',
+      "checked:border-brand checked:bg-brand checked:bg-[url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 8.5 2.5 2.5L12 5.5'/%3E%3C/svg%3E\")] checked:bg-center checked:bg-no-repeat",
+      className)} />
+);
+/* Words as removable chips: type and press Enter (or a comma) to add, Backspace on empty removes the last. */
+export function TagInput({ value, onChange, placeholder, disabled, label }: { value: string[]; onChange: (v: string[]) => void; placeholder?: string; disabled?: boolean; label: string }) {
+  const [draft, setDraft] = useState('');
+  const add = (raw: string) => {
+    const next = [...value];
+    for (const part of raw.split(',')) {
+      const t = part.trim();
+      if (t && !next.some((v) => v.toLowerCase() === t.toLowerCase())) next.push(t);
+    }
+    if (next.length !== value.length) onChange(next);
+    setDraft('');
+  };
+  return (
+    <div className={cn('flex min-h-9 flex-wrap items-center gap-1.5 rounded-lg border border-input-border bg-input p-1.5 shadow-[var(--input-shadow)] transition-[border-color,box-shadow] duration-150',
+      'hover:border-ring/70 focus-within:border-brand/70 focus-within:ring-[3px] focus-within:ring-brand/20', disabled && 'pointer-events-none opacity-60')}>
+      {value.map((v) => (
+        <span key={v} className="animate-rise inline-flex items-center gap-0.5 rounded-md border bg-muted/60 py-0.5 pl-2 pr-0.5 text-[13px]">
+          {v}
+          <button type="button" aria-label={`Remove ${v}`} onClick={() => onChange(value.filter((x) => x !== v))} className="rounded p-0.5 text-muted-foreground transition-colors hover:text-foreground"><X className="size-3" /></button>
+        </span>
+      ))}
+      <input aria-label={label} value={draft} disabled={disabled} placeholder={value.length ? 'Add…' : placeholder}
+        onChange={(e) => (e.target.value.includes(',') ? add(e.target.value) : setDraft(e.target.value))}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') { e.preventDefault(); add(draft); }
+          else if (e.key === 'Backspace' && !draft && value.length) onChange(value.slice(0, -1));
+        }}
+        onBlur={() => draft && add(draft)}
+        className="h-6 min-w-24 flex-1 bg-transparent px-1.5 text-sm outline-none placeholder:text-muted-foreground/60" />
+    </div>
+  );
+}
+
+/* Placeholder bars that shimmer while something is being worked out. */
+export const Skeleton = ({ className }: { className?: string }) => <div className={cn('shimmer rounded-md', className)} aria-hidden />;
 
 /* ---------- Theme toggle (dark default, light optional) ---------- */
 export function ThemeToggle({ className }: { className?: string }) {

@@ -1,9 +1,10 @@
 'use client';
-import { ArrowDown, ArrowUp, ListChecks, Pencil, Plus, Sparkles, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, Hand, ListChecks, MessageSquareText, Pencil, Plus, Sparkles, Trash2 } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { mutate } from 'swr';
 import { useAiAvailable } from '@/components/setup/use-ai';
-import { Badge, Button, Card, Dialog, EmptyState, ErrorNote, Field, IconButton, Input, Loading, PageHeader, Select, Switch, Tabs, Textarea, useToast } from '@/components/ui';
+import { Avatar, Button, Card, Checkbox, Dialog, EmptyState, ErrorNote, Field, IconButton, Input, Loading, PageHeader, Select, StatusDot, Switch, Tabs, Textarea, useToast } from '@/components/ui';
+import { cn, timeAgo } from '@/lib/utils';
 import { api, useApi, useMe } from '@/lib/api';
 import type { Playbook, PlaybookDraft, PlaybookResponse } from '@/lib/types';
 
@@ -31,35 +32,50 @@ export default function PlaybooksPage() {
 
   return (
     <>
-      <PageHeader title="Playbooks" description="Your own step-by-step way of handling a kind of customer. The assistant follows it, asks one thing at a time, and keeps what they say."
+      <PageHeader title="Playbooks"
         actions={owner ? <Button onClick={() => setEditing('new')}><Plus className="size-4" />New playbook</Button> : undefined} />
       <div className="mb-5"><Tabs<Tab> value={tab} onChange={setTab} tabs={[{ id: 'playbooks', label: 'Playbooks', count: data?.length }, { id: 'responses', label: 'Customer answers' }]} /></div>
 
       {tab === 'playbooks' && (isLoading ? <Loading /> : !data?.length ? (
         <Card><EmptyState icon={<ListChecks />} title="No playbooks yet"
-          description="Use one for anything you handle the same way every time: a new enquiry, a quote request, a booking intake, a viewing, a sign-up. Describe it in a sentence and we will draft the steps."
+          description="Steps the assistant follows for a kind of customer."
           action={owner ? <Button onClick={() => setEditing('new')}>Create your first playbook</Button> : undefined} /></Card>
       ) : (
-        <div className="space-y-3">
+        <div className="stagger grid gap-4 lg:grid-cols-2">
           {data.map((p) => (
-            <Card key={p.id} className="p-5">
-              <div className="flex flex-wrap items-start gap-3">
+            <Card key={p.id} className={cn('flex flex-col transition-opacity', !p.active && 'opacity-70')}>
+              <div className="flex items-start gap-3 px-5 pt-5">
+                <span className={cn('flex size-9 shrink-0 items-center justify-center rounded-lg border', p.active ? 'border-brand/25 bg-brand/10 text-brand' : 'bg-muted/50 text-muted-foreground')}><ListChecks className="size-4" strokeWidth={1.75} /></span>
                 <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2"><h3 className="text-[15px] font-medium">{p.name}</h3>{!p.active && <Badge>Off</Badge>}<span className="text-xs text-muted-foreground">{p.runs} {p.runs === 1 ? 'customer' : 'customers'}</span></div>
-                  <p className="mt-1 text-[13px] text-muted-foreground">Used when: {p.whenToUse}</p>
-                  <ol className="mt-3 space-y-1 text-[13px]">
-                    {p.steps.map((s, i) => <li key={s.id} className="flex gap-2"><span className="w-4 shrink-0 text-muted-foreground tabular-nums">{i + 1}.</span><span>{s.ask}{!s.required && <span className="text-muted-foreground"> (optional)</span>}</span></li>)}
-                  </ol>
-                  <p className="mt-3 text-xs text-muted-foreground">{p.finish === 'handoff' ? 'At the end: you are called in with a summary.' : 'At the end: the customer gets your message.'}</p>
-                </div>
-                {owner && (
-                  <div className="flex items-center gap-1">
-                    <Switch checked={p.active} onChange={(v) => toggle(p, v)} label={`${p.name} on`} />
-                    <IconButton label={`Edit ${p.name}`} onClick={() => setEditing(p)}><Pencil /></IconButton>
-                    <IconButton label={`Delete ${p.name}`} tone="danger" onClick={() => setDeleting(p)}><Trash2 /></IconButton>
+                  <h3 className="truncate text-[15px] font-medium">{p.name}</h3>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    <StatusDot tone={p.active ? 'success' : 'neutral'} className="text-xs">{p.active ? 'On' : 'Off'}</StatusDot>
+                    <span className="tabular-nums">{p.runs} {p.runs === 1 ? 'customer' : 'customers'}</span>
                   </div>
-                )}
+                </div>
+                {owner && <Switch checked={p.active} onChange={(v) => toggle(p, v)} label={`${p.name} on`} />}
               </div>
+              <p className="mx-5 mt-3 rounded-lg bg-muted/40 px-3 py-2 text-[13px]"><span className="text-muted-foreground">Used when </span>{p.whenToUse}</p>
+              <ol className="relative mx-5 mt-4 flex-1 space-y-2.5 pb-1 text-[13px] before:absolute before:bottom-3 before:left-[9px] before:top-2 before:w-px before:bg-border">
+                {p.steps.map((s, i) => (
+                  <li key={s.id} className="relative flex gap-3">
+                    <span className="z-10 flex size-[19px] shrink-0 items-center justify-center rounded-full border bg-card text-[10px] font-medium text-muted-foreground tabular-nums">{i + 1}</span>
+                    <span className="pt-px">{s.ask}{!s.required && <span className="text-muted-foreground"> · optional</span>}</span>
+                  </li>
+                ))}
+                <li className="relative flex gap-3">
+                  <span className="z-10 flex size-[19px] shrink-0 items-center justify-center rounded-full border border-brand/30 bg-brand/15 text-brand">
+                    {p.finish === 'handoff' ? <Hand className="size-2.5" strokeWidth={2.5} /> : <MessageSquareText className="size-2.5" strokeWidth={2.5} />}
+                  </span>
+                  <span className="pt-px text-muted-foreground">{p.finish === 'handoff' ? 'You are called in with a summary' : 'The customer gets your message'}</span>
+                </li>
+              </ol>
+              {owner && (
+                <div className="mt-4 flex justify-end gap-0.5 border-t px-3 py-2">
+                  <Button size="sm" variant="ghost" onClick={() => setEditing(p)}><Pencil className="size-3.5" />Edit</Button>
+                  <IconButton label={`Delete ${p.name}`} tone="danger" onClick={() => setDeleting(p)}><Trash2 /></IconButton>
+                </div>
+              )}
             </Card>
           ))}
         </div>
@@ -77,20 +93,22 @@ export default function PlaybooksPage() {
 function Responses() {
   const { data, isLoading } = useApi<PlaybookResponse[]>('playbooks/responses');
   if (isLoading) return <Loading />;
-  if (!data?.length) return <Card><EmptyState title="No answers yet" description="When a customer goes through one of your playbooks, what they told the assistant shows up here." /></Card>;
+  if (!data?.length) return <Card><EmptyState icon={<MessageSquareText />} title="No answers yet" /></Card>;
   return (
-    <div className="space-y-3">
+    <div className="stagger space-y-3">
       {data.map((r) => (
         <Card key={r.id} className="p-5">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-medium">{r.customer.name ?? `+${r.customer.waId}`}</span>
-            <span className="text-xs text-muted-foreground">{r.playbook.name}</span>
-            <Badge tone={r.status === 'completed' ? 'success' : 'neutral'}>{r.status === 'completed' ? 'Complete' : 'In progress'}</Badge>
-            <span className="ml-auto text-xs text-muted-foreground">{new Date(r.createdAt).toLocaleDateString()}</span>
+          <div className="flex flex-wrap items-center gap-3">
+            <Avatar name={r.customer.name ?? r.customer.waId} className="size-8" />
+            <div className="min-w-0 flex-1 leading-tight">
+              <div className="truncate text-sm font-medium">{r.customer.name ?? `+${r.customer.waId}`}</div>
+              <div className="text-xs text-muted-foreground">{r.playbook.name} · {timeAgo(r.createdAt)}</div>
+            </div>
+            <StatusDot tone={r.status === 'completed' ? 'success' : 'warning'}>{r.status === 'completed' ? 'Complete' : 'In progress'}</StatusDot>
           </div>
-          <dl className="mt-3 space-y-2 text-[13px]">
+          <dl className="mt-4 grid gap-x-6 gap-y-3 border-t pt-4 text-[13px] sm:grid-cols-2">
             {r.answers.map((a) => (
-              <div key={a.ask}><dt className="text-muted-foreground">{a.ask}</dt><dd className={a.answer ? '' : 'text-muted-foreground'}>{a.answer ?? 'Not answered'}</dd></div>
+              <div key={a.ask}><dt className="text-xs text-muted-foreground">{a.ask}</dt><dd className={cn('mt-0.5', !a.answer && 'text-muted-foreground/70 italic')}>{a.answer ?? 'Not answered yet'}</dd></div>
             ))}
           </dl>
         </Card>
@@ -147,28 +165,28 @@ function PlaybookDialog({ target, onClose }: { target: Playbook | 'new' | null; 
       <form id="playbook-form" onSubmit={submit} className="space-y-4">
         {err && <ErrorNote>{err}</ErrorNote>}
         {!p && available && (
-          <div className="rounded-lg border bg-muted/30 p-3">
-            <div className="mb-1.5 text-[13px] font-medium">Not sure how to write it?</div>
+          <div className="rounded-xl border border-brand/20 bg-brand/[0.05] p-3.5">
+            <div className="mb-2 flex items-center gap-1.5 text-[13px] font-medium"><Sparkles className="size-3.5 text-brand" />Not sure how to write it?</div>
             <Textarea rows={2} maxLength={1200} value={idea} onChange={(e) => setIdea(e.target.value)} placeholder="Describe it the way you would tell a friend, e.g. “When someone asks about a class I ask what they want to learn and their level, then I call them.”" />
             <Button type="button" size="sm" variant="secondary" className="mt-2" onClick={draft} loading={drafting} disabled={idea.trim().length < 10}><Sparkles className="size-3.5" />Draft it for me</Button>
           </div>
         )}
         <Field label="Name"><Input required maxLength={80} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="e.g. New enquiry, Quote request, Viewing" /></Field>
-        <Field label="When should the assistant use it?" hint="In your words, about what the customer wants."><Input required maxLength={300} value={f.whenToUse} onChange={(e) => setF({ ...f, whenToUse: e.target.value })} placeholder="e.g. Someone asks about joining a class" /></Field>
+        <Field label="When should the assistant use it?"><Input required maxLength={300} value={f.whenToUse} onChange={(e) => setF({ ...f, whenToUse: e.target.value })} placeholder="e.g. Someone asks about joining a class" /></Field>
         <div>
           <div className="mb-1.5 text-[13px] font-medium">What should it find out, in order?</div>
           <div className="space-y-2">
             {steps.map((s, i) => (
-              <div key={s.key} className="flex items-center gap-2">
-                <span className="w-5 shrink-0 text-right text-xs text-muted-foreground tabular-nums">{i + 1}</span>
+              <div key={s.key} className="animate-rise flex items-center gap-2">
+                <span className="flex size-6 shrink-0 items-center justify-center rounded-full border text-[11px] font-medium text-muted-foreground tabular-nums">{i + 1}</span>
                 <Input value={s.ask} maxLength={200} aria-label={`Step ${i + 1}`} placeholder="e.g. What do they want to learn?" onChange={(e) => setSteps(steps.map((x) => (x.key === s.key ? { ...x, ask: e.target.value } : x)))} />
-                <label className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground"><input type="checkbox" checked={s.required} onChange={(e) => setSteps(steps.map((x) => (x.key === s.key ? { ...x, required: e.target.checked } : x)))} />Needed</label>
+                <label className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground"><Checkbox checked={s.required} onChange={(e) => setSteps(steps.map((x) => (x.key === s.key ? { ...x, required: e.target.checked } : x)))} />Needed</label>
                 <IconButton type="button" label="Move up" onClick={() => move(i, -1)} disabled={i === 0}><ArrowUp /></IconButton>
                 <IconButton type="button" label="Move down" onClick={() => move(i, 1)} disabled={i === steps.length - 1}><ArrowDown /></IconButton>
                 <IconButton type="button" label="Remove step" tone="danger" onClick={() => setSteps(steps.filter((x) => x.key !== s.key))}><Trash2 /></IconButton>
               </div>
             ))}
-            {steps.length < 12 && <Button type="button" size="sm" variant="secondary" onClick={() => setSteps([...steps, { key: ++rowId, ask: '', required: true }])}><Plus className="size-3.5" />Add a step</Button>}
+            {steps.length < 12 && <Button type="button" size="sm" variant="ghost" className="ml-6" onClick={() => setSteps([...steps, { key: ++rowId, ask: '', required: true }])}><Plus className="size-3.5" />Add a step</Button>}
           </div>
         </div>
         <Field label="When every needed step is answered">
@@ -177,7 +195,7 @@ function PlaybookDialog({ target, onClose }: { target: Playbook | 'new' | null; 
             <option value="message">Just send them a message</option>
           </Select>
         </Field>
-        <Field label={f.finish === 'message' ? 'Message to the customer' : 'What to tell the customer (optional)'} hint="Only what you write here is said. The assistant adds no promises, prices or dates."><Textarea rows={2} maxLength={500} value={f.finishMessage} onChange={(e) => setF({ ...f, finishMessage: e.target.value })} placeholder="e.g. Thanks! We will send the details shortly." /></Field>
+        <Field label={f.finish === 'message' ? 'Message to the customer' : 'What to tell the customer (optional)'}><Textarea rows={2} maxLength={500} value={f.finishMessage} onChange={(e) => setF({ ...f, finishMessage: e.target.value })} placeholder="e.g. Thanks! We will send the details shortly." /></Field>
       </form>
     </Dialog>
   );

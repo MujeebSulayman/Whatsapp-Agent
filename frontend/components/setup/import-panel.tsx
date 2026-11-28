@@ -1,9 +1,9 @@
 'use client';
-import { AlertTriangle, ArrowRight, Camera, CheckCircle2, Sparkles, Trash2, X } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Check, ImagePlus, Sparkles, Trash2, X } from 'lucide-react';
 import Link from 'next/link';
 import { useRef, useState } from 'react';
 import { mutate } from 'swr';
-import { Button, Card, CardBody, CardHeader, ErrorNote, Textarea, useToast } from '@/components/ui';
+import { Button, Card, CardBody, CardHeader, Checkbox, ErrorNote, IconButton, Input, Notice, Skeleton, Textarea, useToast } from '@/components/ui';
 import { api } from '@/lib/api';
 import { photoToDataUrl } from '@/lib/image';
 import type { ImportProposal } from '@/lib/types';
@@ -16,7 +16,8 @@ interface ZRow { id: string; on: boolean; area: string; fee: string; eta: string
 interface FRow { id: string; on: boolean; question: string; answer: string }
 interface Counts { productsAdded: number; productsUpdated: number; zones: number; faqs: number }
 
-const cell = 'h-9 w-full rounded-md border bg-card px-2.5 text-[13px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+const cell = 'h-8 text-[13px]';
+const bad = 'border-danger/70';
 let n = 0;
 const uid = () => `r${++n}`;
 
@@ -32,6 +33,7 @@ export function ImportPanel() {
   const [review, setReview] = useState<{ p: PRow[]; z: ZRow[]; f: FRow[]; warnings: string[] } | null>(null);
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState<Counts | null>(null);
+  const [dragging, setDragging] = useState(false);
 
   async function addPhotos(files: FileList | null) {
     if (!files) return;
@@ -88,16 +90,22 @@ export function ImportPanel() {
   }
 
   if (done) {
+    const parts = [
+      done.productsAdded > 0 && { n: done.productsAdded, l: `new ${labels.items.toLowerCase()}` },
+      done.productsUpdated > 0 && { n: done.productsUpdated, l: 'updated' },
+      done.zones > 0 && { n: done.zones, l: labels.zones.toLowerCase() },
+      done.faqs > 0 && { n: done.faqs, l: 'FAQs' }
+    ].filter(Boolean) as { n: number; l: string }[];
     return (
-      <Card><CardBody className="flex flex-col items-center gap-3 py-12 text-center">
-        <CheckCircle2 className="size-9 text-success" />
-        <div className="text-base font-semibold">Saved</div>
-        <p className="max-w-md text-[13px] text-muted-foreground">
-          {[done.productsAdded && `${done.productsAdded} new ${labels.items.toLowerCase()}`, done.productsUpdated && `${done.productsUpdated} updated`, done.zones && `${done.zones} ${labels.zones.toLowerCase()}`, done.faqs && `${done.faqs} FAQs`].filter(Boolean).join(' · ')}
-        </p>
-        <div className="mt-2 flex gap-2">
-          <Link href="/products"><Button>See your {labels.items.toLowerCase()}<ArrowRight className="size-4" /></Button></Link>
+      <Card><CardBody className="flex flex-col items-center py-12 text-center">
+        <span className="animate-pop flex size-12 items-center justify-center rounded-full border border-brand/30 bg-brand/15 text-brand"><Check className="size-6" strokeWidth={2.5} /></span>
+        <div className="mt-4 text-base font-semibold tracking-tight">Saved to your setup</div>
+        <div className="stagger mt-4 flex flex-wrap justify-center gap-2">
+          {parts.map((x) => <span key={x.l} className="rounded-lg border bg-muted/40 px-3 py-1.5 text-[13px]"><span className="font-semibold tabular-nums">{x.n}</span> <span className="text-muted-foreground">{x.l}</span></span>)}
+        </div>
+        <div className="mt-6 flex gap-2">
           <Button variant="secondary" onClick={() => setDone(null)}>Add more</Button>
+          <Link href="/products"><Button>See your {labels.items.toLowerCase()}<ArrowRight className="size-4" /></Button></Link>
         </div>
       </CardBody></Card>
     );
@@ -105,64 +113,75 @@ export function ImportPanel() {
 
   return (
     <div className="space-y-6">
-      {!review && (
-        <Card>
-          <CardHeader title="Paste it or photograph it" description={`A price list, a menu, a WhatsApp Status, or just type it the way you would tell a friend. We read it and you review everything before anything is saved. Prices are in ${money.currency}.`} />
-          <CardBody className="space-y-4">
-            <Textarea rows={7} value={text} onChange={(e) => setText(e.target.value)} maxLength={20000}
-              placeholder={labels.kind === 'services' ? 'e.g.\nAC servicing from 25,000\nGas refill 18,000\nCall-out fee: Lekki 3,000, Ajah 4,500' : 'e.g.\nParty pack 12k\nPuff puff (box of 30) 2,500\nSamosa: beef or chicken 3,000\nDelivery: Lekki 2k, Ikoyi 3,500'} />
-            <div>
-              <input ref={fileRef} type="file" accept="image/*" multiple className="sr-only" onChange={(e) => void addPhotos(e.target.files)} />
-              <div className="flex flex-wrap items-center gap-3">
-                <Button type="button" variant="secondary" disabled={photos.length >= 4} onClick={() => fileRef.current?.click()}><Camera className="size-4" />Add photos</Button>
-                <span className="text-[13px] text-muted-foreground">Up to 4 photos of a menu or price list. They are shrunk on your device first.</span>
-              </div>
-              {photos.length > 0 && (
-                <ul className="mt-3 flex flex-wrap gap-3">
-                  {photos.map((p) => (
-                    <li key={p.id} className="group relative">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={p.url} alt={p.name} className="size-20 rounded-lg border object-cover" />
-                      <button type="button" aria-label={`Remove ${p.name}`} onClick={() => setPhotos((x) => x.filter((y) => y.id !== p.id))} className="absolute -right-2 -top-2 rounded-full border bg-card p-1 shadow"><X className="size-3" /></button>
-                    </li>
-                  ))}
-                </ul>
-              )}
+      {!review && busy && (
+        <Card><CardBody className="space-y-3 py-6">
+          <div className="flex items-center gap-2 text-sm font-medium"><Sparkles className="size-4 animate-pulse text-brand" />Reading…</div>
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="flex items-center gap-3" style={{ opacity: 1 - i * 0.18 }}>
+              <Skeleton className="size-4" /><Skeleton className="h-8 flex-[1.4]" /><Skeleton className="h-8 flex-1" /><Skeleton className="h-8 flex-[0.7]" />
             </div>
-            {err && <ErrorNote>{err}</ErrorNote>}
-            <div className="flex items-center justify-between gap-3 border-t pt-4">
-              <p className="text-xs text-muted-foreground">Your text and photos are sent to our AI provider to be read, and are not kept by us.</p>
-              <Button onClick={analyze} loading={busy} disabled={!text.trim() && photos.length === 0}><Sparkles className="size-4" />{busy ? 'Reading…' : 'Read it'}</Button>
-            </div>
-          </CardBody>
+          ))}
+        </CardBody></Card>
+      )}
+      {!review && !busy && (
+        /* One box: type or paste, or drop photos anywhere on it */
+        <Card onDragOver={(e) => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)}
+          onDrop={(e) => { e.preventDefault(); setDragging(false); void addPhotos(e.dataTransfer.files); }}
+          className={cn('overflow-hidden transition-[border-color,box-shadow] duration-150 focus-within:border-brand/60 focus-within:ring-[3px] focus-within:ring-brand/15', dragging && 'border-brand/60 ring-[3px] ring-brand/15')}>
+          <textarea rows={11} value={text} onChange={(e) => setText(e.target.value)} maxLength={20000} aria-label="Your prices or menu"
+            className="block w-full resize-none bg-transparent px-5 pt-5 pb-3 text-sm leading-relaxed outline-none placeholder:text-muted-foreground/50"
+            placeholder={'Paste your prices, or drop a photo\n\n' + (labels.kind === 'services' ? 'AC servicing from 25,000\nGas refill 18,000\nCall-out fee: Ikeja 3,000, Yaba 4,500' : 'Air Runner sneaker 45k (sizes 42-44)\nAnkara dress 18,000\nPhone case 3,500\nDelivery: Ikeja 3k, Yaba 3,500')} />
+          <input ref={fileRef} type="file" accept="image/*" multiple className="sr-only" onChange={(e) => void addPhotos(e.target.files)} />
+          {photos.length > 0 && (
+            <ul className="stagger flex flex-wrap gap-3 px-5 pb-4">
+              {photos.map((p) => (
+                <li key={p.id} className="relative">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={p.url} alt={p.name} className="size-16 rounded-lg border object-cover" />
+                  <button type="button" aria-label={`Remove ${p.name}`} onClick={() => setPhotos((x) => x.filter((y) => y.id !== p.id))}
+                    className="absolute -right-2 -top-2 rounded-full border bg-card p-1 text-muted-foreground shadow transition-colors hover:text-foreground"><X className="size-3" /></button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {err && <div className="px-5 pb-4"><ErrorNote>{err}</ErrorNote></div>}
+          <div className="flex items-center justify-between gap-3 border-t px-3 py-2.5">
+            <Button variant="ghost" size="sm" onClick={() => fileRef.current?.click()} disabled={photos.length >= 4}>
+              <ImagePlus className="size-4" />{dragging ? 'Drop it' : 'Photo'}{photos.length > 0 && <span className="text-muted-foreground tabular-nums">{photos.length}/4</span>}
+            </Button>
+            <Button onClick={analyze} disabled={!text.trim() && photos.length === 0}><Sparkles className="size-4" />Read it</Button>
+          </div>
         </Card>
       )}
 
       {review && (
         <>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div><h2 className="text-base font-semibold">Check what we found</h2><p className="text-[13px] text-muted-foreground">Fix anything that is wrong, untick what you don&apos;t want. Nothing is saved until you press Save.</p></div>
-            <Button variant="ghost" onClick={() => setReview(null)}>Start over</Button>
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="text-base font-semibold tracking-tight">Check and save</h2>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => setReview(null)}>Start over</Button>
           </div>
           {review.warnings.length > 0 && (
-            <div className="space-y-1 rounded-lg border border-warning/30 bg-warning-bg p-3 text-[13px] text-warning">
-              {review.warnings.map((w, i) => <div key={i} className="flex gap-2"><AlertTriangle className="mt-0.5 size-4 shrink-0" />{w}</div>)}
-            </div>
+            <Notice tone="warning" icon={<AlertTriangle />} title="Check these">
+              <ul className="space-y-0.5">{review.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>
+            </Notice>
           )}
+          {labels.showStock && review.p.length > 0 && <p className="text-[13px] text-muted-foreground">Leave <span className="font-medium text-foreground">Stock</span> blank for anything you cook or make to order, or don&apos;t count. It will always be available and never show as sold out.</p>}
           {review.p.length === 0 && review.z.length === 0 && review.f.length === 0 && <ErrorNote>We couldn&apos;t find anything to add. Try a clearer photo, or type the items out.</ErrorNote>}
 
           {review.p.length > 0 && (
-            <Card>
-              <CardHeader title={`${labels.items} (${review.p.filter((x) => x.on).length} of ${review.p.length})`} description={labels.kind === 'services' ? 'Starting prices. Items with the same name as an existing one update it.' : 'Items with the same name as an existing one update it.'} />
-              <div className="divide-y">
+            <Card className="overflow-hidden">
+              <CardHeader title={`${labels.items} · ${review.p.filter((x) => x.on).length} of ${review.p.length}`} />
+              <div className="stagger divide-y divide-border/60 border-t">
                 {review.p.map((x) => (
-                  <div key={x.id} className={cn('grid items-start gap-2 p-3 sm:grid-cols-[auto_1.4fr_1fr_0.7fr_1.2fr_auto]', !x.on && 'opacity-50')}>
-                    <input type="checkbox" checked={x.on} onChange={(e) => upP(x.id, { on: e.target.checked })} aria-label={`Include ${x.name}`} className="mt-2.5 size-4" />
-                    <div className="space-y-1.5"><input className={cell} value={x.name} onChange={(e) => upP(x.id, { name: e.target.value })} aria-label="Name" /><input className={cn(cell, 'text-muted-foreground')} value={x.description} onChange={(e) => upP(x.id, { description: e.target.value })} placeholder="Description (optional)" aria-label="Description" /></div>
-                    <div><input className={cn(cell, x.on && money.parse(x.price) === null && 'border-danger')} inputMode="decimal" value={x.price} onChange={(e) => upP(x.id, { price: e.target.value, flagged: false })} placeholder={`Price (${money.currency})`} aria-label="Price" />{x.flagged && <div className="mt-1 text-[11px] text-warning">Check the price</div>}</div>
-                    {labels.showStock ? <input className={cn(cell, x.on && x.stock.trim() && !/^\d+$/.test(x.stock.trim()) && 'border-danger')} inputMode="numeric" value={x.stock} onChange={(e) => upP(x.id, { stock: e.target.value })} placeholder="Not counted" aria-label="Stock (leave blank if you do not count it)" /> : <span />}
-                    <input className={cell} value={x.variants} onChange={(e) => upP(x.id, { variants: e.target.value })} placeholder="Options, comma separated" aria-label="Options" />
-                    <button type="button" aria-label={`Remove ${x.name}`} onClick={() => setReview((r) => r && { ...r, p: r.p.filter((y) => y.id !== x.id) })} className="mt-1.5 rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"><Trash2 className="size-4" /></button>
+                  <div key={x.id} className={cn('grid items-start gap-2 px-4 py-3 transition-opacity sm:grid-cols-[auto_1.4fr_1fr_0.7fr_1.2fr_auto]', !x.on && 'opacity-45')}>
+                    <Checkbox checked={x.on} onChange={(e) => upP(x.id, { on: e.target.checked })} aria-label={`Include ${x.name}`} className="mt-2" />
+                    <div className="space-y-1.5"><Input className={cell} value={x.name} onChange={(e) => upP(x.id, { name: e.target.value })} aria-label="Name" /><Input className={cn(cell, 'text-muted-foreground')} value={x.description} onChange={(e) => upP(x.id, { description: e.target.value })} placeholder="Description (optional)" aria-label="Description" /></div>
+                    <div><Input className={cn(cell, 'tabular-nums', x.on && money.parse(x.price) === null && bad)} inputMode="decimal" value={x.price} onChange={(e) => upP(x.id, { price: e.target.value, flagged: false })} placeholder={`Price (${money.currency})`} aria-label="Price" />{x.flagged && <div className="mt-1 flex items-center gap-1 text-[11px] text-warning"><AlertTriangle className="size-3" />Check</div>}</div>
+                    {labels.showStock ? <Input className={cn(cell, 'tabular-nums', x.on && x.stock.trim() && !/^\d+$/.test(x.stock.trim()) && bad)} inputMode="numeric" value={x.stock} onChange={(e) => upP(x.id, { stock: e.target.value })} placeholder="Not counted" aria-label="Stock (leave blank if you do not count it)" /> : <span />}
+                    <Input className={cell} value={x.variants} onChange={(e) => upP(x.id, { variants: e.target.value })} placeholder="Options" aria-label="Options" />
+                    <IconButton label={`Remove ${x.name}`} tone="danger" onClick={() => setReview((r) => r && { ...r, p: r.p.filter((y) => y.id !== x.id) })}><Trash2 /></IconButton>
                   </div>
                 ))}
               </div>
@@ -170,16 +189,16 @@ export function ImportPanel() {
           )}
 
           {review.z.length > 0 && (
-            <Card>
-              <CardHeader title={`${labels.zones} (${review.z.filter((x) => x.on).length} of ${review.z.length})`} />
-              <div className="divide-y">
+            <Card className="overflow-hidden">
+              <CardHeader title={`${labels.zones} · ${review.z.filter((x) => x.on).length} of ${review.z.length}`} />
+              <div className="stagger divide-y divide-border/60 border-t">
                 {review.z.map((x) => (
-                  <div key={x.id} className={cn('grid items-start gap-2 p-3 sm:grid-cols-[auto_1.4fr_1fr_1fr_auto]', !x.on && 'opacity-50')}>
-                    <input type="checkbox" checked={x.on} onChange={(e) => upZ(x.id, { on: e.target.checked })} aria-label={`Include ${x.area}`} className="mt-2.5 size-4" />
-                    <input className={cell} value={x.area} onChange={(e) => upZ(x.id, { area: e.target.value })} aria-label="Area" />
-                    <div><input className={cn(cell, x.on && money.parse(x.fee) === null && 'border-danger')} inputMode="decimal" value={x.fee} onChange={(e) => upZ(x.id, { fee: e.target.value, flagged: false })} placeholder={`${labels.fee} (${money.currency})`} aria-label="Fee" />{x.flagged && <div className="mt-1 text-[11px] text-warning">Check the fee</div>}</div>
-                    <input className={cell} value={x.eta} onChange={(e) => upZ(x.id, { eta: e.target.value })} placeholder="Time, e.g. 45 min" aria-label="Time" />
-                    <button type="button" aria-label={`Remove ${x.area}`} onClick={() => setReview((r) => r && { ...r, z: r.z.filter((y) => y.id !== x.id) })} className="mt-1.5 rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"><Trash2 className="size-4" /></button>
+                  <div key={x.id} className={cn('grid items-start gap-2 px-4 py-3 transition-opacity sm:grid-cols-[auto_1.4fr_1fr_1fr_auto]', !x.on && 'opacity-45')}>
+                    <Checkbox checked={x.on} onChange={(e) => upZ(x.id, { on: e.target.checked })} aria-label={`Include ${x.area}`} className="mt-2" />
+                    <Input className={cell} value={x.area} onChange={(e) => upZ(x.id, { area: e.target.value })} aria-label="Area" />
+                    <div><Input className={cn(cell, 'tabular-nums', x.on && money.parse(x.fee) === null && bad)} inputMode="decimal" value={x.fee} onChange={(e) => upZ(x.id, { fee: e.target.value, flagged: false })} placeholder={`${labels.fee} (${money.currency})`} aria-label="Fee" />{x.flagged && <div className="mt-1 flex items-center gap-1 text-[11px] text-warning"><AlertTriangle className="size-3" />Check</div>}</div>
+                    <Input className={cell} value={x.eta} onChange={(e) => upZ(x.id, { eta: e.target.value })} placeholder="Time" aria-label="Time" />
+                    <IconButton label={`Remove ${x.area}`} tone="danger" onClick={() => setReview((r) => r && { ...r, z: r.z.filter((y) => y.id !== x.id) })}><Trash2 /></IconButton>
                   </div>
                 ))}
               </div>
@@ -187,14 +206,14 @@ export function ImportPanel() {
           )}
 
           {review.f.length > 0 && (
-            <Card>
-              <CardHeader title={`FAQs (${review.f.filter((x) => x.on).length} of ${review.f.length})`} />
-              <div className="divide-y">
+            <Card className="overflow-hidden">
+              <CardHeader title={`FAQs · ${review.f.filter((x) => x.on).length} of ${review.f.length}`} />
+              <div className="stagger divide-y divide-border/60 border-t">
                 {review.f.map((x) => (
-                  <div key={x.id} className={cn('flex items-start gap-3 p-3', !x.on && 'opacity-50')}>
-                    <input type="checkbox" checked={x.on} onChange={(e) => upF(x.id, { on: e.target.checked })} aria-label="Include FAQ" className="mt-2.5 size-4" />
-                    <div className="flex-1 space-y-1.5"><input className={cell} value={x.question} onChange={(e) => upF(x.id, { question: e.target.value })} aria-label="Question" /><textarea className={cn(cell, 'h-16 py-2')} value={x.answer} onChange={(e) => upF(x.id, { answer: e.target.value })} aria-label="Answer" /></div>
-                    <button type="button" aria-label="Remove FAQ" onClick={() => setReview((r) => r && { ...r, f: r.f.filter((y) => y.id !== x.id) })} className="mt-1.5 rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"><Trash2 className="size-4" /></button>
+                  <div key={x.id} className={cn('flex items-start gap-3 px-4 py-3 transition-opacity', !x.on && 'opacity-45')}>
+                    <Checkbox checked={x.on} onChange={(e) => upF(x.id, { on: e.target.checked })} aria-label="Include FAQ" className="mt-2" />
+                    <div className="flex-1 space-y-1.5"><Input className={cn(cell, 'font-medium')} value={x.question} onChange={(e) => upF(x.id, { question: e.target.value })} aria-label="Question" /><Textarea rows={2} className="min-h-16 text-[13px]" value={x.answer} onChange={(e) => upF(x.id, { answer: e.target.value })} aria-label="Answer" /></div>
+                    <IconButton label="Remove FAQ" tone="danger" onClick={() => setReview((r) => r && { ...r, f: r.f.filter((y) => y.id !== x.id) })}><Trash2 /></IconButton>
                   </div>
                 ))}
               </div>
@@ -202,8 +221,11 @@ export function ImportPanel() {
           )}
 
           {err && <ErrorNote>{err}</ErrorNote>}
-          <div className="sticky bottom-4 flex items-center justify-between gap-3 rounded-lg border bg-card/95 p-3 shadow-lg backdrop-blur">
-            <span className="text-[13px] text-muted-foreground">{invalid ? 'Fix the highlighted fields to continue.' : `${selected} item${selected === 1 ? '' : 's'} ready to save`}</span>
+          <div className="animate-toast-in sticky bottom-4 z-10 flex items-center justify-between gap-3 rounded-xl border bg-card/90 py-2.5 pl-4 pr-2.5 shadow-2xl backdrop-blur-md">
+            <span className={cn('flex items-center gap-2 text-[13px]', invalid ? 'text-danger' : 'text-muted-foreground')}>
+              <span className={cn('size-1.5 rounded-full', invalid ? 'bg-danger' : 'bg-brand')} />
+              {invalid ? 'Fix the red fields' : `${selected} ready`}
+            </span>
             <Button onClick={save} loading={saving} disabled={invalid || selected === 0}>Save {selected} item{selected === 1 ? '' : 's'}</Button>
           </div>
         </>

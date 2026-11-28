@@ -22,7 +22,7 @@ export default function BusinessPage() {
 
 function Inner() {
   const params = useSearchParams();
-  const initial = (['profile', 'delivery', 'faqs', 'whatsapp', 'data'] as const).find((t) => t === params.get('tab')) ?? 'profile';
+  const initial = (['profile', 'delivery', 'faqs', 'payments', 'whatsapp', 'data'] as const).find((t) => t === params.get('tab')) ?? 'profile';
   const [tab, setTab] = useState<Tab>(initial);
   const { data: biz } = useApi<BusinessDetail>('business');
   const { data: me } = useMe();
@@ -31,7 +31,7 @@ function Inner() {
   const owner = me.role === 'owner';
   return (
     <div className="mx-auto max-w-5xl">
-      <PageHeader title="Business" description="Your details, delivery areas, FAQs and WhatsApp connection." />
+      <PageHeader title="Business" />
       <div className="mb-8"><Tabs value={tab} onChange={setTab} tabs={[{ id: 'profile', label: 'Profile' }, { id: 'delivery', label: labels.zoneTab }, { id: 'faqs', label: 'FAQs' }, { id: 'payments', label: 'Payments' }, { id: 'whatsapp', label: 'WhatsApp' }, { id: 'data', label: 'Data & privacy' }]} /></div>
       {tab === 'profile' && <Profile biz={biz} owner={owner} />}
       {tab === 'delivery' && <Delivery />}
@@ -71,30 +71,30 @@ function Profile({ biz, owner }: { biz: BusinessDetail; owner: boolean }) {
   return (
     <form onSubmit={save}>
       {(err || !owner) && <div className="mb-6 space-y-2">{err && <ErrorNote>{err}</ErrorNote>}{!owner && <ErrorNote>Only the account owner can edit these details.</ErrorNote>}</div>}
-      <Section title="Basics" description="How the assistant introduces your business.">
+      <Section title="Basics">
         <Card><CardBody className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Business name"><Input required value={f.name} onChange={set('name')} disabled={!owner} /></Field>
             <Field label="City"><Input required value={f.city} onChange={set('city')} disabled={!owner} /></Field>
           </div>
-          <Field label="What your business does" hint="Pick a suggestion or type your own."><Input required list="category-suggestions" value={f.category} onChange={set('category')} disabled={!owner} /><datalist id="category-suggestions">{CATEGORIES.map((c) => <option key={c.name} value={c.name} />)}</datalist></Field>
+          <Field label="What your business does"><Input required list="category-suggestions" value={f.category} onChange={set('category')} disabled={!owner} /><datalist id="category-suggestions">{CATEGORIES.map((c) => <option key={c.name} value={c.name} />)}</datalist></Field>
           <Field label="How customers buy from you" hint={KIND_OPTIONS.find((o) => o.value === f.kind)?.hint}>
             <Select value={f.kind} onChange={(e) => setF((s) => ({ ...s, kind: e.target.value as Kind }))} disabled={!owner}>{KIND_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</Select>
           </Field>
         </CardBody></Card>
       </Section>
-      <Section title="Region" description="Sets prices, dates and times across the app.">
+      <Section title="Region">
         <Card><CardBody className="space-y-4">
           <Field label="Country"><Select value={f.country} onChange={set('country')} disabled={!owner}>{COUNTRIES.map((c) => <option key={c.code} value={c.code}>{c.flag} {c.name}</option>)}</Select></Field>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Currency" hint={currencyLocked ? "Locked: you already have products, delivery fees or orders in this currency." : "Prices are shown in this currency."}>
+            <Field label="Currency" hint={currencyLocked ? "Locked: already in use" : undefined}>
               <Select value={f.currency} onChange={set('currency')} disabled={!owner || currencyLocked}>{currencies.map((c) => <option key={c.code} value={c.code}>{c.label}</option>)}</Select>
             </Field>
             <Field label="Timezone"><Select value={f.timezone} onChange={set('timezone')} disabled={!owner}>{timezones.map((z) => <option key={z}>{z}</option>)}</Select></Field>
           </div>
         </CardBody></Card>
       </Section>
-      <Section title="Opening hours" description="The assistant tells customers when you are open.">
+      <Section title="Opening hours">
         <Card><CardBody className="space-y-2">
           {hours.length === 0 && <p className="text-[13px] text-muted-foreground">No hours added yet.</p>}
           {hours.map((h, i) => (
@@ -107,12 +107,12 @@ function Profile({ biz, owner }: { biz: BusinessDetail; owner: boolean }) {
           {owner && <Button type="button" size="sm" variant="ghost" className="-ml-2" onClick={() => setHours([...hours, { label: '', value: '' }])}><Plus className="size-3.5" />Add hours</Button>}
         </CardBody></Card>
       </Section>
-      <Section title="Payments and alerts" description="What the assistant says about paying and returns, and where we reach you.">
+      <Section title="Payments and alerts">
         <Card>
           <CardBody className="space-y-4">
-            <Field label="How customers pay" hint="e.g. Card, bank transfer, mobile money or cash on delivery."><Input value={f.paymentInfo} onChange={set('paymentInfo')} disabled={!owner} /></Field>
+            <Field label="How customers pay"><Input value={f.paymentInfo} onChange={set('paymentInfo')} disabled={!owner} /></Field>
             <Field label="Return policy"><Textarea rows={2} value={f.returnPolicy} onChange={set('returnPolicy')} disabled={!owner} /></Field>
-            <Field label="Your WhatsApp number for alerts" hint="Country code, digits only, e.g. 14155550123. We message you here when a chat needs you. Message your business number first so WhatsApp allows it."><Input inputMode="numeric" value={f.ownerPhone} onChange={set('ownerPhone')} disabled={!owner} /></Field>
+            <Field label="Your WhatsApp number for alerts" hint="Digits with country code, e.g. 2348012345678"><Input inputMode="numeric" value={f.ownerPhone} onChange={set('ownerPhone')} disabled={!owner} /></Field>
           </CardBody>
           {owner && <CardFooter><Button type="submit" loading={busy}>Save changes</Button></CardFooter>}
         </Card>
@@ -152,8 +152,8 @@ function Delivery() {
 
   return (
     <Card className="overflow-hidden">
-      <CardHeader title={labels.zones} description={labels.zonesBlurb} action={<Button size="sm" onClick={() => setTarget('new')}><Plus className="size-3.5" />Add area</Button>} />
-      {isLoading ? <Loading /> : !zones?.length ? <EmptyState icon={<MapPin />} title={`No ${labels.zones.toLowerCase()} yet`} description={labels.kind === 'services' ? 'Add the areas you work in, with a call-out fee and a typical response time.' : 'Add the areas you deliver to, with a fee and a delivery time.'} /> : (
+      <CardHeader title={labels.zones} action={<Button size="sm" onClick={() => setTarget('new')}><Plus className="size-3.5" />Add area</Button>} />
+      {isLoading ? <Loading /> : !zones?.length ? <EmptyState icon={<MapPin />} title={`No ${labels.zones.toLowerCase()} yet`} /> : (
         <Table>
           <THead><tr><TH>Area</TH><TH>Delivery time</TH><TH className="text-right">Fee</TH><TH className="w-20"><span className="sr-only">Actions</span></TH></tr></THead>
           <tbody>
@@ -206,8 +206,8 @@ function Faqs() {
 
   return (
     <Card>
-      <CardHeader title="Frequently asked questions" description="The assistant answers these in your voice." action={<Button size="sm" onClick={() => setTarget('new')}><Plus className="size-3.5" />Add FAQ</Button>} />
-      {isLoading ? <Loading /> : !faqs?.length ? <EmptyState icon={<HelpCircle />} title="No FAQs yet" description="Add opening hours, returns, how to pay, and anything customers often ask." /> : (
+      <CardHeader title="Frequently asked questions" action={<Button size="sm" onClick={() => setTarget('new')}><Plus className="size-3.5" />Add FAQ</Button>} />
+      {isLoading ? <Loading /> : !faqs?.length ? <EmptyState icon={<HelpCircle />} title="No FAQs yet" /> : (
         <ul className="stagger divide-y divide-border/60 border-t">
           {faqs.map((x) => (
             <li key={x.id} className="group flex items-start justify-between gap-4 px-5 py-4">
@@ -249,28 +249,28 @@ function Whatsapp({ biz, owner }: { biz: BusinessDetail; owner: boolean }) {
   return (
     <div className="space-y-4">
       <Card>
-        <CardHeader title="Connected number" description="Customers message this WhatsApp number and the assistant replies." />
+        <CardHeader title="Connected number" />
         <CardBody>
           {account ? (
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3"><span className="flex size-10 items-center justify-center rounded-xl border bg-success-bg text-success"><Plug className="size-4" /></span><div><div className="flex items-center gap-3 text-sm font-medium">+{account.displayNumber}<StatusDot tone="success">Active</StatusDot></div><div className="text-xs text-muted-foreground">Phone number ID {account.phoneNumberId}</div></div></div>
               {owner && <Button variant="secondary" size="sm" onClick={disconnect}><Unplug className="size-3.5" />Disconnect</Button>}
             </div>
-          ) : <p className="text-[13px] text-muted-foreground">No number connected yet. Connect one below to start receiving customer messages.</p>}
+          ) : <p className="text-[13px] text-muted-foreground">Not connected</p>}
         </CardBody>
       </Card>
       {owner && (
         <form onSubmit={connect}>
           <Card>
-            <CardHeader title={account ? 'Replace number' : 'Connect a number'} description="Find these in your Meta WhatsApp Business dashboard under API setup." />
+            <CardHeader title={account ? 'Replace number' : 'Connect a number'} description="From Meta Business → WhatsApp → API setup" />
             <CardBody className="space-y-4">
               {err && <ErrorNote>{err}</ErrorNote>}
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="WhatsApp Business Account ID"><Input required value={f.wabaId} onChange={(e) => setF({ ...f, wabaId: e.target.value })} /></Field>
                 <Field label="Phone number ID"><Input required value={f.phoneNumberId} onChange={(e) => setF({ ...f, phoneNumberId: e.target.value })} /></Field>
               </div>
-              <Field label="Phone number" hint="With country code, digits only."><Input required inputMode="numeric" value={f.displayNumber} onChange={(e) => setF({ ...f, displayNumber: e.target.value })} placeholder="14155550123" /></Field>
-              <Field label="Access token" hint="Stored encrypted. It is never shown again."><Input required type="password" autoComplete="off" value={f.accessToken} onChange={(e) => setF({ ...f, accessToken: e.target.value })} /></Field>
+              <Field label="Phone number"><Input required inputMode="numeric" value={f.displayNumber} onChange={(e) => setF({ ...f, displayNumber: e.target.value })} placeholder="14155550123" /></Field>
+              <Field label="Access token" hint="Stored encrypted"><Input required type="password" autoComplete="off" value={f.accessToken} onChange={(e) => setF({ ...f, accessToken: e.target.value })} /></Field>
             </CardBody>
             <CardFooter><Button type="submit" loading={busy}><Plug className="size-4" />Connect number</Button></CardFooter>
           </Card>
@@ -306,11 +306,11 @@ function DataPrivacy({ biz, owner }: { biz: BusinessDetail; owner: boolean }) {
   return (
     <div className="space-y-4">
       <Card>
-        <CardHeader title="Export your data" description="Download everything we hold for your business (products, customers, chats, orders) as a JSON file." />
+        <CardHeader title="Export your data" />
         <CardBody><Button variant="secondary" onClick={exportData}><Download className="size-4" />Download export</Button></CardBody>
       </Card>
       <Card className="border-danger/30">
-        <CardHeader title="Delete this business" description="Permanently deletes your business, team accounts, customers, chats and orders. This cannot be undone." />
+        <CardHeader title="Delete this business" description="Deletes everything. Can't be undone." />
         <CardBody><Button variant="danger" onClick={() => setOpen(true)}>Delete business…</Button></CardBody>
       </Card>
       <Dialog open={open} onClose={() => setOpen(false)} title="Delete business permanently?" description={`Type ${biz.slug} to confirm.`}

@@ -35,7 +35,7 @@ export default function InboxPage() {
         </div>
         <div className="stagger min-h-0 flex-1 overflow-y-auto px-2 pb-2">
           {isLoading ? <Loading /> : !rows?.length ? (
-            <EmptyState icon={<MessageSquare />} title="No conversations yet" description="When customers message your WhatsApp number, their chats appear here." />
+            <EmptyState icon={<MessageSquare />} title="No conversations yet" />
           ) : rows.map((c) => (
             <button key={c.id} onClick={() => setSelected(c.id)}
               className={cn('flex w-full items-start gap-3 rounded-lg px-2.5 py-2.5 text-left transition-colors', active === c.id ? 'bg-muted' : 'hover:bg-muted/50')}>
@@ -59,7 +59,7 @@ export default function InboxPage() {
 
       {active ? <Thread id={active} listKey={listKey} onBack={() => setSelected(null)} /> : (
         <section className="hidden min-h-0 items-center justify-center lg:flex lg:col-span-1 xl:col-span-2">
-          <EmptyState icon={<MessageSquare />} title="Select a conversation" description="Pick a chat on the left to read it, take over from the AI, or reply." />
+          <EmptyState icon={<MessageSquare />} title="Select a conversation" />
         </section>
       )}
     </div>
@@ -153,7 +153,7 @@ function Thread({ id, listKey, onBack }: { id: string; listKey: string; onBack: 
           <div className="mx-auto max-w-3xl">
             {err && <div className="mb-2"><ErrorNote>{err}</ErrorNote></div>}
             {windowClosed ? (
-              <p className="rounded-lg border border-warning/20 bg-warning-bg px-3 py-2.5 text-[13px] text-warning">The 24-hour reply window has closed. WhatsApp only allows an approved template message until the customer writes again.</p>
+              <p className="rounded-lg border border-warning/20 bg-warning-bg px-3 py-2.5 text-[13px] text-warning">24-hour window closed. You can reply when they message again.</p>
             ) : (
               <>
                 <div className="flex items-end gap-2 rounded-xl border border-input-border bg-input p-1.5 pl-3.5 shadow-[var(--input-shadow)] transition-[border-color,box-shadow] duration-150 hover:border-ring/70 focus-within:border-brand/70 focus-within:ring-[3px] focus-within:ring-brand/20">

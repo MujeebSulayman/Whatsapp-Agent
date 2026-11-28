@@ -25,14 +25,14 @@ export default function OrdersPage() {
 
   return (
     <>
-      <PageHeader title={labels.orders} description={labels.ordersBlurb} />
+      <PageHeader title={labels.orders} />
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <Segmented value={filter} onChange={setFilter} options={tabs.map((t) => (t.id === 'dispatched' ? { ...t, label: labels.status.dispatched } : t.id === 'delivered' ? { ...t, label: labels.status.delivered } : t))} />
         <SearchInput className="w-full sm:w-64" placeholder="Search customer or reference" value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
       <Card className="overflow-hidden">
         {isLoading ? <Loading /> : !orders?.length ? (
-          <EmptyState icon={<ShoppingBag />} title={`No ${labels.orders.toLowerCase()} yet`} description={`${labels.orders} show up here as soon as the assistant takes one from a customer.`} />
+          <EmptyState icon={<ShoppingBag />} title={`No ${labels.orders.toLowerCase()} yet`} />
         ) : (
           <Table>
             <THead><tr><TH>Order</TH><TH>Customer</TH><TH>Payment</TH><TH>Status</TH><TH>Placed</TH><TH className="text-right">Items</TH><TH className="text-right">Total</TH></tr></THead>

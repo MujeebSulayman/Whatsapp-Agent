@@ -22,7 +22,7 @@ export default function OnboardingPage() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <PageHeader title={`Welcome, ${biz.name}`} description="Five quick steps and your assistant is ready to take orders." />
+      <PageHeader title={`Welcome, ${biz.name}`} />
       <div className="mb-6 flex items-center gap-3">
         <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-brand transition-all" style={{ width: `${(done / steps.length) * 100}%` }} /></div>
         <span className="text-xs text-muted-foreground tabular-nums">{done} of {steps.length} done</span>
@@ -31,26 +31,25 @@ export default function OnboardingPage() {
         <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-brand/30 bg-brand/10 text-brand"><Sparkles className="size-4" /></span>
         <div className="min-w-0 flex-1">
           <div className="text-sm font-medium">Set up with AI</div>
-          <p className="mt-0.5 text-[13px] text-muted-foreground">Paste a price list or snap a photo, answer a few questions, and review what it drafts. Nothing is saved until you approve.</p>
+          <p className="mt-0.5 text-[13px] text-muted-foreground">Paste a price list or drop a photo.</p>
         </div>
         <ArrowRight className="size-4 text-muted-foreground" />
       </Link>
       <Card className="stagger divide-y divide-border/60">
         {steps.map((s, i) => (
-          <div key={s.title} className="flex items-center gap-4 p-5">
+          <div key={s.title} className="flex items-center gap-4 px-5 py-4">
             <span className={cn('flex size-7 shrink-0 items-center justify-center rounded-full border text-xs font-medium tabular-nums', s.done ? 'border-brand/40 bg-brand/15 text-brand' : 'text-muted-foreground')}>
               {s.done ? <Check className="size-3.5" strokeWidth={2.5} /> : i + 1}
             </span>
             <div className="min-w-0 flex-1">
               <div className={cn('text-sm font-medium', s.done && 'text-muted-foreground line-through decoration-muted-foreground/40')}>{s.title}</div>
-              <p className="mt-0.5 text-[13px] text-muted-foreground">{s.body}</p>
             </div>
             {s.done ? <StatusDot tone="success">Done</StatusDot> : <Link href={s.href}><Button size="sm" variant="secondary">{s.cta}<ArrowRight className="size-3.5" /></Button></Link>}
           </div>
         ))}
       </Card>
       {done === steps.length && <div className="mt-6 text-center"><Link href="/inbox"><Button>Go to your inbox</Button></Link></div>}
-      <p className="mt-6 text-center text-xs text-muted-foreground">You can change any of this later under Settings.</p>
+      
     </div>
   );
 }

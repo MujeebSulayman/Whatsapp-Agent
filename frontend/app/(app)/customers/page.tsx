@@ -18,14 +18,14 @@ export default function CustomersPage() {
 
   return (
     <>
-      <PageHeader title="Customers" description="Everyone who has messaged your business." />
+      <PageHeader title="Customers" />
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <SearchInput className="w-full sm:w-72" placeholder="Search name or number" value={search} onChange={(e) => setSearch(e.target.value)} />
         {customers && customers.length > 0 && <span className="text-xs text-muted-foreground tabular-nums">{customers.length} {customers.length === 1 ? 'customer' : 'customers'}</span>}
       </div>
       <Card className="overflow-hidden">
         {isLoading ? <Loading /> : !customers?.length ? (
-          <EmptyState icon={<Users />} title="No customers yet" description="Customers are added automatically the first time they message you." />
+          <EmptyState icon={<Users />} title="No customers yet" />
         ) : (
           <Table>
             <THead><tr><TH>Customer</TH><TH>Last order</TH><TH className="text-right">Orders</TH><TH className="text-right">Total spent</TH></tr></THead>
@@ -81,7 +81,7 @@ function CustomerDialog({ id, onClose, listKey }: { id: string | null; onClose: 
             <Field label="Name"><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
             <Field label="Marketing messages"><div className="flex h-9 items-center gap-3"><Switch checked={c.optedInMarketing} onChange={optIn} label="Opted in to marketing" /><span className="text-[13px] text-muted-foreground">{c.optedInMarketing ? 'Opted in' : 'Not opted in'}</span></div></Field>
           </div>
-          <Field label="Notes" hint="Private to your team. Also visible to the assistant."><Textarea rows={3} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></Field>
+          <Field label="Notes" hint="The assistant can see these"><Textarea rows={3} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></Field>
           <div>
             <h3 className="mb-2 text-sm font-medium">Order history</h3>
             {c.orders.length === 0 ? <p className="text-[13px] text-muted-foreground">No orders yet.</p> : (

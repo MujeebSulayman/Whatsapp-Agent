@@ -1,8 +1,8 @@
 'use client';
-import { CheckCircle2, Landmark } from 'lucide-react';
+import { Landmark, ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
 import { mutate } from 'swr';
-import { Button, Card, CardBody, CardHeader, ErrorNote, Field, Input, Loading, Select, useToast } from '@/components/ui';
+import { Button, Card, CardBody, CardHeader, ErrorNote, Field, Input, Loading, Notice, Select, StatusDot, useToast } from '@/components/ui';
 import { api, useApi } from '@/lib/api';
 
 interface Status { available: boolean; supported: boolean; currency: string; connected: boolean; bankName: string | null; accountName: string | null; last4: string | null }
@@ -44,40 +44,41 @@ export function PayoutCard({ owner }: { owner: boolean }) {
 
   return (
     <Card>
-      <CardHeader title="Online payments" description="Let customers pay by card or bank transfer from a link in the chat. We confirm each payment automatically." />
+      <CardHeader title="Online payments" />
       <CardBody className="space-y-4">
         {!s.available ? (
-          <p className="text-[13px] text-muted-foreground">Online payments are not switched on for this service yet. Until then your assistant gives customers the payment details you set under Business and you mark orders paid yourself.</p>
+          <Notice title="Not switched on yet" />
         ) : !s.supported ? (
-          <p className="text-[13px] text-muted-foreground">Online payments are only available for businesses paid in Nigerian naira for now. You can keep confirming payments yourself on each order.</p>
+          <Notice title="Naira only for now" />
         ) : s.connected ? (
           <>
-            <div className="flex items-start gap-3 rounded-lg border bg-muted/30 p-4">
-              <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-success" />
-              <div className="text-[13px]">
-                <div className="font-medium">Payments go to {s.accountName}</div>
-                <div className="text-muted-foreground">{s.bankName}, account ending {s.last4}</div>
+            <div className="flex items-center gap-4 rounded-xl border bg-muted/30 p-4">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-success/25 bg-success-bg text-success"><Landmark className="size-[18px]" strokeWidth={1.75} /></span>
+              <div className="min-w-0 flex-1 text-[13px]">
+                <div className="truncate font-medium">{s.accountName}</div>
+                <div className="text-muted-foreground">{s.bankName} · <span className="font-mono tabular-nums">•••• {s.last4}</span></div>
               </div>
+              <StatusDot tone="success">Receiving payments</StatusDot>
             </div>
-            <p className="text-xs text-muted-foreground">Customers see a Paystack checkout. Paystack&apos;s fee is taken from each payment. Orders are marked paid and stock is updated as soon as a payment goes through.</p>
+            
             {err && <ErrorNote>{err}</ErrorNote>}
             {owner && <Button variant="secondary" onClick={disconnect} loading={busy === 'off'}>Turn off online payments</Button>}
           </>
         ) : !owner ? (
-          <p className="text-[13px] text-muted-foreground">Only the business owner can set up online payments.</p>
+          <Notice title="Owner only" />
         ) : (
           <>
-            <div className="flex items-start gap-3 text-[13px] text-muted-foreground"><Landmark className="mt-0.5 size-4 shrink-0" />Add the bank account where you want to receive your money. It must be in your own or your business&apos;s name.</div>
+            
             {err && <ErrorNote>{err}</ErrorNote>}
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Bank"><Select value={bank} onChange={(e) => { setBank(e.target.value); setName(null); }}><option value="">Choose your bank</option>{banks?.map((b) => <option key={b.code} value={b.code}>{b.name}</option>)}</Select></Field>
-              <Field label="Account number" hint="10 digits"><Input inputMode="numeric" maxLength={10} value={num} onChange={(e) => { setNum(e.target.value.replace(/\D/g, '')); setName(null); }} /></Field>
+              <Field label="Bank"><Select value={bank} onChange={(e) => { setBank(e.target.value); setName(null); }}><option value="">Choose your bank</option>{/* Paystack's list repeats some banks, so the position keeps keys unique */}{banks?.map((b, i) => <option key={`${b.code}-${i}`} value={b.code}>{b.name}</option>)}</Select></Field>
+              <Field label="Account number" hint={`${num.length} of 10 digits`}><Input className="font-mono tabular-nums tracking-wider" inputMode="numeric" maxLength={10} value={num} onChange={(e) => { setNum(e.target.value.replace(/\D/g, '')); setName(null); }} /></Field>
             </div>
             {name ? (
-              <div className="rounded-lg border bg-muted/30 p-4 text-[13px]">
-                <div className="text-muted-foreground">Account name</div>
-                <div className="mt-0.5 text-base font-medium">{name}</div>
-                <p className="mt-2 text-xs text-muted-foreground">Only continue if this is your account. Payments will be sent here.</p>
+              <div className="animate-rise rounded-xl border border-brand/25 bg-brand/[0.05] p-4 text-[13px]">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground"><ShieldCheck className="size-3.5 text-brand" />Account name from your bank</div>
+                <div className="mt-1 text-base font-semibold tracking-tight">{name}</div>
+                
                 <div className="mt-3 flex gap-2"><Button onClick={save} loading={busy === 'save'}>Yes, use this account</Button><Button variant="ghost" onClick={() => setName(null)}>Change</Button></div>
               </div>
             ) : (

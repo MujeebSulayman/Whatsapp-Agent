@@ -29,7 +29,7 @@ export default function TeamPage() {
 
   return (
     <>
-      <PageHeader title="Team" description="People who can read chats and reply from your inbox." actions={owner && <Button onClick={() => setAdding(true)}><Plus className="size-4" />Add team member</Button>} />
+      <PageHeader title="Team" actions={owner && <Button onClick={() => setAdding(true)}><Plus className="size-4" />Add team member</Button>} />
       <Card className="overflow-hidden">
         {isLoading ? <Loading /> : !team?.length ? <EmptyState icon={<UsersRound />} title="No team members" /> : (
           <Table>
@@ -48,7 +48,7 @@ export default function TeamPage() {
         <div className="border-t bg-muted/20 px-5 py-3 text-[13px] text-muted-foreground">Agents can reply to chats, manage orders and products. Only the owner can change settings, the team and the WhatsApp connection.</div>
       </Card>
 
-      <Dialog open={adding} onClose={() => setAdding(false)} title="Add team member" description="They sign in with this email and password. Ask them to keep it private."
+      <Dialog open={adding} onClose={() => setAdding(false)} title="Add team member"
         footer={<><Button variant="ghost" onClick={() => setAdding(false)}>Cancel</Button><Button type="submit" form="team-form" loading={busy}>Add member</Button></>}>
         <form id="team-form" onSubmit={add} className="space-y-4">
           {err && <ErrorNote>{err}</ErrorNote>}

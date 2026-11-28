@@ -63,7 +63,7 @@ export default function AnalyticsPage() {
 
   return (
     <>
-      <PageHeader title="Analytics" description="How your WhatsApp sales are doing."
+      <PageHeader title="Analytics"
         actions={<Select value={days} onChange={(e) => setDays(e.target.value)} className="w-40" aria-label="Date range"><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option></Select>} />
       {isLoading || !data ? <Loading /> : (
         <div className="space-y-4">
@@ -84,8 +84,8 @@ export default function AnalyticsPage() {
             </ChartCard>
           </div>
           <Card>
-            <CardHeader title="Best sellers" description="Ranked by revenue in this period" />
-            {data.topProducts.length === 0 ? <EmptyState title="No sales in this period" description="Your top products will show up here once orders come in." /> : (
+            <CardHeader title="Best sellers" />
+            {data.topProducts.length === 0 ? <EmptyState title="No sales in this period" /> : (
               <ul className="stagger px-2 pb-2">
                 {data.topProducts.map((p, i) => (
                   <li key={p.name} className="flex items-center gap-4 rounded-lg px-3 py-2.5 hover:bg-muted/40">

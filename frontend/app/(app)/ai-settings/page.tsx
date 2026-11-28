@@ -1,83 +1,114 @@
 'use client';
 import { Bot, Send } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
-import { Button, Card, CardBody, CardFooter, ErrorNote, Field, Input, Loading, PageHeader, Section, Select, StatGrid, Switch, Textarea, useToast } from '@/components/ui';
-import { cn } from '@/lib/utils';
-import { api, useApi, useMe } from '@/lib/api';
+import { PracticePanel } from '@/components/setup/practice-panel';
 import { SuggestButton } from '@/components/setup/suggest-button';
+import { Button, Card, CardBody, CardHeader, ErrorNote, Loading, Notice, PageHeader, Segmented, StatGrid, Switch, TagInput, Textarea, useToast } from '@/components/ui';
+import { api, useApi, useMe } from '@/lib/api';
 import type { BusinessDetail } from '@/lib/types';
+import { cn } from '@/lib/utils';
 
-const list = (s: string) => s.split(',').map((x) => x.trim()).filter(Boolean);
+type Tone = 'friendly' | 'professional' | 'playful' | 'formal';
+type Form = { tone: Tone; max: number; escalate: string[]; forbidden: string[]; instructions: string };
+const tones: { id: Tone; label: string }[] = [{ id: 'friendly', label: 'Friendly' }, { id: 'professional', label: 'Professional' }, { id: 'playful', label: 'Playful' }, { id: 'formal', label: 'Formal' }];
+
+const fromBiz = (b: BusinessDetail): Form => ({
+  tone: (b.tone as Tone) ?? 'friendly', max: b.aiRules?.maxDiscountPct ?? 0,
+  escalate: b.aiRules?.escalateKeywords ?? [], forbidden: b.aiRules?.forbiddenTopics ?? [], instructions: b.aiRules?.customInstructions ?? ''
+});
 
 export default function AiSettingsPage() {
   const toast = useToast();
   const { data: biz, mutate: refresh } = useApi<BusinessDetail>('business');
   const { data: me } = useMe();
-  const [f, setF] = useState<{ tone: string; max: string; escalate: string; forbidden: string; instructions: string } | null>(null);
+  const [base, setBase] = useState<Form | null>(null);
+  const [f, setF] = useState<Form | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  if (biz && !f) setF({ tone: biz.tone, max: String(biz.aiRules?.maxDiscountPct ?? 0), escalate: (biz.aiRules?.escalateKeywords ?? []).join(', '), forbidden: (biz.aiRules?.forbiddenTopics ?? []).join(', '), instructions: biz.aiRules?.customInstructions ?? '' });
-  if (!biz || !f) return <Loading />;
+  if (biz && !f) { const v = fromBiz(biz); setBase(v); setF(v); }
+  if (!biz || !f || !base) return <Loading />;
   const owner = me?.role === 'owner';
-  const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF((s) => s && { ...s, [k]: e.target.value });
+  const dirty = JSON.stringify(f) !== JSON.stringify(base);
 
   async function toggle(aiEnabled: boolean) {
-    try { await api.patch('business', { aiEnabled }); await refresh(); toast(aiEnabled ? 'AI assistant is on' : 'AI assistant is off. Customers will not get automatic replies.'); }
+    try { await api.patch('business', { aiEnabled }); await refresh(); toast(aiEnabled ? 'Replies on' : 'Replies paused'); }
     catch (e) { toast((e as Error).message, 'error'); }
   }
-  async function save(e: FormEvent) {
-    e.preventDefault();
-    const max = Number(f!.max);
-    if (!Number.isInteger(max) || max < 0 || max > 50) return setErr('Maximum discount must be a whole number from 0 to 50');
+  async function save(e?: FormEvent) {
+    e?.preventDefault();
     setBusy(true); setErr(null);
     try {
       await api.patch('business', { tone: f!.tone });
-      await api.put('business/ai-rules', { maxDiscountPct: max, escalateKeywords: list(f!.escalate), forbiddenTopics: list(f!.forbidden), customInstructions: f!.instructions.trim() || null });
-      await refresh(); toast('AI settings saved');
+      await api.put('business/ai-rules', { maxDiscountPct: f!.max, escalateKeywords: f!.escalate, forbiddenTopics: f!.forbidden, customInstructions: f!.instructions.trim() || null });
+      await refresh(); setBase(f); toast('Saved');
     } catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
   }
 
   return (
-    <div className="mx-auto max-w-5xl">
-      <PageHeader title="AI assistant" description="Control how your assistant talks to customers and what it is allowed to do." />
-      {!owner && <div className="mb-4"><ErrorNote>Only the account owner can change these settings.</ErrorNote></div>}
-      <Section title="Status" description="Turn automatic replies off to answer every chat yourself.">
-        <Card className="flex items-center justify-between gap-4 p-5">
-          <div className="flex items-start gap-3">
-            <span className={cn('mt-1.5 size-2 shrink-0 rounded-full', biz.aiEnabled ? 'bg-brand shadow-[0_0_0_3px] shadow-brand/20' : 'bg-muted-foreground')} />
-            <div>
-              <div className="text-sm font-medium">{biz.aiEnabled ? 'Automatic replies are on' : 'Automatic replies are paused'}</div>
-              <p className="mt-0.5 text-[13px] text-muted-foreground">{biz.aiEnabled ? 'The assistant is answering your customers on WhatsApp.' : 'New messages wait for you in the inbox.'}</p>
-            </div>
-          </div>
+    <>
+      <PageHeader title="AI assistant" actions={
+        <div className="flex items-center gap-2.5 rounded-full border bg-card py-1.5 pl-3 pr-1.5 text-[13px]">
+          <span className={cn('size-2 rounded-full transition-colors', biz.aiEnabled ? 'bg-brand shadow-[0_0_0_3px] shadow-brand/20' : 'bg-muted-foreground')} />
+          <span className="font-medium">{biz.aiEnabled ? 'Replying' : 'Paused'}</span>
           <Switch checked={biz.aiEnabled} onChange={toggle} disabled={!owner} label="Automatic replies" />
-        </Card>
-      </Section>
+        </div>
+      } />
+      {!owner && <Notice title="Only the owner can change these" className="mb-6" />}
 
-      <Section title="Style and rules" description="Given to the assistant before every reply.">
-        <form onSubmit={save}>
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <form onSubmit={save} className="stagger space-y-4">
+          {err && <ErrorNote>{err}</ErrorNote>}
           <Card>
-            <CardBody className="space-y-5">
-              {err && <ErrorNote>{err}</ErrorNote>}
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Tone"><Select value={f.tone} onChange={set('tone')} disabled={!owner}>{['friendly', 'professional', 'playful', 'formal'].map((t) => <option key={t} value={t}>{t[0]!.toUpperCase() + t.slice(1)}</option>)}</Select></Field>
-                <Field label="Maximum discount (%)" hint="Never goes above this. 0 means no discounts."><Input inputMode="numeric" value={f.max} onChange={set('max')} disabled={!owner} /></Field>
-              </div>
-              <Field label="Hand over to you when a customer says…" hint="Separate with commas. A chat containing these words is flagged for you."><Input value={f.escalate} onChange={set('escalate')} disabled={!owner} placeholder="refund, complaint, lawyer" /></Field>
-              <Field label="Topics the assistant must avoid" hint="Separate with commas."><Input value={f.forbidden} onChange={set('forbidden')} disabled={!owner} placeholder="politics, religion" /></Field>
-              <Field label="Extra instructions" hint="Anything specific to your business, e.g. “Custom orders need 7 days notice.”"><Textarea rows={4} value={f.instructions} onChange={set('instructions')} disabled={!owner} maxLength={1500} />{owner && <SuggestButton field="instructions" text={f.instructions} onUse={(v) => setF({ ...f, instructions: v.slice(0, 1500) })} />}</Field>
-            </CardBody>
-            {owner && <CardFooter><Button type="submit" loading={busy}>Save changes</Button></CardFooter>}
+            <CardHeader title="Tone" />
+            <CardBody><Segmented className="w-full [&>button]:flex-1" options={tones} value={f.tone} onChange={(tone) => owner && setF({ ...f, tone })} /></CardBody>
           </Card>
-        </form>
-      </Section>
 
-      <Section title="Usage this month" description="Resets on the 1st.">
-        <StatGrid className="sm:grid-cols-2" stats={[
-          { label: 'AI replies', value: biz.usage.aiReplies, icon: Bot },
-          { label: 'WhatsApp messages sent', value: biz.usage.waMessagesBilled, icon: Send, hint: 'The first 1,000 each month are free from WhatsApp.' }
-        ]} />
-      </Section>
-    </div>
+          <Card>
+            <CardHeader title="Max discount" action={<span className="text-lg font-semibold tabular-nums">{f.max === 0 ? 'None' : `${f.max}%`}</span>} />
+            <CardBody>
+              <input type="range" min={0} max={50} step={1} value={f.max} disabled={!owner} aria-label="Maximum discount"
+                onChange={(e) => setF({ ...f, max: Number(e.target.value) })} className="w-full accent-brand disabled:opacity-60" />
+              <div className="mt-1 flex justify-between text-[11px] text-muted-foreground tabular-nums"><span>0%</span><span>25%</span><span>50%</span></div>
+            </CardBody>
+          </Card>
+
+          <Card>
+            <CardHeader title="Call me in when they say" />
+            <CardBody><TagInput label="Hand-over words" value={f.escalate} onChange={(escalate) => setF({ ...f, escalate })} disabled={!owner} placeholder="refund, complaint…" /></CardBody>
+          </Card>
+
+          <Card>
+            <CardHeader title="Never talk about" />
+            <CardBody><TagInput label="Topics to avoid" value={f.forbidden} onChange={(forbidden) => setF({ ...f, forbidden })} disabled={!owner} placeholder="politics, religion…" /></CardBody>
+          </Card>
+
+          <Card>
+            <CardHeader title="Instructions" action={<span className={cn('text-xs tabular-nums', f.instructions.length > 1400 ? 'text-warning' : 'text-muted-foreground')}>{f.instructions.length}/1500</span>} />
+            <CardBody>
+              <Textarea rows={5} value={f.instructions} onChange={(e) => setF({ ...f, instructions: e.target.value })} disabled={!owner} maxLength={1500} placeholder="Anything it should always know" aria-label="Instructions" />
+              {owner && <SuggestButton field="instructions" text={f.instructions} onUse={(v) => setF({ ...f, instructions: v.slice(0, 1500) })} />}
+            </CardBody>
+          </Card>
+
+          <StatGrid className="grid-cols-2" stats={[
+            { label: 'AI replies this month', value: biz.usage.aiReplies, icon: Bot },
+            { label: 'Messages sent', value: biz.usage.waMessagesBilled, icon: Send }
+          ]} />
+
+          {/* Appears only when something changed */}
+          {owner && dirty && (
+            <div className="animate-toast-in sticky bottom-4 z-10 flex items-center justify-between gap-3 rounded-xl border bg-card/90 py-2.5 pl-4 pr-2.5 shadow-2xl backdrop-blur-md">
+              <span className="flex items-center gap-2 text-[13px] text-muted-foreground"><span className="size-1.5 rounded-full bg-warning" />Unsaved changes</span>
+              <div className="flex gap-2">
+                <Button type="button" variant="ghost" size="sm" onClick={() => { setF(base); setErr(null); }}>Discard</Button>
+                <Button type="submit" size="sm" loading={busy}>Save</Button>
+              </div>
+            </div>
+          )}
+        </form>
+
+        <div className="lg:sticky lg:top-8"><PracticePanel /></div>
+      </div>
+    </>
   );
 }

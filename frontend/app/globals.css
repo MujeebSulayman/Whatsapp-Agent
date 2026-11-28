@@ -311,6 +311,10 @@
 .stagger > :nth-child(9), .stagger-rows > tbody > :nth-child(9) { animation-delay: 240ms; }
 .stagger > :nth-child(n + 10), .stagger-rows > tbody > :nth-child(n + 10) { animation-delay: 270ms; }
 
+/* Loading placeholders: a soft band of light sweeps across. */
+@keyframes shimmer { from { background-position: 150% 0; } to { background-position: -50% 0; } }
+.shimmer { background: linear-gradient(90deg, var(--muted) 0%, color-mix(in oklab, var(--muted), var(--foreground) 8%) 50%, var(--muted) 100%) 0 0 / 200% 100%; animation: shimmer 1.6s ease-in-out infinite; }
+
 dialog[open] { animation: dialog-in 0.22s var(--ease-out); }
 dialog[open]::backdrop { animation: fade-in 0.22s ease-out; }
 
@@ -338,6 +342,6 @@ dialog[open]::backdrop { animation: fade-in 0.22s ease-out; }
   details[open]::details-content { block-size: auto; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .reveal, .phone-rise, .stagger > *, .stagger-rows > tbody > *, [class*="animate-"], .horizon > *, dialog[open], dialog[open]::backdrop { animation: none !important; }
+  .reveal, .phone-rise, .shimmer, .stagger > *, .stagger-rows > tbody > *, [class*="animate-"], .horizon > *, dialog[open], dialog[open]::backdrop { animation: none !important; }
   details::details-content { transition: none !important; }
 }
