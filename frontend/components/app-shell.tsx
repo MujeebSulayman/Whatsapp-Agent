@@ -118,7 +118,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
 
   return (
-    <div className="min-h-screen md:pl-60">
+    <div className="min-h-screen overflow-x-clip md:pl-60">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 border-r border-border/60 bg-background md:block">{sidebar}</aside>
       {open && <div className="animate-fade-in fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px] md:hidden" onClick={close} />}
       <aside className={cn('fixed inset-y-0 left-0 z-50 w-64 border-r bg-background transition-transform duration-300 ease-[var(--ease-out)] md:hidden', open ? 'translate-x-0' : '-translate-x-full')}>{sidebar}</aside>

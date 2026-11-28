@@ -21,7 +21,7 @@ export default function InboxPage() {
   const active = selected ?? null;
 
   return (
-    <div className="grid h-[calc(100dvh-3.5rem)] md:h-dvh lg:grid-cols-[320px_1fr] xl:grid-cols-[320px_1fr_280px]">
+    <div className="grid h-[calc(100dvh-3.5rem)] md:h-dvh grid-cols-[minmax(0,1fr)] lg:grid-cols-[320px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)_280px]">
       {/* conversation list */}
       <section className={cn('flex min-h-0 flex-col border-r border-border/60', active && 'hidden lg:flex')}>
         <div className="space-y-3 px-4 pt-5 pb-3">
