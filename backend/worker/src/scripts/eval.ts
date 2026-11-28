@@ -25,6 +25,7 @@ const chosen = scenarios.filter((s) => !filter || s.name.toLowerCase().includes(
 async function check(e: Expect, ctx: { tools: Set<string>; reply: string; status: string; orders: { totalMinor: number; subtotalMinor: number; discountMinor: number }[] }): Promise<string[]> {
   const fails: string[] = [];
   for (const t of e.tools ?? []) if (!ctx.tools.has(t)) fails.push(`did not call ${t}`);
+  if (e.anyTools?.length && !e.anyTools.some((t) => ctx.tools.has(t))) fails.push(`did not call any of ${e.anyTools.join(' / ')}`);
   for (const t of e.noTools ?? []) if (ctx.tools.has(t)) fails.push(`should not call ${t}`);
   for (const r of e.reply ?? []) if (!r.test(ctx.reply)) fails.push(`reply missing ${r}`);
   for (const r of e.replyNot ?? []) if (r.test(ctx.reply)) fails.push(`reply must not match ${r}`);
@@ -58,13 +59,23 @@ async function grade(name: string, convo: { customer: string; assistant: string 
   } catch { console.log('      (judge reply could not be read)'); }
 }
 
+const bizRow = await h.db.business.findUniqueOrThrow({ where: { id: h.businessId } });
+const bizFacts = {
+  business_info_given_to_the_assistant: {
+    hours: bizRow.businessHours, payment: bizRow.paymentInfo, returns: bizRow.returnPolicy,
+    faqs: await h.db.faq.findMany({ where: { businessId: h.businessId }, select: { question: true, answer: true } }),
+    owner_instructions: (await h.db.aiRules.findUnique({ where: { businessId: h.businessId } }))?.customInstructions ?? null,
+    max_discount_percent: (await h.db.aiRules.findUnique({ where: { businessId: h.businessId } }))?.maxDiscountPct ?? 0
+  }
+};
+
 let failed = 0;
 for (const [i, s] of chosen.entries()) {
   const { conversationId, customerId } = await h.newCustomer(`2349${String(Date.now()).slice(-8)}${i}`, 'Eval Customer');
   const tools = new Set<string>();
   let reply = '';
   const convo: { customer: string; assistant: string | null }[] = [];
-  const facts: unknown[] = [];
+  const facts: unknown[] = [bizFacts];
   try {
     for (const turn of s.turns) {
       const r = await h.say(conversationId, customerId, turn);

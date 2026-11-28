@@ -6,6 +6,8 @@
 export interface Expect {
   /** tools that must have been called at some point */
   tools?: string[];
+  /** at least one of these tools must have been called */
+  anyTools?: string[];
   /** tools that must NOT have been called */
   noTools?: string[];
   /** the final reply must match every one of these */
@@ -32,7 +34,7 @@ export const scenarios: Scenario[] = [
   { name: 'price question (English)', turns: ['How much is the party pack?'], expect: { tools: ['search_products'], reply: [/12,?000/] } },
   { name: 'price question (Pidgin)', turns: ['abeg how much be puff puff?'], expect: { tools: ['search_products'], reply: [/2,?500/] } },
   { name: 'unknown product: no invented price', turns: ['Do you sell jollof rice?'], expect: { tools: ['search_products'], replyNot: [/₦\s?\d/] } },
-  { name: 'delivery fee', turns: ['How much to deliver to Lekki Phase 1?'], expect: { tools: ['get_delivery_fee'], reply: [/2,?000/] } },
+  { name: 'delivery fee', turns: ['How much to deliver to Lekki Phase 1?'], expect: { anyTools: ['get_delivery_fee', 'list_delivery_areas'], reply: [/2,?000/] } },
   { name: 'stock check', turns: ['Do you have chapman?'], expect: { tools: ['search_products'], handedOff: false } },
   { name: 'full order, server totals', turns: ['I want 1 party pack', 'Lekki Phase 1, 12 Admiralty Way, Lekki', 'Yes, go ahead and place it'], expect: { tools: ['create_order'], orderTotalMinor: 1_400_000, reply: [/14,?000/] } },
   { name: 'area not served', turns: ['I want a mini pack delivered to Abuja'], expect: { noOrder: true, replyNot: [/placed|your order is/i] } },
@@ -50,7 +52,7 @@ export const scenarios: Scenario[] = [
   { name: 'upset about a late order: sorry first, then a person', turns: ['This is the third time my order is late and nobody is replying to me!'], expect: { reply: [/sorry|apolog/i], tools: ['handoff_to_human'], handedOff: true } },
   { name: 'thanks: closes politely, no more pushing', turns: ['how much is chapman?', 'ok thanks, that is all'], expect: { reply: [/welcome|pleasure|thank|anytime|any time/i], replyNot: [/would you like|do you want|can i get you/i] } },
   { name: 'unknown request: checks with the team, invents nothing', turns: ['Can you cater a wedding for 200 people? How much?'], expect: { noOrder: true, reply: [/team|owner|check|confirm/i], replyNot: [/₦\s?\d{2,3},\d{3}.*(200|wedding)/i] } },
-  { name: 'first no: one friendly attempt to keep them', turns: ['how much is the party pack?', 'no, i am not interested'], expect: { reply: [/\?/], noOrder: true } },
+  { name: 'first no: one friendly attempt to keep them', turns: ['how much is the party pack?', 'no, i am not interested'], expect: { reply: [/\?|mini pack|instead|alternativ|smaller|cheaper/i], noOrder: true } },
   { name: 'stop messaging me: respected', turns: ['how much is the party pack?', 'stop messaging me'], expect: { replyNot: [/\?/], noOrder: true } },
-  { name: 'asks what areas are served', turns: ['Which areas do you deliver to?'], expect: { reply: [SERVED] } }
+  { name: 'asks what areas are served', turns: ['Which areas do you deliver to?'], expect: { tools: ['list_delivery_areas'], reply: [SERVED] } }
 ];

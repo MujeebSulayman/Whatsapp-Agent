@@ -6,14 +6,14 @@ import { defineTool } from './types.js';
 export const listCatalog = defineTool({
   name: 'list_catalog',
   description:
-    'Browse the whole catalogue A to Z (this is not a search). Use it when the customer asks what you sell, for the menu or price list, "list them all" or "what else". Returns real prices and whether each item is available. If has_more is true, say how many there are in total and offer to show the rest.',
+    'Browse the whole catalogue A to Z (this is not a search). Use it when the customer asks what you sell, for the menu or price list, "list them all" or "what else". Returns real prices and whether each item is available. If has_more is true, say how many there are in total and offer to show the rest. Use offset 0 to start from the top (also when they ask to see the list again); use a higher offset only to continue a list you have just shown.',
   schema: z.object({
     offset: z.number().int().min(0).default(0),
     limit: z.number().int().min(1).max(30).default(20),
     /** Optional word to narrow the list, e.g. "drinks" or "oil". */
     match: z.string().trim().max(60).optional()
   }),
-  async run(ctx, { offset, limit, match }) {
+  async run(ctx, { offset: askedOffset, limit, match }) {
     const where = {
       businessId: ctx.businessId,
       active: true,
@@ -21,10 +21,14 @@ export const listCatalog = defineTool({
     };
     const [total, rows, reserved] = await Promise.all([
       ctx.db.product.count({ where }),
-      ctx.db.product.findMany({ where, orderBy: { name: 'asc' }, skip: offset, take: limit }),
+      ctx.db.product.findMany({ where, orderBy: { name: 'asc' }, skip: askedOffset, take: limit }),
       loadReserved(ctx.db, ctx.businessId)
     ]);
-    const items = rows.map((p) => {
+    // A page past the end (for example asking again after the whole list was shown) is not an error: start again from the top.
+    const wrapped = askedOffset >= total && total > 0;
+    const offset = wrapped ? 0 : askedOffset;
+    const page = wrapped ? await ctx.db.product.findMany({ where, orderBy: { name: 'asc' }, take: limit }) : rows;
+    const items = page.map((p) => {
       const info = stockInfo(p, reserved);
       const options = variantList(p.variants).map((v) => v.name);
       return { product_id: p.id, name: p.name, price: formatMoney(p.priceMinor, ctx.currency), available: info.in_stock, ...(info.in_stock ? {} : { sold_out: true }), ...(options.length ? { options } : {}) };
@@ -36,7 +40,7 @@ export const listCatalog = defineTool({
       items,
       has_more: next < total,
       ...(next < total ? { next_offset: next, remaining: total - next } : {}),
-      note: total === 0 ? 'The catalogue is empty or nothing matched. Do not invent items.' : next < total ? `Say there are ${total} items in total and ${total - next} more to show. Do not call this the full list.` : 'This is everything.'
+      note: wrapped ? `That was past the end, so this is the list from the start. Show EVERY item in items as a numbered list with its price${next < total ? `, say there are ${total} in total and ${total - next} more` : ''}.` : total === 0 ? 'The catalogue is empty or nothing matched. Do not invent items.' : next < total ? `Show EVERY item in items as a numbered list with its price. Say there are ${total} items in total and ${total - next} more to show. Do not call this the full list.` : 'Show EVERY item in items as a numbered list with its price, then say that is everything.'
     };
   }
 });

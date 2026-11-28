@@ -90,6 +90,7 @@ describe('what the assistant is told about paying', () => {
     expect(off).not.toMatch(/call create_payment_link/);
     expect(off).toMatch(/NO online payment link/);
     for (const p of [on, off]) expect(p).toMatch(/items, (the )?delivery fee and (the )?total/);
+    for (const p of [on, off]) expect(p).toMatch(/do not say it is "already open": confirm it warmly, restate the items and total/);
   });
   it('replies in plain English unless the customer writes in Pidgin', () => {
     const p = buildSystemPrompt({ ...base, country: 'Kenya' });

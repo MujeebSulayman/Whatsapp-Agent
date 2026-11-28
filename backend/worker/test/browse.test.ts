@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import type { ChatMessage, LlmClient } from '@wa/ai';
 import { createPrisma } from '@wa/db';
-import { buildSystemPrompt, incompleteFullList, listCatalog, runAgent, type Tool, type ToolContext } from '@wa/agent';
+import { buildSystemPrompt, incompleteFullList, listCatalog, listNotShown, needsCatalogCall, listDeliveryAreas, runAgent, type Tool, type ToolContext } from '@wa/agent';
 
 const prisma = createPrisma();
 const slugs = ['br-a', 'br-b'];
@@ -43,7 +43,15 @@ describe('list_catalog', () => {
     expect(first.items.length + rest.items.length).toBe(34);
     expect(new Set([...first.items, ...rest.items].map((i) => i.name)).size).toBe(34);
     expect(rest).toMatchObject({ has_more: false });
-    expect(rest.note).toBe('This is everything.');
+    expect(rest.note).toMatch(/then say that is everything/);
+  });
+
+  it('asking for a page past the end starts again from the top instead of returning nothing', async () => {
+    const r = await list({ offset: 100, limit: 5 });
+    expect(r.items).toHaveLength(5);
+    expect(r.items[0]!.name).toBe('Item 01 Rice');
+    expect(r.note).toMatch(/past the end, so this is the list from the start/);
+    expect((await list({ offset: 100, limit: 5 })).has_more).toBe(true);
   });
 
   it('skips items that are switched off, flags sold-out ones, and can be narrowed by a word', async () => {
@@ -95,14 +103,56 @@ describe('"the full list" is only said when it is', () => {
   });
 });
 
+describe('asking to see the list always looks it up', () => {
+  const u = (content: string) => ({ role: 'user', content });
+  it('is needed when the customer asks for the list and no lookup happened', () => {
+    for (const t of ['list them all', 'show me everything', 'Can I see the full list?', 'what is on the menu', 'send your price list', 'all your products please']) expect(needsCatalogCall([u(t)], []), t).toBe(true);
+  });
+  it('is not needed when the lookup happened, or for other messages', () => {
+    expect(needsCatalogCall([u('list them all')], [{ name: 'list_catalog' }])).toBe(false);
+    for (const t of ['how much is rice?', 'do you have beans', 'hi']) expect(needsCatalogCall([u(t)], []), t).toBe(false);
+  });
+});
+
+describe('showing the list, not just counting it', () => {
+  const items = ['Rice (50kg)', 'Beans (25kg)', 'Garri (10kg)', 'Sugar (5kg)', 'Salt (1kg)'].map((name, i) => ({ product_id: `p${i}`, name }));
+  const calls = [{ name: 'list_catalog', result: { total: 5, items } }];
+  it('flags a reply that only gives a count', () => {
+    expect(listNotShown('We have a total of 5 items. Want me to show them?', calls)).toMatch(/did not show it/);
+    expect(listNotShown('1. Rice for ₦85,000', calls)).toMatch(/5 items/);
+  });
+  it('accepts a reply that names the items (even without their sizes), and ignores tiny lists and other turns', () => {
+    expect(listNotShown('1. Rice - ₦85,000\n2. Beans - ₦48,000\n3. Garri - ₦18,000\n4. Sugar - ₦9,000\n5. Salt - ₦1,500', calls)).toBeNull();
+    expect(listNotShown('We have 2 items.', [{ name: 'list_catalog', result: { total: 2, items: items.slice(0, 2) } }])).toBeNull();
+    expect(listNotShown('Hi!', [])).toBeNull();
+  });
+});
+
 describe('what the assistant is told about serving customers', () => {
   const p = buildSystemPrompt({ businessName: 'X', category: 'c', city: '', country: 'Kenya', currency: 'KES', kind: 'goods', maxDiscountPct: 0, hours: '', paymentMethods: 'p', returnPolicy: '', customInstructions: '', tone: 'friendly', forbiddenTopics: [], faqs: [] });
   it('has written service standards and catalogue-browsing rules', () => {
     expect(p).toMatch(/SERVICE STANDARDS/);
     expect(p).toMatch(/Answer first/);
-    expect(p).toMatch(/apologise sincerely and say you will sort it out BEFORE anything else/);
+    expect(p).toMatch(/your first words are a sincere apology/);
+    expect(p).toMatch(/do not answer, even if you know the answer/);
+    expect(p).toMatch(/never reply "I already listed them"/);
+    expect(p).toMatch(/call list_delivery_areas/);
+    expect(p).toMatch(/your first action is a search_products call/);
+    expect(p).toMatch(/never say "we can't" to a custom, bulk, catering/);
     expect(p).toMatch(/No dead ends/);
     expect(p).toMatch(/call list_catalog, not search_products/);
     expect(p).toMatch(/Never call a partial list "the full list"/);
+  });
+});
+
+describe('list_delivery_areas', () => {
+  it('lists every area with its fee and time, and never invents any', async () => {
+    const empty = (await listDeliveryAreas.run(ctx(), {})) as { total: number; note: string };
+    expect(empty).toMatchObject({ total: 0 });
+    expect(empty.note).toMatch(/Do not invent/);
+    await prisma.deliveryZone.createMany({ data: [{ businessId: a.id, areaName: 'Yaba', feeMinor: 150000, etaText: '1 hour' }, { businessId: a.id, areaName: 'Ikeja', feeMinor: 250000, etaText: '2 hours' }] });
+    const r = (await listDeliveryAreas.run(ctx(), {})) as { total: number; areas: { area: string; fee: string; time: string }[]; note: string };
+    expect(r.areas).toEqual([{ area: 'Ikeja', fee: '₦2,500', time: '2 hours' }, { area: 'Yaba', fee: '₦1,500', time: '1 hour' }]);
+    expect(r.note).toMatch(/Anywhere else is not covered/);
   });
 });

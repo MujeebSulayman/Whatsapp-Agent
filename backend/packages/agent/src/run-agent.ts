@@ -61,6 +61,24 @@ export function incompleteFullList(reply: string, calls: { name: string; result:
   return shown.size < total ? `You called this the full list, but there are ${total} items and only ${shown.size} were shown. Say how many there are in total and offer to show the rest, or call list_catalog again with the next offset.` : null;
 }
 
+/** The customer is asking to see the whole list or menu. */
+const WANTS_LIST = /\b(list\s+(them\s+)?(all|everything)|show\s+(me\s+)?(all|everything|the\s+(full\s+)?(list|menu))|(full|complete|whole)\s+(list|menu|catalog(ue)?)|everything\s+you\s+(sell|have|offer)|all\s+(your\s+)?(items|products)|price\s?list|menu)\b/i;
+export function needsCatalogCall(history: { role: string; content: string | null }[], calls: { name: string }[]): boolean {
+  const last = [...history].reverse().find((m) => m.role === 'user')?.content ?? '';
+  return WANTS_LIST.test(last) && !calls.some((c) => c.name === 'list_catalog');
+}
+
+/** After list_catalog, the customer must actually be shown the items, not just told how many there are. */
+export function listNotShown(reply: string, calls: { name: string; result: unknown }[]): string | null {
+  const last = calls.filter((c) => c.name === 'list_catalog').at(-1)?.result as { items?: { name: string }[] } | undefined;
+  const items = (last?.items ?? []).filter((i) => typeof i.name === 'string' && i.name.length > 0);
+  if (items.length < 3) return null;
+  const base = (n: string) => n.replace(/\s*\(.*?\)\s*/g, ' ').trim().toLowerCase();
+  const text = reply.toLowerCase();
+  const named = items.filter((i) => text.includes(base(i.name))).length;
+  return named >= Math.ceil(items.length * 0.6) ? null : `You looked up the catalogue but did not show it. Write out the items from list_catalog as a numbered list with each price (${items.length} items), then the total count. Do not just say how many there are.`;
+}
+
 /** A customer turning something down ("not interested", "too expensive", "no thanks"). */
 const DECLINE = /(not\s+interested|no,?\s+thanks?|no\s+thank\s+you|i'?m\s+good|i\s+don'?t\s+(want|need)|too\s+(expensive|costly|much|pricey)|maybe\s+later|never\s?mind|forget\s+it|leave\s+it)|^\s*no[.!\s]*$/i;
 /** They want it to stop. Never pushed back on. */
@@ -119,7 +137,7 @@ export async function runAgent(o: {
       if (madeUp.length) {
         if (!nudged.has('grounding') && step < MAX_STEPS - 1) {
           nudged.add('grounding');
-          messages.push(message, { role: 'system', content: `Your reply states an amount (${madeUp.join(', ')}) that no tool returned. Never state a price or amount from memory or guess one, and never name a product a tool did not return. Call search_products (or the right tool) now and use ONLY the exact products and amounts it returns. If you cannot find it, say you will check with the team.` });
+          messages.push(message, { role: 'system', content: `Your reply states an amount (${madeUp.join(', ')}) that no tool returned. Never state a price or amount from memory or guess one, and never name a product a tool did not return. Never work out totals or prices yourself. If the customer has given the item, area and address, call create_order now and quote only its total; if details are missing, ask for the next missing detail instead of quoting a total. For a price or alternative, call search_products (or the right tool) and use ONLY the exact products and amounts it returns. If you cannot find it, say you will check with the team.` });
           continue;
         }
         // Still not backed after one correction: never send a made-up price. Hold the customer and call the owner in.
@@ -128,6 +146,17 @@ export async function runAgent(o: {
         result.reply = "I'd like to double-check that price for you. Let me confirm with the team and get back to you shortly.";
         result.handedOff = state.handedOff;
         return result;
+      }
+      if (needsCatalogCall(o.history, result.toolCalls) && !nudged.has('catalog') && step < MAX_STEPS - 1) {
+        nudged.add('catalog');
+        messages.push(message, { role: 'system', content: 'The customer asked to see the list. Do not answer from memory or just give a count: call list_catalog now (limit 30), then write out every item with its price as a numbered list, and say how many there are in total.' });
+        continue;
+      }
+      const notShown = listNotShown(text, result.toolCalls);
+      if (notShown && !nudged.has('show') && step < MAX_STEPS - 1) {
+        nudged.add('show');
+        messages.push(message, { role: 'system', content: notShown });
+        continue;
       }
       const partial = incompleteFullList(text, result.toolCalls);
       if (partial && !nudged.has('full') && step < MAX_STEPS - 1) {
