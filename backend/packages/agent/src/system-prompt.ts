@@ -9,6 +9,8 @@ export interface PromptInput {
   kind: 'goods' | 'services' | 'both';
   maxDiscountPct: number;
   hours: string;
+  /** The shop's current day and time, e.g. "Saturday 14:05 (Africa/Lagos)" */
+  now?: string;
   paymentMethods: string;
   returnPolicy: string;
   customInstructions: string;
@@ -129,7 +131,7 @@ RULES
 
 BUSINESS INFO
 Hours: ${p.hours}
-${p.areas && p.areas.length === 0 ? 'Delivery areas: none set up yet. Take orders anyway and say the shop will confirm the delivery fee.\n' : ''}${p.areas?.length ? `Delivery areas (names only; fees and times come from tools): ${p.areas.join(', ')}. If a customer names a place that is not in this list, tell them kindly right away that you do not deliver there yet, offer the areas you do cover, and ask if another address works.\n` : ''}Payment: ${p.paymentMethods}
+${p.now ? `Right now it is ${p.now} for the shop. Use this with the hours to answer "are you open?", and never offer a delivery, pickup or booking time when the shop is closed. If it is closed now you can still take the order or booking for when you open; say so.\n` : ''}${p.areas && p.areas.length === 0 ? 'Delivery areas: none set up yet. Take orders anyway and say the shop will confirm the delivery fee.\n' : ''}${p.areas?.length ? `Delivery areas (names only; fees and times come from tools): ${p.areas.join(', ')}. If a customer names a place that is not in this list, tell them kindly right away that you do not deliver there yet, offer the areas you do cover, and ask if another address works.\n` : ''}Payment: ${p.paymentMethods}
 Returns: ${p.returnPolicy}
 ${p.policies?.length ? `Facts and rules (follow these exactly; they come from the owner's setup):\n${p.policies.map((l) => `- ${l}`).join('\n')}\n` : ''}${p.customInstructions ? `Owner instructions: ${p.customInstructions}` : ''}
 

@@ -92,12 +92,10 @@ model Business {
   returnType    String?  @map("return_type")
   returnDays    Int?     @map("return_days")
   /// Hours of notice an order or booking needs
-  noticeHours       Int? @map("notice_hours")
   /// Services: free cancellation up to this many hours before
   cancellationHours Int? @map("cancellation_hours")
   depositRequired   Boolean? @map("deposit_required")
   /// Smallest order total accepted, in minor units (0 or null = no minimum)
-  minOrderMinor     Int? @map("min_order_minor")
   trialEndsAt   DateTime? @map("trial_ends_at")
   aiDailyCapUsd Decimal  @default(5) @map("ai_daily_cap_usd") @db.Decimal(10, 2)
   /// Paystack subaccount: where this business's share of card/bank payments is settled. Null = payments not set up.

@@ -40,6 +40,9 @@ export async function buildContext(db: PrismaClient, o: { businessId: string; co
   const lastCustomerText = [...history].reverse().find((m) => m.role === 'user')?.content ?? '';
   const facts = factsFrom(business as unknown as BusinessSetupRow, { products: 1, zones: zones.length });
   const hours = formatHours(business.businessHours);
+  // The assistant has to know what day and time it is for the shop, or it cannot apply the opening hours.
+  let now = '';
+  try { now = new Intl.DateTimeFormat('en-GB', { timeZone: business.timezone, weekday: 'long', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date()).replace(',', '') + ` (${business.timezone})`; } catch { /* unknown timezone: leave it out */ }
   const payText = paymentText(facts);
 
   const runSteps = run ? parseSteps(run.playbook.steps) : [];
@@ -64,6 +67,7 @@ export async function buildContext(db: PrismaClient, o: { businessId: string; co
     kind: business.kind,
     maxDiscountPct: rules?.maxDiscountPct ?? 0,
     hours,
+    now,
     paymentMethods: business.paystackSubaccountCode
       ? `Online payment link (card or bank transfer), made with create_payment_link${payText ? `. Also: ${payText.replace(/Online payment link \(card or bank\)\.?\s*/, '')}` : ''}`
       : payText || 'Not set up yet: say the shop will share payment details, and never claim a payment link exists',

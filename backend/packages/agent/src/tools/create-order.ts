@@ -87,9 +87,6 @@ async function place(ctx: ToolContext, db: PrismaClient, args: Args): Promise<un
 
     const feeMinor = zone?.feeMinor ?? 0;
     const subtotalMinor = lines.reduce((s, l) => s + l.line_total_minor, 0);
-    // The owner's minimum order is a rule, not a suggestion: checked here, not left to the assistant to remember.
-    const rules = await db.business.findUnique({ where: { id: ctx.businessId }, select: { minOrderMinor: true } });
-    if (rules?.minOrderMinor && subtotalMinor < rules.minOrderMinor) return { error: `The minimum order is ${formatMoney(rules.minOrderMinor, ctx.currency)} and this comes to ${formatMoney(subtotalMinor, ctx.currency)}. Tell the customer, and suggest adding items to reach it.` };
     const totalMinor = subtotalMinor + feeMinor;
     const notes = [deliveryTbc && 'DELIVERY FEE NOT SET UP: confirm the delivery cost with the customer before dispatch', preorderLines.length && `PRE-ORDER (not in stock yet): ${preorderLines.map((l) => l.name + (l.variant ? ` (${l.variant})` : '')).join(', ')}`, args.preferred_time && `Preferred time: ${args.preferred_time}`, args.notes].filter(Boolean).join('\n') || undefined;
     const order = await db.order.create({

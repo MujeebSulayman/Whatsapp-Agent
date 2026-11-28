@@ -1,13 +1,17 @@
 'use client';
-import { Check, Circle } from 'lucide-react';
+import { Check, Circle, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { mutate } from 'swr';
-import { Button, Card, CardBody, CardFooter, CardHeader, ErrorNote, Field, Input, Loading, PageHeader, Section, Select, useToast } from '@/components/ui';
+import { DeliveryZones } from '@/components/delivery-zones';
+import { Button, Card, CardBody, CardHeader, ErrorNote, Field, Input, Loading, PageHeader, Section, Select, Tabs, useToast } from '@/components/ui';
 import { api, useApi, useMe } from '@/lib/api';
 import type { BusinessDetail } from '@/lib/types';
-import { useMoney } from '@/lib/use-money';
 
+interface PayStatus { available: boolean; supported: boolean }
+type Tab = 'hours' | 'payments' | 'delivery' | 'policies';
+const TABS: Tab[] = ['hours', 'payments', 'delivery', 'policies'];
+const TAB_OF: Record<string, Tab> = { hours: 'hours', payments: 'payments', fulfilment: 'delivery', booking: 'delivery', returns: 'policies', phone: 'policies' };
 const DAYS = [['mon', 'Monday'], ['tue', 'Tuesday'], ['wed', 'Wednesday'], ['thu', 'Thursday'], ['fri', 'Friday'], ['sat', 'Saturday'], ['sun', 'Sunday']] as const;
 const PAY = [['bank_transfer', 'Bank transfer'], ['card_link', 'Online card payment link'], ['cash_on_delivery', 'Cash on delivery'], ['pay_at_shop', 'Pay in person']] as const;
 type Hours = Record<string, { closed: boolean; open: string; close: string }>;
@@ -29,7 +33,6 @@ export default function FinishSetupPage() {
 
 function Form({ biz, owner }: { biz: BusinessDetail; owner: boolean }) {
   const toast = useToast();
-  const money = useMoney();
   const services = biz.kind === 'services';
   const showServices = biz.kind !== 'goods';
   const [hours, setHours] = useState<Hours>(initialHours(biz.businessHours));
@@ -38,9 +41,15 @@ function Form({ biz, owner }: { biz: BusinessDetail; owner: boolean }) {
     bankName: biz.bankName ?? '', bankAccountNumber: biz.bankAccountNumber ?? '', bankAccountName: biz.bankAccountName ?? '',
     fulfilment: biz.fulfilment ?? '', address: biz.address ?? '', ownerPhone: biz.ownerPhone ?? '',
     returnType: biz.returnType ?? '', returnDays: biz.returnDays?.toString() ?? '', cancellationHours: biz.cancellationHours?.toString() ?? '',
-    deposit: biz.depositRequired === null ? '' : biz.depositRequired ? 'yes' : 'no',
-    minOrder: biz.minOrderMinor ? money.toInput(biz.minOrderMinor) : '', noticeHours: biz.noticeHours?.toString() ?? ''
+    deposit: biz.depositRequired === null ? '' : biz.depositRequired ? 'yes' : 'no'
   });
+  const { data: ps } = useApi<PayStatus>('payments/status');
+  const lookup = !!ps?.available && ps.supported;
+  const { data: banks } = useApi<{ name: string; code: string }[]>(lookup && pay.includes('bank_transfer') ? 'payments/banks' : null);
+  const [bankCode, setBankCode] = useState('');
+  const [resolving, setResolving] = useState(false);
+  const [acctErr, setAcctErr] = useState<string | null>(null);
+  const [tab, setTab] = useState<Tab>(() => TAB_OF[biz.readiness.items.find((i) => !i.done)?.key ?? ''] ?? 'hours');
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF((s) => ({ ...s, [k]: e.target.value }));
@@ -53,30 +62,45 @@ function Form({ biz, owner }: { biz: BusinessDetail; owner: boolean }) {
       : [['delivery', 'Delivery only'], ['pickup', 'Pickup only'], ['both', 'Delivery and pickup']];
   const needsAddress = ['pickup', 'onsite', 'both'].includes(f.fulfilment);
 
-  async function save(e: FormEvent) {
-    e.preventDefault(); setBusy(true); setErr(null);
+  // Pick up the saved bank in the list once it loads.
+  useEffect(() => {
+    if (banks && !bankCode && f.bankName) setBankCode(banks.find((b) => b.name === f.bankName)?.code ?? '');
+  }, [banks, bankCode, f.bankName]);
+
+  // Look up the account name as soon as the bank and a 10 digit number are in.
+  async function check(code: string, num: string, bankName: string) {
+    setAcctErr(null);
+    if (!code || !/^\d{10}$/.test(num)) { setF((s) => ({ ...s, bankName, bankAccountName: '' })); return; }
+    setResolving(true);
     try {
-      const minor = f.minOrder.trim() ? money.parse(f.minOrder) : null;
-      if (f.minOrder.trim() && minor === null) throw new Error('Minimum order is not a valid amount');
+      const { accountName } = await api.post<{ accountName: string }>('payments/resolve-account', { bankCode: code, accountNumber: num });
+      setF((s) => ({ ...s, bankName, bankAccountName: accountName }));
+    } catch (e) { setF((s) => ({ ...s, bankName, bankAccountName: '' })); setAcctErr((e as Error).message); } finally { setResolving(false); }
+  }
+
+  async function save(e?: FormEvent) {
+    e?.preventDefault(); setBusy(true); setErr(null);
+    try {
       await api.put('business/setup', {
         hours: Object.fromEntries(DAYS.map(([d]) => [d, hours[d]!.closed ? 'closed' : `${hours[d]!.open}-${hours[d]!.close}`])),
         payMethods: pay,
         bankName: f.bankName.trim() || null, bankAccountNumber: f.bankAccountNumber.replace(/\s/g, '') || null, bankAccountName: f.bankAccountName.trim() || null,
         fulfilment: f.fulfilment || null, address: f.address.trim() || null, ownerPhone: f.ownerPhone.replace(/\D/g, '') || null,
         returnType: f.returnType || null, returnDays: f.returnType && f.returnType !== 'none' ? num(f.returnDays) : null,
-        noticeHours: num(f.noticeHours), minOrderMinor: minor,
         ...(showServices ? { cancellationHours: num(f.cancellationHours), depositRequired: f.deposit === '' ? null : f.deposit === 'yes' } : {})
       });
-      await mutate('business'); toast('Saved');
+      await mutate('business');
+      const next = TABS[TABS.indexOf(tab) + 1];
+      if (next) { setTab(next); window.scrollTo({ top: 0 }); toast('Saved. Next step.'); } else toast('Saved');
     } catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
   }
 
   const left = biz.readiness.items.filter((i) => !i.done);
   return (
-    <form onSubmit={save} className="mx-auto max-w-3xl">
+    <div className="mx-auto max-w-5xl">
       <PageHeader title="Finish setup" description={left.length ? 'Your assistant stays off until these are done.' : 'All done. Your assistant can talk to customers.'} />
       {(err || !owner) && <div className="mb-6 space-y-2">{err && <ErrorNote>{err}</ErrorNote>}{!owner && <ErrorNote>Only the account owner can change this.</ErrorNote>}</div>}
-      <Card className="mb-8"><CardBody className="space-y-2">
+      <Card className="mb-6"><CardBody className="space-y-2">
         {biz.readiness.items.map((i) => (
           <div key={i.key} className="flex items-center gap-2.5 text-[13px]">
             {i.done ? <Check className="size-4 text-brand" /> : <Circle className="size-4 text-muted-foreground" />}
@@ -86,22 +110,23 @@ function Form({ biz, owner }: { biz: BusinessDetail; owner: boolean }) {
         ))}
       </CardBody></Card>
 
+      <div className="mb-8"><Tabs value={tab} onChange={setTab} tabs={[{ id: 'hours', label: 'Opening hours' }, { id: 'payments', label: 'Payments' }, { id: 'delivery', label: services ? 'Service' : 'Delivery' }, { id: 'policies', label: 'Policies & alerts' }]} /></div>
       <fieldset disabled={!owner}>
-        <Section title="Opening hours">
+        {tab === 'hours' && <Section title="Opening hours">
           <Card><CardBody className="space-y-2">
             {DAYS.map(([d, name]) => (
-              <div key={d} className="flex flex-wrap items-center gap-2">
-                <span className="w-24 text-[13px]">{name}</span>
-                <Input type="time" className="w-32" disabled={hours[d]!.closed} value={hours[d]!.open} onChange={(e) => setHours((h) => ({ ...h, [d]: { ...h[d]!, open: e.target.value } }))} />
+              <div key={d} className="grid grid-cols-[5.5rem_minmax(0,1fr)_auto_minmax(0,1fr)_auto] items-center gap-2">
+                <span className="text-[13px]">{name}</span>
+                <Input type="time" disabled={hours[d]!.closed} value={hours[d]!.open} onChange={(e) => setHours((h) => ({ ...h, [d]: { ...h[d]!, open: e.target.value } }))} />
                 <span className="text-muted-foreground">to</span>
-                <Input type="time" className="w-32" disabled={hours[d]!.closed} value={hours[d]!.close} onChange={(e) => setHours((h) => ({ ...h, [d]: { ...h[d]!, close: e.target.value } }))} />
-                <label className="flex items-center gap-1.5 text-[13px]"><input type="checkbox" checked={hours[d]!.closed} onChange={(e) => setHours((h) => ({ ...h, [d]: { ...h[d]!, closed: e.target.checked } }))} />Closed</label>
+                <Input type="time" disabled={hours[d]!.closed} value={hours[d]!.close} onChange={(e) => setHours((h) => ({ ...h, [d]: { ...h[d]!, close: e.target.value } }))} />
+                <label className="flex items-center gap-1.5 whitespace-nowrap text-[13px]"><input type="checkbox" checked={hours[d]!.closed} onChange={(e) => setHours((h) => ({ ...h, [d]: { ...h[d]!, closed: e.target.checked } }))} />Closed</label>
               </div>
             ))}
           </CardBody></Card>
-        </Section>
+        </Section>}
 
-        <Section title="How customers pay">
+        {tab === 'payments' && <Section title="How customers pay">
           <Card><CardBody className="space-y-3">
             {PAY.filter(([k]) => k !== 'cash_on_delivery' || !services).map(([k, label]) => (
               <label key={k} className="flex items-center gap-2 text-[13px]">
@@ -109,31 +134,45 @@ function Form({ biz, owner }: { biz: BusinessDetail; owner: boolean }) {
                 {label}{k === 'card_link' && !cardReady && <span className="text-xs text-muted-foreground">(connect online payments under Business first)</span>}
               </label>
             ))}
-            {pay.includes('bank_transfer') && (
-              <div className="grid gap-3 sm:grid-cols-3">
-                <Field label="Bank"><Input value={f.bankName} onChange={set('bankName')} /></Field>
-                <Field label="Account number"><Input inputMode="numeric" value={f.bankAccountNumber} onChange={set('bankAccountNumber')} /></Field>
-                <Field label="Account name"><Input value={f.bankAccountName} onChange={set('bankAccountName')} /></Field>
+            {pay.includes('bank_transfer') && (lookup ? (
+              <div className="space-y-3">
+                <Field label="Bank">
+                  <Select value={bankCode} onChange={(e) => { const c = e.target.value; setBankCode(c); void check(c, f.bankAccountNumber, banks?.find((b) => b.code === c)?.name ?? ''); }}>
+                    <option value="">Choose your bank</option>
+                    {banks?.map((b, i) => <option key={`${b.code}-${i}`} value={b.code}>{b.name}</option>)}
+                  </Select>
+                </Field>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field label="Account number" error={acctErr}>
+                    <Input inputMode="numeric" maxLength={10} value={f.bankAccountNumber} onChange={(e) => { const n = e.target.value.replace(/\D/g, ''); setF((s) => ({ ...s, bankAccountNumber: n })); void check(bankCode, n, f.bankName); }} />
+                  </Field>
+                  <Field label="Account name">
+                    <Input readOnly value={resolving ? 'Checking…' : f.bankAccountName} placeholder="Appears after you enter the number" />
+                  </Field>
+                </div>
+                {f.bankAccountName && !resolving && <div className="flex items-center gap-1.5 text-xs text-muted-foreground"><ShieldCheck className="size-3.5 text-brand" />Account name from your bank</div>}
               </div>
-            )}
+            ) : (
+              <div className="space-y-3">
+                <Field label="Bank"><Input value={f.bankName} onChange={set('bankName')} /></Field>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field label="Account number"><Input inputMode="numeric" value={f.bankAccountNumber} onChange={set('bankAccountNumber')} /></Field>
+                  <Field label="Account name"><Input value={f.bankAccountName} onChange={set('bankAccountName')} /></Field>
+                </div>
+              </div>
+            ))}
           </CardBody></Card>
-        </Section>
+        </Section>}
 
-        <Section title={services ? 'Where the service happens' : 'Delivery or pickup'}>
+        {tab === 'delivery' && <Section title={services ? 'Where the service happens' : 'Delivery or pickup'}>
           <Card><CardBody className="space-y-4">
             <Field label={services ? 'Where do you do the service?' : 'How do customers get their order?'}><Select value={f.fulfilment} onChange={set('fulfilment')}><option value="">Choose…</option>{fulOptions.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</Select></Field>
             {needsAddress && <Field label="Your address"><Input value={f.address} onChange={set('address')} /></Field>}
-            {['delivery', 'both'].includes(f.fulfilment) && !services && <p className="text-[13px] text-muted-foreground">Add the areas you cover and their fees under <Link href="/business?tab=delivery" className="text-brand underline">Business</Link>.</p>}
-            {!services && (
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Minimum order (optional)"><Input inputMode="decimal" value={f.minOrder} onChange={set('minOrder')} /></Field>
-                <Field label="Notice needed, in hours (optional)"><Input inputMode="numeric" value={f.noticeHours} onChange={set('noticeHours')} /></Field>
-              </div>
-            )}
           </CardBody></Card>
-        </Section>
+          {['delivery', 'both', 'visit'].includes(f.fulfilment) && <div className="mt-4"><DeliveryZones /></div>}
+        </Section>}
 
-        {showServices && (
+        {tab === 'delivery' && showServices && (
           <Section title="Cancellations and deposit">
             <Card><CardBody className="grid gap-4 sm:grid-cols-2">
               <Field label="Customers can cancel free until … hours before" hint="Example: 24 means they must cancel a day ahead. 0 means they can cancel any time."><Input inputMode="numeric" value={f.cancellationHours} onChange={set('cancellationHours')} /></Field>
@@ -142,21 +181,21 @@ function Form({ biz, owner }: { biz: BusinessDetail; owner: boolean }) {
           </Section>
         )}
 
-        <Section title="Returns and refunds">
+        {tab === 'policies' && <Section title="Returns and refunds">
           <Card><CardBody className="grid gap-4 sm:grid-cols-2">
             <Field label="Policy"><Select value={f.returnType} onChange={set('returnType')}><option value="">Choose…</option><option value="none">No returns</option><option value="exchange">Exchange</option><option value="refund">Refund</option></Select></Field>
             {(f.returnType === 'exchange' || f.returnType === 'refund') && <Field label="Within how many days?"><Input inputMode="numeric" value={f.returnDays} onChange={set('returnDays')} /></Field>}
           </CardBody></Card>
-        </Section>
+        </Section>}
 
-        <Section title="Alerts">
+        {tab === 'policies' && <Section title="Alerts">
           <Card>
             <CardHeader title="Your WhatsApp number" description="We message you here when a customer needs you." />
             <CardBody><Field label="Number" hint="Digits with country code, e.g. 2348012345678"><Input inputMode="numeric" value={f.ownerPhone} onChange={set('ownerPhone')} /></Field></CardBody>
-            {owner && <CardFooter><Button type="submit" loading={busy}>Save</Button></CardFooter>}
           </Card>
-        </Section>
+        </Section>}
       </fieldset>
-    </form>
+      {owner && <div className="mt-2"><Button onClick={() => void save()} loading={busy}>{tab === 'policies' ? 'Save' : 'Save and continue'}</Button></div>}
+    </div>
   );
 }

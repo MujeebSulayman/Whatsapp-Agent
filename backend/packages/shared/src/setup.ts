@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { formatMoney } from './money.js';
 
 /**
  * The setup every business must finish before its assistant talks to customers. Kept as plain answers (not one free-text box) so the
@@ -25,10 +24,8 @@ export const SetupInput = z.object({
   address: z.string().trim().max(200).nullable().optional(),
   returnType: z.enum(['none', 'exchange', 'refund']).nullable().optional(),
   returnDays: z.number().int().min(1).max(365).nullable().optional(),
-  noticeHours: z.number().int().min(0).max(720).nullable().optional(),
   cancellationHours: z.number().int().min(0).max(720).nullable().optional(),
   depositRequired: z.boolean().nullable().optional(),
-  minOrderMinor: z.number().int().min(0).max(2_000_000_000).nullable().optional(),
   ownerPhone: z.string().regex(/^\d{8,15}$/, 'Digits only, with country code').nullable().optional()
 });
 export type SetupInput = z.infer<typeof SetupInput>;
@@ -49,10 +46,8 @@ export interface SetupFacts {
   address: string | null;
   returnType: string | null;
   returnDays: number | null;
-  noticeHours: number | null;
   cancellationHours: number | null;
   depositRequired: boolean | null;
-  minOrderMinor: number | null;
   /** Online payments are connected, so a payment link can really be sent */
   cardLinkReady: boolean;
   /** Active items with a price */
@@ -130,11 +125,9 @@ export function policyLines(f: SetupFacts): string[] {
     if (goods && !methods.includes('cash_on_delivery')) lines.push('Cash on delivery is NOT available.');
     if (!methods.includes('bank_transfer')) lines.push('Bank transfer is NOT accepted.');
   }
-  if (f.noticeHours && f.noticeHours > 0) lines.push(`${goods ? 'Orders' : 'Bookings'} need ${f.noticeHours} hours' notice. Tell the customer BEFORE confirming.`);
-  if (f.minOrderMinor && f.minOrderMinor > 0) lines.push(`The minimum order is ${formatMoney(f.minOrderMinor, f.currency)}.`);
   if (sellsServices(f.kind)) {
     if (f.cancellationHours !== null) lines.push(f.cancellationHours === 0 ? 'Bookings can be cancelled at any time.' : `Free cancellation up to ${f.cancellationHours} hours before; later cancellations may be charged.`);
-    if (f.depositRequired !== null) lines.push(f.depositRequired ? 'A deposit is required to confirm a booking.' : 'No deposit is needed to book.');
+    if (f.depositRequired !== null) lines.push(f.depositRequired ? 'A deposit is required to confirm a booking. The amount is not set: never quote one; say the shop will confirm the amount.' : 'No deposit is needed to book.');
   }
   return lines;
 }

@@ -17,10 +17,8 @@ export interface BusinessSetupRow {
   address: string | null;
   returnType: string | null;
   returnDays: number | null;
-  noticeHours: number | null;
   cancellationHours: number | null;
   depositRequired: boolean | null;
-  minOrderMinor: number | null;
   paystackSubaccountCode: string | null;
 }
 
