@@ -1,5 +1,5 @@
 export { buildContext, type AgentContext } from './context-builder.js';
-export { runAgent, MAX_STEPS, needsSaveAttempt, ungroundedAmounts, type AgentResult } from './run-agent.js';
+export { runAgent, MAX_STEPS, needsSaveAttempt, ungroundedAmounts, incompleteFullList, type AgentResult } from './run-agent.js';
 export { buildSystemPrompt, type PromptInput } from './system-prompt.js';
 export { TOOLS, toolDefs } from './tools/index.js';
 export type { Tool, ToolContext } from './tools/types.js';
@@ -17,3 +17,4 @@ export { joinWaitlist } from './tools/join-waitlist.js';
 export { startPlaybook, recordAnswer, finishPlaybook } from './tools/playbook.js';
 export { createPaymentLink } from './tools/create-payment-link.js';
 export { createPaymentsPort, PAYMENT_CURRENCIES } from './payments.js';
+export { listCatalog } from './tools/list-catalog.js';

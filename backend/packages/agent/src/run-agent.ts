@@ -50,6 +50,17 @@ export function ungroundedAmounts(reply: string, history: { content: string | nu
   return [...new Set(bad)];
 }
 
+/** Calling a list "the full list" when only part of it was shown. */
+const FULL_LIST = /\b(full|complete|entire|whole)\s+(list|menu|catalog(ue)?|price\s?list)|\beverything\s+we\s+(sell|have|offer)|\ball\s+(of\s+)?(our|the)\s+(items|products)\b/i;
+export function incompleteFullList(reply: string, calls: { name: string; result: unknown }[]): string | null {
+  if (!FULL_LIST.test(reply)) return null;
+  const lists = calls.filter((c) => c.name === 'list_catalog').map((c) => c.result as { total?: number; items?: { product_id: string }[] });
+  if (lists.length === 0) return 'You called this the full list but you did not call list_catalog in this turn. Call list_catalog now (limit 30) and use only what it returns.';
+  const shown = new Set(lists.flatMap((l) => (l.items ?? []).map((i) => i.product_id)));
+  const total = lists.at(-1)?.total ?? 0;
+  return shown.size < total ? `You called this the full list, but there are ${total} items and only ${shown.size} were shown. Say how many there are in total and offer to show the rest, or call list_catalog again with the next offset.` : null;
+}
+
 /** A customer turning something down ("not interested", "too expensive", "no thanks"). */
 const DECLINE = /(not\s+interested|no,?\s+thanks?|no\s+thank\s+you|i'?m\s+good|i\s+don'?t\s+(want|need)|too\s+(expensive|costly|much|pricey)|maybe\s+later|never\s?mind|forget\s+it|leave\s+it)|^\s*no[.!\s]*$/i;
 /** They want it to stop. Never pushed back on. */
@@ -117,6 +128,12 @@ export async function runAgent(o: {
         result.reply = "I'd like to double-check that price for you. Let me confirm with the team and get back to you shortly.";
         result.handedOff = state.handedOff;
         return result;
+      }
+      const partial = incompleteFullList(text, result.toolCalls);
+      if (partial && !nudged.has('full') && step < MAX_STEPS - 1) {
+        nudged.add('full');
+        messages.push(message, { role: 'system', content: partial });
+        continue;
       }
       if (!unbacked && !nudged.has('save') && step < MAX_STEPS - 1 && needsSaveAttempt(o.history, text)) {
         nudged.add('save');
