@@ -74,8 +74,10 @@ async function place(ctx: ToolContext, db: PrismaClient, args: Args): Promise<un
     const zones = await db.deliveryZone.findMany({ where: { businessId: ctx.businessId } });
     const isService = ctx.kind === 'services';
     let zone: (typeof zones)[number] | undefined;
-    if (zones.length === 0 && isService) {
-      zone = undefined; // a service business with no areas set up: no travel fee, the owner confirms details
+    // No areas set up yet (a new shop that has only added products): still take the order. The shop confirms the delivery cost.
+    const deliveryTbc = zones.length === 0 && !isService;
+    if (zones.length === 0) {
+      zone = undefined;
     } else {
       if (!args.delivery_area) return { error: isService ? 'Ask the customer which area the job is in.' : 'Ask the customer for their delivery area.' };
       const q = args.delivery_area.toLowerCase();
@@ -86,7 +88,7 @@ async function place(ctx: ToolContext, db: PrismaClient, args: Args): Promise<un
     const feeMinor = zone?.feeMinor ?? 0;
     const subtotalMinor = lines.reduce((s, l) => s + l.line_total_minor, 0);
     const totalMinor = subtotalMinor + feeMinor;
-    const notes = [preorderLines.length && `PRE-ORDER (not in stock yet): ${preorderLines.map((l) => l.name + (l.variant ? ` (${l.variant})` : '')).join(', ')}`, args.preferred_time && `Preferred time: ${args.preferred_time}`, args.notes].filter(Boolean).join('\n') || undefined;
+    const notes = [deliveryTbc && 'DELIVERY FEE NOT SET UP: confirm the delivery cost with the customer before dispatch', preorderLines.length && `PRE-ORDER (not in stock yet): ${preorderLines.map((l) => l.name + (l.variant ? ` (${l.variant})` : '')).join(', ')}`, args.preferred_time && `Preferred time: ${args.preferred_time}`, args.notes].filter(Boolean).join('\n') || undefined;
     const order = await db.order.create({
       data: {
         businessId: ctx.businessId,
@@ -105,8 +107,9 @@ async function place(ctx: ToolContext, db: PrismaClient, args: Args): Promise<un
       status: isService ? 'booking request recorded, awaiting confirmation' : 'draft, awaiting payment',
       items: lines.map((l) => `${l.quantity} x ${l.name}${l.variant ? ` (${l.variant})` : ''} = ${formatMoney(l.line_total_minor, ctx.currency)}`),
       subtotal: formatMoney(subtotalMinor, ctx.currency),
-      [isService ? 'call_out_fee' : 'delivery_fee']: formatMoney(feeMinor, ctx.currency),
+      [isService ? 'call_out_fee' : 'delivery_fee']: deliveryTbc ? 'to be confirmed by the shop' : formatMoney(feeMinor, ctx.currency),
       total: formatMoney(totalMinor, ctx.currency),
+      ...(deliveryTbc ? { total_note: 'This total is for the items only. Delivery will be added once the shop confirms the fee: tell the customer that.' } : {}),
       ...(args.preferred_time ? { preferred_time: args.preferred_time } : {}),
       ...(zone ? { eta: zone.etaText } : {}),
       next: preorderLines.length

@@ -8,6 +8,9 @@ export const getDeliveryFee = defineTool({
   schema: z.object({ area: z.string().min(1).max(100) }),
   async run(ctx, { area }) {
     const zones = await ctx.db.deliveryZone.findMany({ where: { businessId: ctx.businessId } });
+    if (zones.length === 0) {
+      return { found: false, no_areas_set_up: true, served_areas: [], note: 'The shop has not set up delivery areas or fees yet. Do NOT refuse or stop: carry on with the order and tell the customer the delivery fee will be confirmed by the shop.' };
+    }
     const q = area.toLowerCase();
     const zone = zones.find((z) => z.areaName.toLowerCase() === q) ?? zones.find((z) => q.includes(z.areaName.toLowerCase()) || z.areaName.toLowerCase().includes(q));
     if (!zone) {

@@ -11,7 +11,7 @@ export const listDeliveryAreas = defineTool({
     return {
       total: zones.length,
       areas: zones.map((z) => ({ area: z.areaName, fee: formatMoney(z.feeMinor, ctx.currency), time: z.etaText })),
-      note: zones.length ? 'These are all the areas. Anywhere else is not covered: say so and offer to check with the team.' : 'No areas are set up. Do not invent any; offer to check with the team.'
+      note: zones.length ? 'These are all the areas. Anywhere else is not covered: say so and offer to check with the team.' : 'No delivery areas are set up yet. Do not invent any. Do not refuse orders: take them and say the shop will confirm the delivery fee.'
     };
   }
 });
