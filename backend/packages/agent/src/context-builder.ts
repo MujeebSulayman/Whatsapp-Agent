@@ -1,6 +1,7 @@
 import type { PrismaClient } from '@wa/db';
 import type { ChatMessage } from '@wa/ai';
-import { countryName, formatMoney, parseSteps } from '@wa/shared';
+import { countryName, formatHours, formatMoney, parseSteps, paymentText, policyLines, returnsText } from '@wa/shared';
+import { factsFrom, type BusinessSetupRow } from './readiness.js';
 import { recentLookups } from './memory.js';
 import { buildSystemPrompt } from './system-prompt.js';
 
@@ -37,7 +38,9 @@ export async function buildContext(db: PrismaClient, o: { businessId: string; co
     .map((m) => ({ role: m.direction === 'inbound' ? 'user' : 'assistant', content: (m.body ?? m.transcript) as string }));
 
   const lastCustomerText = [...history].reverse().find((m) => m.role === 'user')?.content ?? '';
-  const hours = business.businessHours ? JSON.stringify(business.businessHours) : 'not set';
+  const facts = factsFrom(business as unknown as BusinessSetupRow, { products: 1, zones: zones.length });
+  const hours = formatHours(business.businessHours);
+  const payText = paymentText(facts);
 
   const runSteps = run ? parseSteps(run.playbook.steps) : [];
   const runAnswers = (run?.answers ?? {}) as Record<string, string>;
@@ -62,9 +65,10 @@ export async function buildContext(db: PrismaClient, o: { businessId: string; co
     maxDiscountPct: rules?.maxDiscountPct ?? 0,
     hours,
     paymentMethods: business.paystackSubaccountCode
-      ? `Online payment link (card or bank transfer), made with create_payment_link${business.paymentInfo ? `. Also: ${business.paymentInfo}` : ''}`
-      : business.paymentInfo ?? 'Not set up yet: say the shop will share payment details, and never claim a payment link exists',
-    returnPolicy: business.returnPolicy ?? 'ask the owner',
+      ? `Online payment link (card or bank transfer), made with create_payment_link${payText ? `. Also: ${payText.replace(/Online payment link \(card or bank\)\.?\s*/, '')}` : ''}`
+      : payText || 'Not set up yet: say the shop will share payment details, and never claim a payment link exists',
+    returnPolicy: returnsText(facts) || 'not set yet',
+    policies: policyLines(facts),
     customInstructions: rules?.customInstructions ?? '',
     tone: business.tone,
     forbiddenTopics: rules?.forbiddenTopics ?? [],

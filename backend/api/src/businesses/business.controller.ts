@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, Controller, Delete, Get, HttpCode, Inject, Patch, Put, Body, UseGuards } from '@nestjs/common';
-import type { PrismaClient } from '@wa/db';
-import { encryptSecret, isCountryCode, isCurrencyCode, isTimezone, maskPhone } from '@wa/shared';
+import { computeReadiness, factsFrom, type BusinessSetupRow } from '@wa/agent';
+import type { Prisma, PrismaClient } from '@wa/db';
+import { SetupInput, encryptSecret, isCountryCode, isCurrencyCode, isTimezone, maskPhone, paymentText, returnsText, weeklyHours } from '@wa/shared';
 import { z } from 'zod';
 import { Auth, AuthGuard, requireOwner, type AuthCtx } from '../common/auth.guard.js';
 import { parse } from '../common/validate.js';
@@ -55,12 +56,15 @@ export class BusinessController {
       this.db.deliveryZone.count({ where: { businessId: auth.businessId } }),
       this.db.faq.count({ where: { businessId: auth.businessId } })
     ]);
+    const readiness = await computeReadiness(this.db, auth.businessId);
     const trialDaysLeft = b.trialEndsAt ? Math.max(0, Math.ceil((b.trialEndsAt.getTime() - Date.now()) / 86_400_000)) : null;
     return {
       ...b,
       trialDaysLeft,
       usage: { period: monthKey(), aiReplies: usage?.aiReplies ?? 0, waMessagesBilled: usage?.waMessagesBilled ?? 0 },
-      setup: { whatsapp: b.whatsappAccounts.length > 0, products: products > 0, zones: zones > 0, faqs: faqs > 0 }
+      setup: { whatsapp: b.whatsappAccounts.length > 0, products: products > 0, zones: zones > 0, faqs: faqs > 0 },
+      /** The required setup. The assistant stays off until every item is done. */
+      readiness: { complete: readiness.complete, items: readiness.items }
     };
   }
 
@@ -77,6 +81,10 @@ export class BusinessController {
         if (p + z + o > 0) throw new ConflictException("The currency can't be changed once you have products, delivery fees or orders. Contact support if you need this.");
       }
     }
+    if (data.aiEnabled === true) {
+      const r = await computeReadiness(this.db, auth.businessId);
+      if (!r.complete) throw new ConflictException(`Finish your setup before switching the assistant on: ${r.missing.map((m) => m.label.toLowerCase()).join(', ')}.`);
+    }
     const { businessHours, ...rest } = data;
     const updated = await this.db.business.update({
       where: { id: auth.businessId },
@@ -84,6 +92,33 @@ export class BusinessController {
     });
     await this.db.auditLog.create({ data: { businessId: auth.businessId, actor: auth.userId, action: 'settings.update', payload: { fields: Object.keys(data) } } });
     return { id: updated.id };
+  }
+
+  /** The required setup, saved as plain answers. Saving part of it is fine: `readiness` says what is still missing. */
+  @Put('setup')
+  async setup(@Auth() auth: AuthCtx, @Body() body: unknown) {
+    requireOwner(auth);
+    const d = parse(SetupInput, body);
+    const cur = await this.db.business.findUniqueOrThrow({ where: { id: auth.businessId } });
+    if (d.payMethods?.includes('card_link') && !cur.paystackSubaccountCode) throw new BadRequestException('Online card payments are not connected yet. Set them up under Business, then Payments.');
+
+    const { hours, ...rest } = d;
+    const data: Prisma.BusinessUpdateInput = { ...rest };
+    if (hours) {
+      const given = Object.fromEntries(Object.entries(hours).filter(([, v]) => v !== undefined));
+      data.businessHours = { ...(weeklyHours(cur.businessHours) ?? {}), ...given } as Prisma.InputJsonValue;
+    }
+    if (d.returnType === 'none') data.returnDays = null;
+    // Keep the older free-text fields in step, so anything still reading them sees the same answers.
+    const next = { ...cur, ...data, businessHours: data.businessHours ?? cur.businessHours } as unknown as BusinessSetupRow;
+    const facts = factsFrom(next, { products: 1, zones: 1 });
+    if (d.payMethods || d.bankName !== undefined || d.bankAccountNumber !== undefined || d.bankAccountName !== undefined) data.paymentInfo = paymentText(facts) || null;
+    if (d.returnType !== undefined || d.returnDays !== undefined) data.returnPolicy = returnsText(facts) || null;
+
+    await this.db.business.update({ where: { id: auth.businessId }, data });
+    await this.db.auditLog.create({ data: { businessId: auth.businessId, actor: auth.userId, action: 'setup.update', payload: { fields: Object.keys(d) } } });
+    const r = await computeReadiness(this.db, auth.businessId);
+    return { readiness: { complete: r.complete, items: r.items } };
   }
 
   @Put('ai-rules')

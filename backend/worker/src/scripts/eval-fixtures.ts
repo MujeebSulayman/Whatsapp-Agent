@@ -73,7 +73,7 @@ export async function ensureFixtures(db: PrismaClient): Promise<void> {
     if (await db.business.findUnique({ where: { slug: d.slug } })) continue;
     const b = await db.business.create({
       data: {
-        name: d.name, slug: d.slug, category: d.category, kind: d.kind, city: d.city, country: 'NG', currency: 'NGN', tone: d.tone, businessHours: d.hours, paymentInfo: d.payment, returnPolicy: d.returns,
+        name: d.name, slug: d.slug, category: d.category, kind: d.kind, city: d.city, country: 'NG', currency: 'NGN', tone: d.tone, businessHours: d.hours, paymentInfo: d.payment, returnPolicy: d.returns, ownerPhone: '2348000000000', ...(d.kind === 'services' ? { cancellationHours: 24, depositRequired: false } : {}),
         aiRules: { create: { maxDiscountPct: d.maxDiscount, escalateKeywords: d.escalate, forbiddenTopics: [], customInstructions: d.instructions } },
         products: { create: d.products.map((p) => ({ ...p, variants: p.variants as never })) },
         deliveryZones: { create: d.zones.map(([areaName, fee, etaText]) => ({ areaName, feeMinor: N(fee), etaText })) },

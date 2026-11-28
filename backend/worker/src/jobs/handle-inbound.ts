@@ -1,7 +1,7 @@
 import type { PrismaClient } from '@wa/db';
 import { pickModel, type LlmClient, type ModelConfig } from '@wa/ai';
 import { decryptSecret, maskPhone, type InboundJob, type PaystackClient } from '@wa/shared';
-import { buildContext } from '@wa/agent';
+import { buildContext, computeReadiness } from '@wa/agent';
 import { createPaymentsPort, runAgent } from '@wa/agent';
 import type { Locker } from '../lock.js';
 
@@ -59,6 +59,10 @@ async function turn(deps: Deps, job: InboundJob, tokenEnc: string, log: (m: stri
   if (!business) return;
   // The owner's AI on/off switch is respected before anything else.
   if (!business.aiEnabled) return log(`[worker] skip ${job.waMessageId}: AI is switched off for this business`);
+
+  // The assistant never talks to customers until the required setup is done. The message waits in the inbox for the owner.
+  const readiness = await computeReadiness(db, job.businessId);
+  if (!readiness.complete) return log(`[worker] skip ${job.waMessageId}: setup incomplete (${readiness.missing.map((m) => m.key).join(', ')})`);
 
   // Owner may have taken over meanwhile.
   const conversation = await db.conversation.findFirst({ where: { id: job.conversationId, businessId: job.businessId } });

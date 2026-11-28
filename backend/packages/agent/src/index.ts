@@ -23,3 +23,4 @@ export { moneyIn } from './grounding.js';
 export { recentLookups } from './memory.js';
 export { suggestWithinBudget } from './tools/suggest-within-budget.js';
 export { toWhatsAppText } from './run-agent.js';
+export { computeReadiness, factsFrom, type BusinessSetupRow } from './readiness.js';

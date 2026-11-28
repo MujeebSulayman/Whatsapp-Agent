@@ -46,8 +46,8 @@ function Inner() {
 /* ---------------- Profile ---------------- */
 function Profile({ biz, owner }: { biz: BusinessDetail; owner: boolean }) {
   const toast = useToast();
-  const [f, setF] = useState({ name: biz.name, category: biz.category, city: biz.city, kind: biz.kind, country: biz.country, currency: biz.currency, timezone: biz.timezone, paymentInfo: biz.paymentInfo ?? '', returnPolicy: biz.returnPolicy ?? '', ownerPhone: biz.ownerPhone ?? '' });
-  const [hours, setHours] = useState<{ label: string; value: string }[]>(Object.entries(biz.businessHours ?? {}).map(([label, value]) => ({ label, value })));
+  const [f, setF] = useState({ name: biz.name, category: biz.category, city: biz.city, kind: biz.kind, country: biz.country, currency: biz.currency, timezone: biz.timezone});
+  const router = useRouter();
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const currencies = useMemo(() => currencyOptions(), []);
@@ -58,11 +58,8 @@ function Profile({ biz, owner }: { biz: BusinessDetail; owner: boolean }) {
   async function save(e: FormEvent) {
     e.preventDefault(); setBusy(true); setErr(null);
     try {
-      const rows = hours.filter((h) => h.label.trim() && h.value.trim());
       await api.patch('business', {
         name: f.name.trim(), category: f.category.trim(), kind: f.kind, city: f.city.trim(), country: f.country, timezone: f.timezone, ...(f.currency !== biz.currency ? { currency: f.currency } : {}),
-        paymentInfo: f.paymentInfo.trim() || null, returnPolicy: f.returnPolicy.trim() || null, ownerPhone: f.ownerPhone.trim() || null,
-        businessHours: rows.length ? Object.fromEntries(rows.map((h) => [h.label.trim(), h.value.trim()])) : null
       });
       await mutate('business'); toast('Business details saved');
     } catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
@@ -94,29 +91,8 @@ function Profile({ biz, owner }: { biz: BusinessDetail; owner: boolean }) {
           </div>
         </CardBody></Card>
       </Section>
-      <Section title="Opening hours">
-        <Card><CardBody className="space-y-2">
-          {hours.length === 0 && <p className="text-[13px] text-muted-foreground">No hours added yet.</p>}
-          {hours.map((h, i) => (
-            <div key={i} className="flex gap-2">
-              <Input placeholder="e.g. Mon–Sat" value={h.label} disabled={!owner} onChange={(e) => setHours(hours.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))} />
-              <Input placeholder="e.g. 9am–9pm" value={h.value} disabled={!owner} onChange={(e) => setHours(hours.map((x, j) => (j === i ? { ...x, value: e.target.value } : x)))} />
-              {owner && <IconButton label="Remove row" tone="danger" className="size-9" onClick={() => setHours(hours.filter((_, j) => j !== i))}><Trash2 /></IconButton>}
-            </div>
-          ))}
-          {owner && <Button type="button" size="sm" variant="ghost" className="-ml-2" onClick={() => setHours([...hours, { label: '', value: '' }])}><Plus className="size-3.5" />Add hours</Button>}
-        </CardBody></Card>
-      </Section>
-      <Section title="Payments and alerts">
-        <Card>
-          <CardBody className="space-y-4">
-            <Field label="How customers pay"><Input value={f.paymentInfo} onChange={set('paymentInfo')} disabled={!owner} /></Field>
-            <Field label="Return policy"><Textarea rows={2} value={f.returnPolicy} onChange={set('returnPolicy')} disabled={!owner} /></Field>
-            <Field label="Your WhatsApp number for alerts" hint="Digits with country code, e.g. 2348012345678"><Input inputMode="numeric" value={f.ownerPhone} onChange={set('ownerPhone')} disabled={!owner} /></Field>
-          </CardBody>
-          {owner && <CardFooter><Button type="submit" loading={busy}>Save changes</Button></CardFooter>}
-        </Card>
-      </Section>
+      {owner && <div className="mb-6"><Card><CardBody className="flex items-center justify-between gap-3 text-[13px]"><span>Opening hours, payments, returns and your alert number are in Finish setup.</span><Button type="button" size="sm" variant="secondary" onClick={() => router.push('/finish-setup')}>Open</Button></CardBody></Card></div>}
+      {owner && <div><Button type="submit" loading={busy}>Save changes</Button></div>}
     </form>
   );
 }

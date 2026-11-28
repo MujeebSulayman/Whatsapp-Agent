@@ -4,6 +4,10 @@ export interface BusinessDetail {
   id: string; name: string; slug: string; category: string; city: string; country: string; currency: string; kind: 'goods' | 'services' | 'both'; timezone: string; tone: string; aiEnabled: boolean; plan: string;
   businessHours: Record<string, string> | null; paymentInfo: string | null; returnPolicy: string | null; ownerPhone: string | null;
   trialDaysLeft: number | null;
+  payMethods: string[]; bankName: string | null; bankAccountNumber: string | null; bankAccountName: string | null;
+  fulfilment: string | null; address: string | null; returnType: string | null; returnDays: number | null; noticeHours: number | null;
+  cancellationHours: number | null; depositRequired: boolean | null; minOrderMinor: number | null; paystackSubaccountCode?: string | null;
+  readiness: { complete: boolean; items: { key: string; label: string; done: boolean; hint: string }[] };
   aiRules: { maxDiscountPct: number; escalateKeywords: string[]; forbiddenTopics: string[]; customInstructions: string | null } | null;
   whatsappAccounts: { id: string; displayNumber: string; phoneNumberId: string; status: string; wabaId: string }[];
   usage: { period: string; aiReplies: number; waMessagesBilled: number };

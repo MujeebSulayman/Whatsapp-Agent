@@ -83,7 +83,12 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="flex h-full flex-col">
       <div className="flex h-14 items-center justify-between px-4"><Logo markClassName="size-7" /><button className="md:hidden" onClick={close} aria-label="Close menu"><X className="size-5" /></button></div>
       <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-2">
-        {!setupDone && (
+        {biz && !biz.readiness.complete && (
+          <Link href="/finish-setup" onClick={close} className={cn('flex h-8 items-center gap-2.5 rounded-md border border-brand/40 px-2.5 text-[13px] font-medium', pathname.startsWith('/finish-setup') ? 'bg-muted' : 'bg-card hover:bg-muted/60')}>
+            <Rocket className="size-4 text-brand" strokeWidth={1.75} />Finish setup<span className="ml-auto text-xs text-muted-foreground">{biz.readiness.items.filter((i) => !i.done).length} left</span>
+          </Link>
+        )}
+        {!setupDone && biz?.readiness.complete && (
           <Link href="/onboarding" onClick={close} className={cn('flex h-8 items-center gap-2.5 rounded-md border px-2.5 text-[13px] font-medium', pathname.startsWith('/onboarding') ? 'bg-muted' : 'bg-card hover:bg-muted/60')}>
             <Rocket className="size-4 text-brand" strokeWidth={1.75} />Finish setup
           </Link>

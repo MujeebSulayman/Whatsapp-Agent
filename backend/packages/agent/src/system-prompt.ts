@@ -21,6 +21,8 @@ export interface PromptInput {
   playbookInProgress?: string | null;
   /** Words the owner wants to be called in for. */
   escalateKeywords?: string[];
+  /** Exact facts and rules from the owner's required setup, including what is NOT offered. */
+  policies?: string[];
   /** Names of the areas this business delivers to or serves (fees and times come from tools). */
   areas?: string[];
   /** True when this business has online payments set up (the assistant can send Paystack links). */
@@ -129,7 +131,7 @@ BUSINESS INFO
 Hours: ${p.hours}
 ${p.areas && p.areas.length === 0 ? 'Delivery areas: none set up yet. Take orders anyway and say the shop will confirm the delivery fee.\n' : ''}${p.areas?.length ? `Delivery areas (names only; fees and times come from tools): ${p.areas.join(', ')}. If a customer names a place that is not in this list, tell them kindly right away that you do not deliver there yet, offer the areas you do cover, and ask if another address works.\n` : ''}Payment: ${p.paymentMethods}
 Returns: ${p.returnPolicy}
-${p.customInstructions ? `Owner instructions: ${p.customInstructions}` : ''}
+${p.policies?.length ? `Facts and rules (follow these exactly; they come from the owner's setup):\n${p.policies.map((l) => `- ${l}`).join('\n')}\n` : ''}${p.customInstructions ? `Owner instructions: ${p.customInstructions}` : ''}
 
 FAQ
 ${p.faqs.map((f) => `Q: ${f.question}\nA: ${f.answer}`).join('\n') || '(none)'}
