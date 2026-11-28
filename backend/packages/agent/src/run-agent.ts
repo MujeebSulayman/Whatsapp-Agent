@@ -95,6 +95,10 @@ export function escalationHit(text: string, keywords: string[]): string | null {
   return null;
 }
 
+/** The customer wants to return or exchange something they bought (a request, not a question about the policy). The owner handles these. */
+const RETURN_REQUEST = /\b(?:i|we)\s*(?:'d|\s+would)?\s*(?:want|need|wish|like)(?:\s+to)?\s+(?:to\s+)?(?:return|exchange|swap|send\s+back|bring\s+back)\b|\b(?:return|exchange|swap|send\s+back|bring\s+back)\s+(?:it|this|that|these|those|them|my|the|our)\b|\b(?:want|need)\s+(?:a\s+)?(?:replacement|exchange|return)\b/i;
+export const wantsReturn = (text: string) => RETURN_REQUEST.test(text);
+
 /** The customer is asking for a person ("I want to speak to a human", "customer care please", "put me through to the owner"). */
 const WANTS_HUMAN = /^\s*(?:an?\s+)?(?:agent|human|person|representative|manager|owner|attendant|someone)\s*(?:please|pls|now|abeg)?[\s.!?]*$|\b(speak|talk|chat|connect|transfer|put\s+me\s+(through|on)|get\s+me|call)\b.{0,30}\b(human|person|someone|somebody|agent|representative|manager|owner|staff|attendant|customer\s+(care|service|support)|real\s+(person|human))\b|\b(human|real\s+person|live\s+agent|customer\s+(care|service|support)|an?\s+agent)\b[\s,.!?]*(please|pls|now|abeg)?[\s,.!?]*$|\b(?:need|want|get|see|call|fetch|bring)\s+(?:me\s+)?(?:to\s+)?(?:the|an?|your)\s+(?:owner|manager|boss)\b[\s,.!?]*(?:please|pls|now|abeg)?[\s,.!?]*$/i;
 export const wantsHuman = (text: string) => WANTS_HUMAN.test(text);
@@ -175,7 +179,7 @@ export async function runAgent(o: {
       const text = (message.content ?? '').trim();
       const unbacked = CLAIM_CHECKS.find((c) => claims(c.claim, text) && !result.toolCalls.some((t) => (c.satisfiedBy ?? [c.tool]).includes(t.name) && !(t.result as { error?: unknown } | null)?.error) && !nudged.has(c.tool));
       const lastUser = [...o.history].reverse().find((m) => m.role === 'user')?.content ?? '';
-      const hit = escalationHit(lastUser, o.escalateKeywords ?? []);
+      const hit = escalationHit(lastUser, o.escalateKeywords ?? []) ?? (wantsReturn(lastUser) ? 'return or exchange' : null);
       const distress = SELF_HARM.test(lastUser);
       const mustHandOff = (hit || wantsHuman(lastUser) || distress) && !state.handedOff;
       /** Send the model back once with a correction. True means "go round again". */
@@ -199,8 +203,8 @@ export async function runAgent(o: {
       if (nudge('artifacts', hasModelArtifacts(text) ? 'Your reply contained internal notes or analysis. Reply ONLY with the message to send to the customer, in their language, with no mention of what you did or what the customer asked.' : null)) continue;
       if (nudge('distress', distress && !(CARING.test(text) && !SALESY.test(text)) ? "The customer may be in distress. Reply with warmth and care only: say you are sorry they feel this way, that they are not alone, and encourage them to talk to someone they trust or a local emergency or crisis line. Do not sell, quote prices or mention orders or products. Then call handoff_to_human with the summary 'Customer may be in distress' so the owner sees it." : null)) continue;
       if (nudge('handoff', mustHandOff && !distress ? (hit
-        ? `The customer's message contains "${hit}", a word the owner wants to be called in for. Acknowledge them kindly (apologise if they are unhappy), then call handoff_to_human now with a short summary of what they said. Do not ask them to repeat details: the team will follow up.`
-        : 'The customer asked for a person. Call handoff_to_human now with a short summary, and tell them a team member will reply shortly.') : null)) continue;
+        ? `The customer's message contains "${hit}", a word the owner wants to be called in for. Acknowledge them kindly (apologise if they are unhappy), then call handoff_to_human now with a short summary of what they said. Say you are sorting it out and will update them here shortly (never say you are transferring them or that someone else will take over). Do not ask them to repeat details.`
+        : 'The customer asked for a person. Call handoff_to_human now with a short summary, and tell them, in your own voice, that you are sorting it out and will update them here shortly. Never say you are transferring them or that a person or agent will take over.') : null)) continue;
       // The assistant's own instructions (owner notes, FAQs, what it looked up earlier) are legitimate sources too.
       const madeUp = ungroundedAmounts(text, [...o.history, { content: o.system }], result.toolCalls.map((t) => t.result));
       if (madeUp.length) {

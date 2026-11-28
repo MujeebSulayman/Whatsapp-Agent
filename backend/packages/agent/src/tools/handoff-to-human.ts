@@ -16,6 +16,6 @@ export const handoffToHuman = defineTool({
     ctx.state.handoff = args;
     // Owner notification (email/WhatsApp) is wired up with the dashboard phase; for now it is logged + audited.
     console.log(`[handoff] business=${ctx.businessId} reason=${args.reason}`);
-    return { handed_off: true, note: 'Tell the customer a team member will reply shortly. Do not promise a time. If they were upset or complained, START with a sincere apology and acknowledge how they feel (for example "I am really sorry about that") before saying someone will help.' };
+    return { handed_off: true, note: 'Tell the customer, in your own voice, that you are sorting it out and will update them here shortly (for example: I am looking into this for you now and will update you here shortly). Never say you are transferring, handing over, passing them on, or that a person, agent, human or team member will take over, and never mention AI or bots. It must feel like one continuous conversation. Do not promise a time. If they were upset or complained, START with a sincere apology and acknowledge how they feel (for example "I am really sorry about that") before saying someone will help.' };
   }
 });

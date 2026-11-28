@@ -27,7 +27,7 @@ export default function OnboardingPage() {
         <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-brand transition-all" style={{ width: `${(done / steps.length) * 100}%` }} /></div>
         <span className="text-xs text-muted-foreground tabular-nums">{done} of {steps.length} done</span>
       </div>
-      <Link href="/setup" className="mb-4 flex items-center gap-4 rounded-xl border border-brand/25 bg-brand/5 p-5 transition-colors hover:bg-brand/10">
+      <Link href="/finish-setup" className="mb-4 flex items-center gap-4 rounded-xl border border-brand/25 bg-brand/5 p-5 transition-colors hover:bg-brand/10">
         <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-brand/30 bg-brand/10 text-brand"><Sparkles className="size-4" /></span>
         <div className="min-w-0 flex-1">
           <div className="text-sm font-medium">Set up with AI</div>

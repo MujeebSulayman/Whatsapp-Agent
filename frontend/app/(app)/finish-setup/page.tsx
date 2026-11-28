@@ -3,15 +3,21 @@ import { Check, Circle, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState, type FormEvent } from 'react';
 import { mutate } from 'swr';
+import { FaqList } from '@/components/faq-list';
 import { DeliveryZones } from '@/components/delivery-zones';
-import { Button, Card, CardBody, CardHeader, ErrorNote, Field, Input, Loading, PageHeader, Section, Select, Tabs, useToast } from '@/components/ui';
+import { ImportPanel } from '@/components/setup/import-panel';
+import { PracticePanel } from '@/components/setup/practice-panel';
+import { useAiAvailable } from '@/components/setup/use-ai';
+import { Button, Card, CardBody, CardHeader, ErrorNote, Field, Input, Loading, Notice, PageHeader, Section, Select, Tabs, useToast } from '@/components/ui';
 import { api, useApi, useMe } from '@/lib/api';
 import type { BusinessDetail } from '@/lib/types';
 
 interface PayStatus { available: boolean; supported: boolean }
-type Tab = 'hours' | 'payments' | 'delivery' | 'policies';
-const TABS: Tab[] = ['hours', 'payments', 'delivery', 'policies'];
-const TAB_OF: Record<string, Tab> = { hours: 'hours', payments: 'payments', fulfilment: 'delivery', booking: 'delivery', returns: 'policies', phone: 'policies' };
+type Tab = 'items' | 'hours' | 'payments' | 'delivery' | 'policies' | 'faqs' | 'try';
+const TABS: Tab[] = ['items', 'hours', 'payments', 'delivery', 'policies', 'faqs', 'try'];
+/** Tabs with answers to save. The others do their own saving or are just for trying things out. */
+const FORM_TABS: Tab[] = ['hours', 'payments', 'delivery', 'policies'];
+const TAB_OF: Record<string, Tab> = { products: 'items', hours: 'hours', payments: 'payments', fulfilment: 'delivery', booking: 'delivery', returns: 'policies', phone: 'policies' };
 const DAYS = [['mon', 'Monday'], ['tue', 'Tuesday'], ['wed', 'Wednesday'], ['thu', 'Thursday'], ['fri', 'Friday'], ['sat', 'Saturday'], ['sun', 'Sunday']] as const;
 const PAY = [['bank_transfer', 'Bank transfer'], ['card_link', 'Online card payment link'], ['cash_on_delivery', 'Cash on delivery'], ['pay_at_shop', 'Pay in person']] as const;
 type Hours = Record<string, { closed: boolean; open: string; close: string }>;
@@ -49,7 +55,8 @@ function Form({ biz, owner }: { biz: BusinessDetail; owner: boolean }) {
   const [bankCode, setBankCode] = useState('');
   const [resolving, setResolving] = useState(false);
   const [acctErr, setAcctErr] = useState<string | null>(null);
-  const [tab, setTab] = useState<Tab>(() => TAB_OF[biz.readiness.items.find((i) => !i.done)?.key ?? ''] ?? 'hours');
+  const ai = useAiAvailable();
+  const [tab, setTab] = useState<Tab>(() => { const open = biz.readiness.items.find((i) => !i.done); return open ? TAB_OF[open.key] ?? 'items' : 'try'; });
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF((s) => ({ ...s, [k]: e.target.value }));
@@ -110,17 +117,38 @@ function Form({ biz, owner }: { biz: BusinessDetail; owner: boolean }) {
         ))}
       </CardBody></Card>
 
-      <div className="mb-8"><Tabs value={tab} onChange={setTab} tabs={[{ id: 'hours', label: 'Opening hours' }, { id: 'payments', label: 'Payments' }, { id: 'delivery', label: services ? 'Service' : 'Delivery' }, { id: 'policies', label: 'Policies & alerts' }]} /></div>
-      <fieldset disabled={!owner}>
+      <div className="mb-8"><Tabs value={tab} onChange={setTab} tabs={[{ id: 'items', label: services ? 'Services' : biz.kind === 'both' ? 'Products & services' : 'Products' }, { id: 'hours', label: 'Opening hours' }, { id: 'payments', label: 'Payments' }, { id: 'delivery', label: services ? 'Service' : 'Delivery' }, { id: 'policies', label: 'Policies & alerts' }, { id: 'faqs', label: 'FAQs' }, { id: 'try', label: 'Try it' }]} /></div>
+      {tab === 'items' && (
+        <div className="space-y-4">
+          {!ai.available && <Notice tone="warning" title="AI isn't switched on yet" />}
+          <ImportPanel />
+        </div>
+      )}
+      {tab === 'faqs' && (
+        <div className="space-y-4">
+          <p className="text-[13px] text-muted-foreground">Add the questions customers ask most, with your answers. Optional, and you can add as many as you like.</p>
+          <FaqList />
+          <div><Button variant="secondary" onClick={() => setTab('try')}>Next: try it</Button></div>
+        </div>
+      )}
+      {tab === 'try' && (
+        <div className="mx-auto max-w-xl">
+          <p className="mb-4 text-[13px] text-muted-foreground">Chat with your assistant the way a customer would. Nothing here is sent to anyone.</p>
+          <PracticePanel />
+        </div>
+      )}
+      <fieldset disabled={!owner} className={FORM_TABS.includes(tab) ? undefined : 'hidden'}>
         {tab === 'hours' && <Section title="Opening hours">
           <Card><CardBody className="space-y-2">
             {DAYS.map(([d, name]) => (
-              <div key={d} className="grid grid-cols-[5.5rem_minmax(0,1fr)_auto_minmax(0,1fr)_auto] items-center gap-2">
-                <span className="text-[13px]">{name}</span>
-                <Input type="time" disabled={hours[d]!.closed} value={hours[d]!.open} onChange={(e) => setHours((h) => ({ ...h, [d]: { ...h[d]!, open: e.target.value } }))} />
-                <span className="text-muted-foreground">to</span>
-                <Input type="time" disabled={hours[d]!.closed} value={hours[d]!.close} onChange={(e) => setHours((h) => ({ ...h, [d]: { ...h[d]!, close: e.target.value } }))} />
-                <label className="flex items-center gap-1.5 whitespace-nowrap text-[13px]"><input type="checkbox" checked={hours[d]!.closed} onChange={(e) => setHours((h) => ({ ...h, [d]: { ...h[d]!, closed: e.target.checked } }))} />Closed</label>
+              <div key={d} className="grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1.5 border-b border-border/50 pb-3 last:border-0 last:pb-0 sm:grid-cols-[5.5rem_minmax(0,1fr)_auto] sm:border-0 sm:pb-0">
+                <span className="text-[13px] font-medium sm:font-normal">{name}</span>
+                <label className="flex items-center gap-1.5 whitespace-nowrap text-[13px] sm:order-3"><input type="checkbox" checked={hours[d]!.closed} onChange={(e) => setHours((h) => ({ ...h, [d]: { ...h[d]!, closed: e.target.checked } }))} />Closed</label>
+                <div className="col-span-2 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:order-2 sm:col-span-1">
+                  <Input type="time" disabled={hours[d]!.closed} value={hours[d]!.open} onChange={(e) => setHours((h) => ({ ...h, [d]: { ...h[d]!, open: e.target.value } }))} />
+                  <span className="text-muted-foreground">to</span>
+                  <Input type="time" disabled={hours[d]!.closed} value={hours[d]!.close} onChange={(e) => setHours((h) => ({ ...h, [d]: { ...h[d]!, close: e.target.value } }))} />
+                </div>
               </div>
             ))}
           </CardBody></Card>
@@ -195,7 +223,8 @@ function Form({ biz, owner }: { biz: BusinessDetail; owner: boolean }) {
           </Card>
         </Section>}
       </fieldset>
-      {owner && <div className="mt-2"><Button onClick={() => void save()} loading={busy}>{tab === 'policies' ? 'Save' : 'Save and continue'}</Button></div>}
+      {owner && FORM_TABS.includes(tab) && <div className="mt-2"><Button onClick={() => void save()} loading={busy}>Save and continue</Button></div>}
+      {tab === 'items' && <div className="mt-6"><Button variant="secondary" onClick={() => setTab('hours')}>Next: opening hours</Button></div>}
     </div>
   );
 }
