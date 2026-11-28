@@ -12,7 +12,7 @@ export const ImportOut = z.object({
   products: z.array(z.object({ name: str(120), description: maybe(500), price: amount, variants: z.array(str(60)).max(30).nullish(), stock: amount })).max(300).default([]),
   zones: z.array(z.object({ area: str(80), fee: amount, eta: maybe(60) })).max(100).default([]),
   faqs: z.array(z.object({ question: str(200), answer: str(1000) })).max(60).default([]),
-  warnings: z.array(str(200)).max(40).default([])
+  detected: z.object({ businessName: maybe(120), phone: maybe(40) }).nullish()
 });
 
 export const InterviewOut = z.object({

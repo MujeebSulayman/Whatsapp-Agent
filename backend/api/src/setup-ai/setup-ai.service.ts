@@ -29,6 +29,14 @@ export function priceToMinor(raw: unknown, currency: string): number | null {
   return parseMoney(t, currency);
 }
 
+/** A phone number as printed ("0812 345 6789") to the digits-with-country-code form WhatsApp uses. Only Nigeria's local format is converted. */
+function toWaNumber(raw: string | null, country: string): string | null {
+  if (!raw) return null;
+  let d = raw.replace(/\D/g, '');
+  if (country === 'NG' && d.length === 11 && d.startsWith('0')) d = `234${d.slice(1)}`;
+  return /^\d{8,15}$/.test(d) && (raw.trim().startsWith('+') || d.length > 11 || country === 'NG') ? d : null;
+}
+
 @Injectable()
 export class SetupAiService {
   private readonly log = new Logger('SetupAI');
@@ -46,7 +54,7 @@ export class SetupAiService {
 
   private async facts(businessId: string): Promise<BizFacts> {
     const b = await this.db.business.findUniqueOrThrow({ where: { id: businessId } });
-    return { name: b.name, category: b.category, kind: b.kind, city: b.city, country: b.country, currency: b.currency };
+    return { name: b.name, category: b.category, kind: b.kind, city: b.city, country: b.country, currency: b.currency, fulfilment: b.fulfilment };
   }
 
   /** Every AI call: key present, under the hourly request limit, and under the business's daily spend cap. */
@@ -103,7 +111,7 @@ export class SetupAiService {
       system: importSystem(facts), user: parts.length === 1 && parts[0]!.type === 'text' ? parts[0]!.text : parts, schema: ImportOut
     });
 
-    const warnings = [...out.warnings];
+    const warnings: string[] = [];
     const seen = new Set<string>();
     const products = out.products.filter((p) => p.name).flatMap((p) => {
       const key = p.name.toLowerCase();
@@ -121,7 +129,16 @@ export class SetupAiService {
       const feeMinor = priceToMinor(z.fee, facts.currency);
       return { areaName: z.area, feeMinor, etaText: z.eta, issue: feeMinor === null ? 'Check the fee' : null };
     });
-    return { products, zones, faqs: out.faqs, warnings };
+    // Things the material says about the business itself, offered as one-click choices (never applied automatically).
+    const b = await this.db.business.findUniqueOrThrow({ where: { id: businessId }, select: { name: true, ownerPhone: true } });
+    const norm = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
+    const foundName = out.detected?.businessName ?? null;
+    const phone = toWaNumber(out.detected?.phone ?? null, facts.country);
+    const detected = {
+      businessName: foundName && norm(foundName) !== norm(b.name) ? foundName : null,
+      phone: phone && phone !== b.ownerPhone ? phone : null
+    };
+    return { products, zones, faqs: out.faqs.filter((f) => f.question && f.answer), warnings, detected };
   }
 
   /* ---------------- 2. draft FAQs and rules from a short interview ---------------- */

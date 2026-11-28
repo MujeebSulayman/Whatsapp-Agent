@@ -4,15 +4,15 @@ import Link from 'next/link';
 import { useRef, useState } from 'react';
 import { mutate } from 'swr';
 import { Button, Card, CardBody, CardHeader, Checkbox, ErrorNote, IconButton, Input, Notice, Skeleton, Textarea, useToast } from '@/components/ui';
-import { api } from '@/lib/api';
+import { api, useApi } from '@/lib/api';
 import { photoToDataUrl } from '@/lib/image';
-import type { ImportProposal } from '@/lib/types';
+import type { BusinessDetail, ImportProposal } from '@/lib/types';
 import { useLabels } from '@/lib/use-labels';
 import { useMoney } from '@/lib/use-money';
 import { cn } from '@/lib/utils';
 
-interface PRow { id: string; on: boolean; name: string; description: string; price: string; stock: string; variants: string; flagged: boolean }
-interface ZRow { id: string; on: boolean; area: string; fee: string; eta: string; flagged: boolean }
+interface PRow { id: string; check: boolean; on: boolean; name: string; description: string; price: string; stock: string; variants: string; flagged: boolean }
+interface ZRow { id: string; check: boolean; on: boolean; area: string; fee: string; eta: string; flagged: boolean }
 interface FRow { id: string; on: boolean; question: string; answer: string }
 interface Counts { productsAdded: number; productsUpdated: number; zones: number; faqs: number }
 
@@ -30,7 +30,9 @@ export function ImportPanel() {
   const [photos, setPhotos] = useState<{ id: string; url: string; name: string }[]>([]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [review, setReview] = useState<{ p: PRow[]; z: ZRow[]; f: FRow[]; warnings: string[] } | null>(null);
+  const [review, setReview] = useState<{ p: PRow[]; z: ZRow[]; f: FRow[]; warnings: string[]; detected: { businessName: string | null; phone: string | null } } | null>(null);
+  const [showAll, setShowAll] = useState({ p: false, z: false });
+  const [dismissed, setDismissed] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState<Counts | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -52,12 +54,22 @@ export function ImportPanel() {
     try {
       const r = await api.post<ImportProposal>('setup-ai/import', { text: text.trim() || undefined, images: photos.map((p) => p.url) });
       setReview({
-        p: r.products.map((x) => ({ id: uid(), on: true, name: x.name, description: x.description ?? '', price: x.priceMinor === null ? '' : money.toInput(x.priceMinor), stock: x.stockQty === null ? '' : String(x.stockQty), variants: x.variants.join(', '), flagged: x.priceMinor === null })),
-        z: r.zones.map((x) => ({ id: uid(), on: true, area: x.areaName, fee: x.feeMinor === null ? '' : money.toInput(x.feeMinor), eta: x.etaText ?? '', flagged: x.feeMinor === null })),
+        p: r.products.map((x) => ({ id: uid(), check: x.priceMinor === null, on: true, name: x.name, description: x.description ?? '', price: x.priceMinor === null ? '' : money.toInput(x.priceMinor), stock: x.stockQty === null ? '' : String(x.stockQty), variants: x.variants.join(', '), flagged: x.priceMinor === null })),
+        z: r.zones.map((x) => ({ id: uid(), check: x.feeMinor === null, on: true, area: x.areaName, fee: x.feeMinor === null ? '' : money.toInput(x.feeMinor), eta: x.etaText ?? '', flagged: x.feeMinor === null })),
         f: r.faqs.map((x) => ({ id: uid(), on: true, question: x.question, answer: x.answer })),
-        warnings: r.warnings
+        warnings: r.warnings,
+        detected: r.detected ?? { businessName: null, phone: null }
       });
+      setShowAll({ p: false, z: false });
+      setDismissed([]);
     } catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
+  }
+
+  async function useDetected(kind: 'name' | 'phone', value: string) {
+    try {
+      if (kind === 'name') await api.patch('business', { name: value }); else await api.put('business/setup', { ownerPhone: value });
+      await mutate('business'); setDismissed((d) => [...d, kind]); toast(kind === 'name' ? 'Business name updated' : 'Alert number saved');
+    } catch (e) { toast((e as Error).message, 'error'); }
   }
 
   const upP = (id: string, patch: Partial<PRow>) => setReview((r) => r && { ...r, p: r.p.map((x) => (x.id === id ? { ...x, ...patch } : x)) });
@@ -67,6 +79,9 @@ export function ImportPanel() {
   const pBad = (x: PRow) => x.on && (x.name.trim().length < 1 || money.parse(x.price) === null || (labels.showStock && x.stock.trim() !== '' && !/^\d+$/.test(x.stock.trim())));
   const zBad = (x: ZRow) => x.on && (x.area.trim().length < 2 || money.parse(x.fee) === null);
   const fBad = (x: FRow) => x.on && (x.question.trim().length < 3 || x.answer.trim().length < 1);
+  const { data: bizInfo } = useApi<BusinessDetail>('business');
+  const bizName = bizInfo?.name ?? 'your business';
+  const toCheck = review ? review.p.filter((x) => x.check).length + review.z.filter((x) => x.check).length : 0;
   const selected = review ? review.p.filter((x) => x.on).length + review.z.filter((x) => x.on).length + review.f.filter((x) => x.on).length : 0;
   const invalid = review ? review.p.some(pBad) || review.z.some(zBad) || review.f.some(fBad) : false;
 
@@ -162,6 +177,22 @@ export function ImportPanel() {
             </div>
             <Button variant="ghost" size="sm" onClick={() => setReview(null)}>Start over</Button>
           </div>
+          <Card><CardBody className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[13px]">
+            <span><span className="font-medium">{review.p.length}</span> {labels.items.toLowerCase()} found</span>
+            {review.z.length > 0 && <span><span className="font-medium">{review.z.length}</span> {labels.zones.toLowerCase()}</span>}
+            {review.f.length > 0 && <span><span className="font-medium">{review.f.length}</span> FAQ{review.f.length === 1 ? '' : 's'}</span>}
+            {toCheck > 0 ? <span className="text-warning">{toCheck} to check</span> : <span className="text-muted-foreground">Nothing needs checking</span>}
+          </CardBody></Card>
+          {review.detected.businessName && !dismissed.includes('name') && (
+            <Notice tone="warning" icon={<AlertTriangle />} title={`This looks like "${review.detected.businessName}", not "${bizName}"`}>
+              <div className="mt-2 flex flex-wrap gap-2"><Button size="sm" variant="secondary" onClick={() => useDetected('name', review.detected.businessName!)}>Rename business</Button><Button size="sm" variant="ghost" onClick={() => setDismissed((d) => [...d, 'name'])}>Keep {bizName}</Button></div>
+            </Notice>
+          )}
+          {review.detected.phone && !dismissed.includes('phone') && (
+            <Notice title={`Booking number found: ${review.detected.phone}`}>
+              <div className="mt-2 flex flex-wrap gap-2"><Button size="sm" variant="secondary" onClick={() => useDetected('phone', review.detected.phone!)}>Use it for my alerts</Button><Button size="sm" variant="ghost" onClick={() => setDismissed((d) => [...d, 'phone'])}>No thanks</Button></div>
+            </Notice>
+          )}
           {review.warnings.length > 0 && (
             <Notice tone="warning" icon={<AlertTriangle />} title="Check these">
               <ul className="space-y-0.5">{review.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>
@@ -172,9 +203,9 @@ export function ImportPanel() {
 
           {review.p.length > 0 && (
             <Card className="overflow-hidden">
-              <CardHeader title={`${labels.items} · ${review.p.filter((x) => x.on).length} of ${review.p.length}`} />
+              <CardHeader title={`${labels.items} · ${review.p.filter((x) => x.on).length} of ${review.p.length}`} description={review.p.some((x) => x.check) ? undefined : 'All prices were read clearly.'} action={review.p.some((x) => !x.check) ? <Button size="sm" variant="ghost" onClick={() => setShowAll((v) => ({ ...v, p: !v.p }))}>{showAll.p ? 'Show only those to check' : `Show all ${review.p.length}`}</Button> : undefined} />
               <div className="stagger divide-y divide-border/60 border-t">
-                {review.p.map((x) => (
+                {review.p.filter((x) => x.check || showAll.p).map((x) => (
                   <div key={x.id} className={cn('grid items-start gap-2 px-4 py-3 transition-opacity sm:grid-cols-[auto_1.4fr_1fr_0.7fr_1.2fr_auto]', !x.on && 'opacity-45')}>
                     <Checkbox checked={x.on} onChange={(e) => upP(x.id, { on: e.target.checked })} aria-label={`Include ${x.name}`} className="mt-2" />
                     <div className="space-y-1.5"><Input className={cell} value={x.name} onChange={(e) => upP(x.id, { name: e.target.value })} aria-label="Name" /><Input className={cn(cell, 'text-muted-foreground')} value={x.description} onChange={(e) => upP(x.id, { description: e.target.value })} placeholder="Description (optional)" aria-label="Description" /></div>
@@ -190,9 +221,9 @@ export function ImportPanel() {
 
           {review.z.length > 0 && (
             <Card className="overflow-hidden">
-              <CardHeader title={`${labels.zones} · ${review.z.filter((x) => x.on).length} of ${review.z.length}`} />
+              <CardHeader title={`${labels.zones} · ${review.z.filter((x) => x.on).length} of ${review.z.length}`} action={review.z.some((x) => !x.check) ? <Button size="sm" variant="ghost" onClick={() => setShowAll((v) => ({ ...v, z: !v.z }))}>{showAll.z ? 'Show only those to check' : `Show all ${review.z.length}`}</Button> : undefined} />
               <div className="stagger divide-y divide-border/60 border-t">
-                {review.z.map((x) => (
+                {review.z.filter((x) => x.check || showAll.z).map((x) => (
                   <div key={x.id} className={cn('grid items-start gap-2 px-4 py-3 transition-opacity sm:grid-cols-[auto_1.4fr_1fr_1fr_auto]', !x.on && 'opacity-45')}>
                     <Checkbox checked={x.on} onChange={(e) => upZ(x.id, { on: e.target.checked })} aria-label={`Include ${x.area}`} className="mt-2" />
                     <Input className={cell} value={x.area} onChange={(e) => upZ(x.id, { area: e.target.value })} aria-label="Area" />

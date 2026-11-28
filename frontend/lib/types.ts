@@ -52,7 +52,7 @@ export interface TeamMember { userId: string; role: 'owner' | 'agent'; email: st
 export interface ProposedProduct { name: string; description: string | null; priceMinor: number | null; variants: string[]; stockQty: number | null; issue: string | null }
 export interface ProposedZone { areaName: string; feeMinor: number | null; etaText: string | null; issue: string | null }
 export interface ProposedFaq { question: string; answer: string }
-export interface ImportProposal { products: ProposedProduct[]; zones: ProposedZone[]; faqs: ProposedFaq[]; warnings: string[] }
+export interface ImportProposal { products: ProposedProduct[]; zones: ProposedZone[]; faqs: ProposedFaq[]; warnings: string[]; detected?: { businessName: string | null; phone: string | null } }
 export interface InterviewDraft {
   faqs: ProposedFaq[]; paymentInfo: string | null; returnPolicy: string | null; businessHours: Record<string, string> | null;
   customInstructions: string | null; escalateKeywords: string[]; forbiddenTopics: string[];
