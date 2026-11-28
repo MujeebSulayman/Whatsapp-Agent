@@ -8,11 +8,18 @@ export const MAX_STEPS = 8;
  * The model sometimes says it did something without calling the tool. For actions that are safe to repeat we catch that and make it do
  * the real thing (or correct itself) once. Not done for orders: a wrong nudge there could create a duplicate order.
  */
-export const CLAIM_CHECKS: { tool: string; claim: RegExp; nudge: string }[] = [
+export const CLAIM_CHECKS: { tool: string; /** Any of these tools running successfully this turn backs the claim (default: just `tool`). */ satisfiedBy?: string[]; claim: RegExp; nudge: string }[] = [
   {
     tool: 'join_waitlist',
     claim: /((add(ed|ing)?|put|putting|placed?|got)\s+you\s+(on|to|in)\s+(the\s+)?(wait\s?-?list|list))|(you('re|\s+are|\s+will\s+be)\s+(now\s+)?on\s+the\s+(wait\s?-?list|list))|((i'?ll|i\s+will|we'?ll|we\s+will)\s+(add|put)\s+you)/i,
     nudge: 'You told the customer they are on the waitlist, but join_waitlist has not succeeded in this turn. Call join_waitlist now (use search_products first if you need the product_id, and ask which size or colour only if you truly do not know), then confirm. Do not claim it without the tool.'
+  },
+  {
+    // Saying "we don't sell that" is a claim about the catalogue. The business name and category say nothing about what is in it.
+    tool: 'search_products',
+    satisfiedBy: ['search_products', 'check_stock', 'suggest_alternatives'],
+    claim: /\b(don'?t|do\s+not|doesn'?t|does\s+not|no\s+longer)\s+(sell|have|offer|stock|carry|do)\s+(any\s+|that\s+|those\s+|this\s+|it\b|\w)|\b(not|isn'?t|aren'?t)\s+(available|in\s+stock|on\s+(our|the)\s+(menu|list))|\bwe\s+only\s+(sell|offer|do)\b|\bno\s+\w+\s+(here|available)\b/i,
+    nudge: "You told the customer you do not have or sell something, but you did not search the catalogue in this turn. The business name and category do NOT tell you what is for sale; the catalogue can include anything. Call search_products with the customer's own words now, then answer from the results."
   }
 ];
 
@@ -58,7 +65,7 @@ export async function runAgent(o: {
 
     if (!message.tool_calls?.length) {
       const text = (message.content ?? '').trim();
-      const unbacked = CLAIM_CHECKS.find((c) => claims(c.claim, text) && !result.toolCalls.some((t) => t.name === c.tool && !(t.result as { error?: unknown } | null)?.error) && !nudged.has(c.tool));
+      const unbacked = CLAIM_CHECKS.find((c) => claims(c.claim, text) && !result.toolCalls.some((t) => (c.satisfiedBy ?? [c.tool]).includes(t.name) && !(t.result as { error?: unknown } | null)?.error) && !nudged.has(c.tool));
       if (unbacked && step < MAX_STEPS - 1) {
         nudged.add(unbacked.tool);
         messages.push(message, { role: 'system', content: unbacked.nudge });

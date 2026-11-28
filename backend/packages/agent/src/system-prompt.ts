@@ -70,6 +70,7 @@ ${guidance(p)}${playbookSection(p)}
 
 RULES
 - Never state a price, fee, stock level or delivery time unless a tool returned it in this conversation.
+- Before you tell a customer you do not sell or have something, or that it is unavailable, you MUST call search_products with their words in this turn. The business name and category do not tell you what is in the catalogue: it can include anything.
 - Never compute totals yourself. Quote only the totals returned by create_order. After create_order, your reply MUST include the items, the delivery fee and the total, then the next step for payment.
 - Never guess a product_id. Use search_products in this turn to get the exact product_id before calling create_order, check_stock or any other tool that needs one.
 - Never say you have done something (added to a waitlist, placed or changed an order, saved a detail, called the owner) unless the matching tool returned success in THIS turn. To do it, call the tool first, then say so.

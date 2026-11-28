@@ -14,9 +14,10 @@ const scripted = (steps: ChatMessage[]) => {
 };
 const ran: string[] = [];
 const waitlist: Tool = { name: 'join_waitlist', description: 'x', schema: z.object({ product_id: z.string() }), async run() { ran.push('join_waitlist'); return { on_waitlist: true }; } };
+const search: Tool = { name: 'search_products', description: 'x', schema: z.object({ query: z.string() }), async run() { ran.push('search_products'); return { results: [] }; } };
 const payLink: Tool = { name: 'create_payment_link', description: 'x', schema: z.object({ order_id: z.string() }), async run() { return {}; } };
 const base = { db: {} as PrismaClient, businessId: 'b', currency: 'NGN', kind: 'goods' as const, conversationId: 'c', customerId: 'u' };
-const go = (llm: LlmClient, extra: object = {}) => runAgent({ llm, model: 'm', system: 's', history: [{ role: 'user', content: 'put me on the list for 43' }], ctx: { ...base, ...extra }, tools: [waitlist, payLink] });
+const go = (llm: LlmClient, extra: object = {}) => runAgent({ llm, model: 'm', system: 's', history: [{ role: 'user', content: 'put me on the list for 43' }], ctx: { ...base, ...extra }, tools: [waitlist, payLink, search] });
 
 describe('claims without action', () => {
   it('when the model says it added the customer to the waitlist without calling the tool, it is made to call it', async () => {
@@ -54,9 +55,34 @@ describe('payment link tool', () => {
   it('is offered to the model only when the business has online payments', async () => {
     const a = scripted([say('ok')]);
     await go(a.llm);
-    expect(a.seen[0]!.tools).toEqual(['join_waitlist']);
+    expect(a.seen[0]!.tools).toEqual(['join_waitlist', 'search_products']);
     const b = scripted([say('ok')]);
     await go(b.llm, { payments: { createLink: async () => ({ error: 'x' }) } });
-    expect(b.seen[0]!.tools).toEqual(['join_waitlist', 'create_payment_link']);
+    expect(b.seen[0]!.tools).toEqual(['join_waitlist', 'create_payment_link', 'search_products']);
+  });
+});
+
+describe('saying "we do not sell that" without looking', () => {
+  it('is sent back to search the catalogue first', async () => {
+    ran.length = 0;
+    const { llm, seen } = scripted([say("We don't sell rice here. We offer spa services."), call('search_products', { query: 'rice' }), say('Yes, we have Rice (50kg) at ₦85,000.')]);
+    const r = await go(llm);
+    expect(ran).toEqual(['search_products']);
+    expect(r.reply).toBe('Yes, we have Rice (50kg) at ₦85,000.');
+    expect(seen[1]!.messages.at(-1)).toMatchObject({ role: 'system', content: expect.stringMatching(/did not search the catalogue/) });
+  });
+
+  it('is left alone when it did search, even if the answer is no', async () => {
+    const { llm, seen } = scripted([call('search_products', { query: 'rice' }), say("Sorry, we don't have rice.")]);
+    expect((await go(llm)).reply).toBe("Sorry, we don't have rice.");
+    expect(seen).toHaveLength(2);
+  });
+
+  it('does not fire on ordinary declines like off-topic questions', async () => {
+    for (const text of ["Sorry, I can't help with that. Can I help you with an order?", 'Sorry, I can’t do that.', 'Party packs need 24 hours notice.']) {
+      const { llm, seen } = scripted([say(text)]);
+      await go(llm);
+      expect(seen, text).toHaveLength(1);
+    }
   });
 });
