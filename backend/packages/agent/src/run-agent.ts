@@ -29,6 +29,44 @@ export function claims(re: RegExp, text: string): boolean {
   return text.split(/(?<=[.!?])\s+/).some((sentence) => re.test(sentence) && !/\?\s*$/.test(sentence) && !OFFER.test(sentence));
 }
 
+const NUM = /\d[\d,]*(?:\.\d+)?/g;
+const norm = (n: string) => String(Number(n.replace(/,/g, '')));
+/** Amounts that look like money in a reply: next to a currency symbol or code, or written with thousands separators. */
+const MONEY = /(?:[₦$€£¥₹]|\b(?:NGN|USD|GHS|KES|ZAR|EUR|GBP|CFA|XOF)\b)\s?(\d[\d,]*(?:\.\d+)?)|(\d{1,3}(?:,\d{3})+(?:\.\d+)?)/g;
+
+/**
+ * Amounts in the reply that no tool returned and nobody in the chat mentioned. The assistant may never state a price from memory
+ * or guess one, so any such amount means it made it up (or did its own sums).
+ */
+export function ungroundedAmounts(reply: string, history: { content: string | null }[], toolOutputs: unknown[]): string[] {
+  const known = new Set<string>();
+  const sources = [...history.map((m) => m.content ?? ''), ...toolOutputs.map((o) => JSON.stringify(o))];
+  for (const text of sources) for (const m of text.matchAll(NUM)) known.add(norm(m[0]));
+  const bad: string[] = [];
+  for (const m of reply.matchAll(MONEY)) {
+    const raw = (m[1] ?? m[2])!;
+    if (!known.has(norm(raw)) && Number(norm(raw)) > 0) bad.push(raw);
+  }
+  return [...new Set(bad)];
+}
+
+/** A customer turning something down ("not interested", "too expensive", "no thanks"). */
+const DECLINE = /(not\s+interested|no,?\s+thanks?|no\s+thank\s+you|i'?m\s+good|i\s+don'?t\s+(want|need)|too\s+(expensive|costly|much|pricey)|maybe\s+later|never\s?mind|forget\s+it|leave\s+it)|^\s*no[.!\s]*$/i;
+/** They want it to stop. Never pushed back on. */
+const STOP = /\b(stop|leave\s+me\s+alone|unsubscribe|spam|don'?t\s+(message|text|contact|disturb|call)|do\s+not\s+(message|text|contact|disturb))\b/i;
+
+/**
+ * True on a customer's FIRST decline when the reply just says goodbye. A good shop assistant makes one friendly attempt first.
+ * Never on a second no, and never when the customer asked to be left alone.
+ */
+export function needsSaveAttempt(history: { role: string; content: string | null }[], reply: string): boolean {
+  const said = history.filter((m) => m.role === 'user').map((m) => m.content ?? '');
+  const last = said.at(-1) ?? '';
+  if (!DECLINE.test(last) || STOP.test(last)) return false;
+  if (said.filter((t) => DECLINE.test(t)).length !== 1) return false; // second or later no: respect it
+  return !reply.includes('?'); // no question = no attempt, it just said goodbye
+}
+
 export interface AgentResult {
   reply: string;
   model: string;
@@ -51,7 +89,7 @@ export async function runAgent(o: {
   // The payment-link tool is only offered when this business actually has online payments set up.
   const tools = (o.tools ?? TOOLS).filter((t) => t.name !== 'create_payment_link' || !!o.ctx.payments);
   const defs = toolDefs(tools);
-  const state = { handedOff: false };
+  const state = { handedOff: false } as ToolContext['state'];
   const ctx: ToolContext = { ...o.ctx, state };
   const messages: ChatMessage[] = [{ role: 'system', content: o.system }, ...o.history];
   const result: AgentResult = { reply: '', model: o.model, inputTokens: 0, outputTokens: 0, costUsd: 0, toolCalls: [], handedOff: false, hitStepCap: false };
@@ -66,6 +104,25 @@ export async function runAgent(o: {
     if (!message.tool_calls?.length) {
       const text = (message.content ?? '').trim();
       const unbacked = CLAIM_CHECKS.find((c) => claims(c.claim, text) && !result.toolCalls.some((t) => (c.satisfiedBy ?? [c.tool]).includes(t.name) && !(t.result as { error?: unknown } | null)?.error) && !nudged.has(c.tool));
+      const madeUp = ungroundedAmounts(text, o.history, result.toolCalls.map((t) => t.result));
+      if (madeUp.length) {
+        if (!nudged.has('grounding') && step < MAX_STEPS - 1) {
+          nudged.add('grounding');
+          messages.push(message, { role: 'system', content: `Your reply states an amount (${madeUp.join(', ')}) that no tool returned. Never state a price or amount from memory or guess one, and never name a product a tool did not return. Call search_products (or the right tool) now and use ONLY the exact products and amounts it returns. If you cannot find it, say you will check with the team.` });
+          continue;
+        }
+        // Still not backed after one correction: never send a made-up price. Hold the customer and call the owner in.
+        const handoff = tools.find((t) => t.name === 'handoff_to_human');
+        if (handoff) await handoff.run(ctx, { reason: 'The assistant could not confirm a price', summary: `The assistant could not back an amount it was about to quote (${madeUp.join(', ')}). Please check the last message and reply.` });
+        result.reply = "I'd like to double-check that price for you. Let me confirm with the team and get back to you shortly.";
+        result.handedOff = state.handedOff;
+        return result;
+      }
+      if (!unbacked && !nudged.has('save') && step < MAX_STEPS - 1 && needsSaveAttempt(o.history, text)) {
+        nudged.add('save');
+        messages.push(message, { role: 'system', content: 'The customer just said no for the first time. Do not say goodbye yet. Send ONE short, warm message that asks what held them back (price, size, timing, something else) OR offers one relevant alternative. Any alternative MUST come from search_products or suggest_alternatives in this turn: call it first and name only what it returns, never a product or price from memory. No pressure, no invented offers or deadlines. If they say no again later, let them go gracefully.' });
+        continue;
+      }
       if (unbacked && step < MAX_STEPS - 1) {
         nudged.add(unbacked.tool);
         messages.push(message, { role: 'system', content: unbacked.nudge });

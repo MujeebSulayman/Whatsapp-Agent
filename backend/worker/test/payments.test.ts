@@ -98,6 +98,17 @@ describe('what the assistant is told about paying', () => {
     expect(p).not.toMatch(/Pidgin/); // only named for Nigerian businesses
     expect(buildSystemPrompt({ ...base, country: 'Nigeria' })).toMatch(/such as Nigerian Pidgin/);
   });
+  it('teaches it to try once to keep a customer who declines, then respect a firm no', () => {
+    const p = buildSystemPrompt(base);
+    expect(p).toMatch(/WHEN A CUSTOMER SAYS NO/);
+    expect(p).toMatch(/send ONE short, warm message/);
+    expect(p).toMatch(/Respect a clear no completely/);
+    expect(p).toMatch(/Never invent offers, deadlines, scarcity/);
+  });
+  it('only offers a discount when the owner allows one', () => {
+    expect(buildSystemPrompt({ ...base, maxDiscountPct: 10 })).toMatch(/discount of up to 10% \(never more\)/);
+    expect(buildSystemPrompt({ ...base, maxDiscountPct: 0 })).toMatch(/there is no discount to offer/);
+  });
   it('tells it never to claim an action it did not take', () => {
     expect(buildSystemPrompt(base)).toMatch(/Never say you have done something.*unless the matching tool returned success/);
   });

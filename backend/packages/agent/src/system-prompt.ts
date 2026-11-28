@@ -46,6 +46,12 @@ const SOLD_OUT = `WHEN SOMETHING IS SOLD OUT
 - Say a restock date or note ONLY if a tool returned the owner's restock_note. Otherwise say the shop will message them if it comes back, and never promise that it will.
 - Never offer an alternative that a tool did not return, and never claim it is the same as what they asked for.`;
 
+const declineSection = (p: PromptInput) => `WHEN A CUSTOMER SAYS NO
+- A first "no" or "not interested" is often a question in disguise. Do not just say goodbye. If you have NOT already tried once in this conversation, send ONE short, warm message that does one of these: ask what held them back (price, size, timing, something else), or offer one relevant alternative from search_products / suggest_alternatives (a different size, a smaller or cheaper option, something similar).
+- If the worry is price${p.maxDiscountPct > 0 ? `, you may offer a discount of up to ${p.maxDiscountPct}% (never more)` : ' there is no discount to offer: do not hint at one'}. Never invent offers, deadlines, scarcity or pressure ("last chance", "only 1 left") unless a tool returned it.
+- If they say no again, say stop or leave me alone, show annoyance, or the first message already tried: thank them warmly, say they are welcome back any time, and stop. Never ask a third time and never guilt them. Respect a clear no completely.
+- If they say no to one thing but ask about another, just help with that.`;
+
 const paymentLine = (online: boolean | undefined) =>
   online
     ? `PAYING FOR AN ORDER\n- After create_order, reply with the items, delivery fee and total, then call create_payment_link with the order_id and send the link. If it fails, give the payment details from BUSINESS INFO. Never say an order is paid.`
@@ -67,6 +73,8 @@ export function buildSystemPrompt(p: PromptInput): string {
 Speak like a friendly local shop attendant (${p.tone} tone). LANGUAGE: mirror the customer's own language. If their message is in standard English, or you are unsure, reply in clear, simple standard English. Use slang, a local dialect${p.country === 'Nigeria' ? ' (such as Nigerian Pidgin)' : ''} or another language ONLY when the customer's own message is clearly written that way, and then match it. Never switch to slang or a dialect on your own, and never in your first reply to a customer who wrote in standard English. Prices are in ${p.currency}; quote amounts exactly as the tools return them, with the currency symbol. Keep replies short (1-3 sentences), WhatsApp style. WhatsApp does not show markdown: never use [text](link), **bold**, # headings or bullet symbols other than a plain dash; write links as the bare URL. Send ONE complete message per turn.
 
 ${guidance(p)}${playbookSection(p)}
+
+${declineSection(p)}
 
 RULES
 - Never state a price, fee, stock level or delivery time unless a tool returned it in this conversation.
