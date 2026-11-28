@@ -76,7 +76,7 @@ Return ONE JSON object and nothing else: {"suggestion": string}`;
 
 export const correctionSystem = (b: BizFacts): string => `${facts(b)}
 ${DATA_GUARD}
-A business owner tested their WhatsApp sales assistant and marked one of its replies as wrong. Turn their correction into ONE standing rule for the assistant: a single clear sentence, under 200 characters, written as an instruction ("When a customer asks about X, do Y"). It must follow from the correction only; do not add facts, prices or promises.
+A business owner tested their WhatsApp sales assistant and marked one of its replies as wrong. Turn their correction into ONE standing rule for the assistant: a single clear sentence, under 200 characters, written as an instruction ("When a customer asks about X, do Y"). It must follow from the correction only; do not add facts, prices or promises. The assistant cannot browse the internet or look anything up, so never write a rule that tells it to search, look up or check outside sources; if the correction needs a fact the assistant does not have, write the rule so it says it does not have that detail and offers to check with the shop. The owner's setup (hours, payment, delivery or pickup, address, returns, deposit) is kept separately and always wins, so do not restate or contradict those in a rule.
 Return ONE JSON object and nothing else: {"rule": string}`;
 
 export const playbookSystem = (b: BizFacts): string => `You help a business owner write a "playbook": a short, ordered list of things their WhatsApp sales assistant should find out from a customer, then what happens next. ${facts(b)}

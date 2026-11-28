@@ -129,6 +129,12 @@ export function PracticePanel() {
       </div>
 
       {err && <div className="px-4 pb-2"><ErrorNote>{err}</ErrorNote></div>}
+      {turns.some((t) => t.handedOff) ? (
+        <div className="m-3 mt-0 flex items-center justify-between gap-3 rounded-xl border bg-muted/40 px-3.5 py-2.5 text-[13px]">
+          <span className="text-muted-foreground">Handed to you. In a real chat the assistant stays quiet from here and you reply.</span>
+          <Button size="sm" variant="secondary" onClick={() => { setTurns([]); setFixing(null); setErr(null); }}><RotateCcw className="size-3.5" />Start over</Button>
+        </div>
+      ) : (
       <form className="p-3 pt-0" onSubmit={(e) => { e.preventDefault(); void send(); }}>
         <div className="flex items-center gap-2 rounded-xl border border-input-border bg-input p-1.5 pl-3.5 shadow-[var(--input-shadow)] transition-[border-color,box-shadow] duration-150 hover:border-ring/70 focus-within:border-brand/70 focus-within:ring-[3px] focus-within:ring-brand/20">
           <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Message…" maxLength={2000} aria-label="Customer message"
@@ -136,6 +142,7 @@ export function PracticePanel() {
           <Button type="submit" size="sm" className="size-8 px-0" disabled={!text.trim() || busy} aria-label="Send"><ArrowUp className="size-4" /></Button>
         </div>
       </form>
+      )}
     </Card>
   );
 }
