@@ -151,7 +151,7 @@ describe('agent loop', () => {
     await newTurn('loop forever');
     const llm = scripted([() => toolCall('search_products', { query: 'x' })]);
     await handleInbound(deps(llm), job);
-    expect(llm.calls).toHaveLength(MAX_STEPS);
+    expect(llm.calls).toHaveLength(MAX_STEPS + 1); // the last one asks for a plain answer, and gets another tool call, so it hands over
     expect((await prisma.conversation.findUniqueOrThrow({ where: { id: convId } })).status).toBe('human');
     expect(sent).toEqual([FALLBACK_TEXT]);
   });

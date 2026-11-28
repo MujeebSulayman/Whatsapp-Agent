@@ -5,7 +5,7 @@ import type { Tool, ToolContext } from './tools/types.js';
 
 export { ungroundedAmounts, unknownNames };
 
-export const MAX_STEPS = 8;
+export const MAX_STEPS = 10;
 /** Room for a 30-item list with prices, and no more. */
 export const MAX_REPLY_TOKENS = 1200;
 
@@ -96,7 +96,7 @@ export function escalationHit(text: string, keywords: string[]): string | null {
 }
 
 /** The customer is asking for a person ("I want to speak to a human", "customer care please", "put me through to the owner"). */
-const WANTS_HUMAN = /^\s*(?:an?\s+)?(?:agent|human|person|representative|manager|owner|attendant|someone)\s*(?:please|pls|now|abeg)?[\s.!?]*$|\b(speak|talk|chat|connect|transfer|put\s+me\s+(through|on)|get\s+me|call)\b.{0,30}\b(human|person|someone|somebody|agent|representative|manager|owner|staff|attendant|customer\s+(care|service|support)|real\s+(person|human))\b|\b(human|real\s+person|live\s+agent|customer\s+(care|service|support)|an?\s+agent|the\s+owner|the\s+manager)\b[\s,.!?]*(please|pls|now|abeg)?[\s,.!?]*$/i;
+const WANTS_HUMAN = /^\s*(?:an?\s+)?(?:agent|human|person|representative|manager|owner|attendant|someone)\s*(?:please|pls|now|abeg)?[\s.!?]*$|\b(speak|talk|chat|connect|transfer|put\s+me\s+(through|on)|get\s+me|call)\b.{0,30}\b(human|person|someone|somebody|agent|representative|manager|owner|staff|attendant|customer\s+(care|service|support)|real\s+(person|human))\b|\b(human|real\s+person|live\s+agent|customer\s+(care|service|support)|an?\s+agent)\b[\s,.!?]*(please|pls|now|abeg)?[\s,.!?]*$|\b(?:need|want|get|see|call|fetch|bring)\s+(?:me\s+)?(?:to\s+)?(?:the|an?|your)\s+(?:owner|manager|boss)\b[\s,.!?]*(?:please|pls|now|abeg)?[\s,.!?]*$/i;
 export const wantsHuman = (text: string) => WANTS_HUMAN.test(text);
 
 /** Things a customer must never be shown: a model's internal notes, special tokens, or its reasoning. */
@@ -257,7 +257,20 @@ export async function runAgent(o: {
     }
   }
 
-  // Step cap hit: stop looping, hand to a human rather than guess.
+  // Out of steps. Rather than stall or hand the chat over, ask once for a plain answer from what the tools already returned.
+  try {
+    const last = await o.llm.chat({ model: o.model, messages: [...messages, { role: 'system', content: 'Reply to the customer now in one short, helpful message, using only what the tools already returned. Do not call any more tools and do not mention these notes.' }], maxTokens: MAX_REPLY_TOKENS });
+    result.inputTokens += last.usage.inputTokens; result.outputTokens += last.usage.outputTokens; result.costUsd += last.usage.costUsd;
+    let text = stripArtifacts((last.message.content ?? '').trim());
+    const unbacked = text ? ungroundedAmounts(text, [...o.history, { content: o.system }], result.toolCalls.map((t) => t.result)) : [];
+    if (unbacked.length) text = withoutAmounts(text, unbacked);
+    if (text && !hasModelArtifacts(text) && !(last.message.tool_calls?.length)) {
+      result.reply = toWhatsAppText(text);
+      result.handedOff = state.handedOff;
+      return result;
+    }
+  } catch { /* fall through to the hand-over below */ }
+  // Still nothing usable: hand to a human rather than guess.
   result.hitStepCap = true;
   result.handedOff = state.handedOff;
   return result;

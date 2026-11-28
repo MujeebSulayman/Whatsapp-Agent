@@ -243,10 +243,10 @@ describe('the owner\'s "call me in when they say" words', () => {
 
 describe('asking for a person', () => {
   it('is recognised in the ways people say it', () => {
-    for (const t of ['I want to speak to a human', 'agent please', 'customer care please', 'can I talk to someone', 'put me through to the owner', 'let me chat with a real person', 'connect me to a manager', 'I need the owner', 'human', 'Customer service!']) expect(wantsHuman(t), t).toBe(true);
+    for (const t of ['I want to speak to a human', 'agent please', 'customer care please', 'can I talk to someone', 'put me through to the owner', 'let me chat with a real person', 'connect me to a manager', 'I need the owner', 'I want the manager', 'get me the owner please', 'human', 'Customer service!']) expect(wantsHuman(t), t).toBe(true);
   });
   it('is not triggered by ordinary shopping talk', () => {
-    for (const t of ['how much is rice?', 'is the agent fee included', 'my husband is the owner of this card', 'call me tomorrow with the price list', 'hi', 'I want 2 garri']) expect(wantsHuman(t), t).toBe(false);
+    for (const t of ['how much is rice?', 'is the agent fee included', 'my husband is the owner of this card', 'call me tomorrow with the price list', 'hi', 'I want 2 garri', 'who is the owner?', 'tell the owner thanks', 'is the manager around today?']) expect(wantsHuman(t), t).toBe(false);
   });
   it('makes the model hand over, or does it itself', async () => {
     ran.length = 0;
@@ -333,5 +333,17 @@ describe('an empty answer from the model', () => {
     expect(a.seen).toHaveLength(2);
     const b = scripted([say('   ')]);
     expect((await go(b.llm, {}, [{ role: 'user', content: 'price of rice?' }])).reply).toBe("Sorry, I didn't catch that. Could you say it again?");
+  });
+});
+
+describe('running out of steps', () => {
+  it('asks once for a plain answer from what it already learned instead of stalling', async () => {
+    const lookups = Array.from({ length: 10 }, () => call('search_products', { query: 'rice' }));
+    const { llm, seen } = scripted([...lookups, say('Rice is ₦85,000 and we have 2 bags left.')]);
+    const found = { name: 'search_products', description: 'x', schema: z.object({ query: z.string() }), async run() { return { results: [{ name: 'Rice (50kg)', price: '₦85,000' }] }; } } as Tool;
+    const r = await runAgent({ llm, model: 'm', system: 's', history: [{ role: 'user', content: 'rice?' }], ctx: { ...base }, tools: [found, handoff] });
+    expect(r.reply).toBe('Rice is ₦85,000 and we have 2 bags left.');
+    expect(r.hitStepCap).toBe(false);
+    expect(seen).toHaveLength(11);
   });
 });

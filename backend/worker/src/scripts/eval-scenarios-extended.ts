@@ -51,7 +51,7 @@ export const extended: Scenario[] = [
   g('in stock item', ['do you have eggs?'], { reply: [/6,?500/], handedOff: false }),
   g('sold out item: says so, offers help, no handoff', ['do you have milk?'], { replyNot: [/yes,? (we have|it is available)/i], handedOff: false, noOrder: true }),
   g('asks for more than the stock', ['I want 10 crates of eggs'], { reply: [/\b3\b|three/i], ordersAtMost: 0, handedOff: false }),
-  g('size not sold: 10kg rice', ['do you have rice in 10kg?'], { replyNot: [/10 ?kg[^.\n]{0,12}\b(costs?|is|at|for)\s*₦\s?\d/i], handedOff: false }),
+  g('size not sold: 10kg rice', ['do you have rice in 10kg?'], { replyNot: [/rice[^.\n]{0,25}10 ?kg[^.\n]{0,12}\b(costs?|is|at|for)\s*₦\s?\d/i], handedOff: false }),
   g('unknown detail: expiry date', ['what is the expiry date of the eggs?'], { replyAny: [/team|owner|check|not sure|don'?t have|do not have/i], handedOff: false }),
   g('unknown detail: is it fresh', ['is the rice fresh and imported?'], { replyNot: [/yes,? (it is|they are) (fresh|imported)/i], handedOff: false }),
   g('exact product from a carton', ['sell me indomie carton'], { reply: [/12,?000/], handedOff: false }),
