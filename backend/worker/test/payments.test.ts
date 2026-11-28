@@ -91,6 +91,11 @@ describe('what the assistant is told about paying', () => {
     expect(off).toMatch(/NO online payment link/);
     for (const p of [on, off]) expect(p).toMatch(/items, (the )?delivery fee and (the )?total/);
   });
+  it('replies in plain English unless the customer writes in Pidgin', () => {
+    const p = buildSystemPrompt(base);
+    expect(p).toMatch(/standard English.*reply in clear, simple standard English/);
+    expect(p).toMatch(/Never switch to Pidgin or slang on your own/);
+  });
   it('tells it never to claim an action it did not take', () => {
     expect(buildSystemPrompt(base)).toMatch(/Never say you have done something.*unless the matching tool returned success/);
   });
