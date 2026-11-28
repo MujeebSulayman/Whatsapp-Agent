@@ -119,9 +119,9 @@ function Form({ biz, owner }: { biz: BusinessDetail; owner: boolean }) {
           </CardBody></Card>
         </Section>
 
-        <Section title={services ? 'Where the service happens' : 'Getting it to the customer'}>
+        <Section title={services ? 'Where the service happens' : 'Delivery or pickup'}>
           <Card><CardBody className="space-y-4">
-            <Field label="How do customers get it?"><Select value={f.fulfilment} onChange={set('fulfilment')}><option value="">Choose…</option>{fulOptions.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</Select></Field>
+            <Field label={services ? 'Where do you do the service?' : 'How do customers get their order?'}><Select value={f.fulfilment} onChange={set('fulfilment')}><option value="">Choose…</option>{fulOptions.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</Select></Field>
             {needsAddress && <Field label="Your address"><Input value={f.address} onChange={set('address')} /></Field>}
             {['delivery', 'both'].includes(f.fulfilment) && !services && <p className="text-[13px] text-muted-foreground">Add the areas you cover and their fees under <Link href="/business?tab=delivery" className="text-brand underline">Business</Link>.</p>}
             {!services && (
@@ -134,10 +134,10 @@ function Form({ biz, owner }: { biz: BusinessDetail; owner: boolean }) {
         </Section>
 
         {showServices && (
-          <Section title="Booking rules">
+          <Section title="Cancellations and deposit">
             <Card><CardBody className="grid gap-4 sm:grid-cols-2">
-              <Field label="Free cancellation up to (hours before)" hint="0 means any time"><Input inputMode="numeric" value={f.cancellationHours} onChange={set('cancellationHours')} /></Field>
-              <Field label="Deposit to book?"><Select value={f.deposit} onChange={set('deposit')}><option value="">Choose…</option><option value="no">No deposit</option><option value="yes">Deposit required</option></Select></Field>
+              <Field label="Customers can cancel free until … hours before" hint="Example: 24 means they must cancel a day ahead. 0 means they can cancel any time."><Input inputMode="numeric" value={f.cancellationHours} onChange={set('cancellationHours')} /></Field>
+              <Field label="Do customers pay a deposit to book?"><Select value={f.deposit} onChange={set('deposit')}><option value="">Choose…</option><option value="no">No, they pay later</option><option value="yes">Yes, a deposit is needed</option></Select></Field>
             </CardBody></Card>
           </Section>
         )}

@@ -71,7 +71,7 @@ export function weeklyHours(h: unknown): Partial<Record<Day, string>> | null {
   if (!h || typeof h !== 'object') return null;
   const o = h as Record<string, unknown>;
   const out: Partial<Record<Day, string>> = {};
-  for (const d of DAYS) if (typeof o[d] === 'string') out[d] = o[d] as string;
+  for (const d of DAYS) if (typeof o[d] === 'string' && /^(closed|\d\d:\d\d-\d\d:\d\d)$/.test(o[d] as string)) out[d] = o[d] as string;
   return Object.keys(out).length ? out : null;
 }
 
