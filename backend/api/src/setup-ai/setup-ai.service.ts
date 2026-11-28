@@ -120,7 +120,7 @@ export class SetupAiService {
       const priceMinor = priceToMinor(p.price, facts.currency);
       const stock = p.stock === null || p.stock === undefined ? null : Number(p.stock);
       return [{
-        name: p.name, description: p.description, priceMinor,
+        name: p.name, category: p.category, description: p.description, priceMinor,
         variants: (p.variants ?? []).filter(Boolean), stockQty: stock !== null && Number.isInteger(stock) && stock >= 0 ? stock : null,
         issue: priceMinor === null ? 'Check the price' : null
       }];
@@ -235,7 +235,7 @@ export class SetupAiService {
       for (const p of body.products) {
         // Stock is only counted when the owner gave a number (and the business sells stocked goods). No number = always available, never "sold out".
         const counted = typeof p.stockQty === 'number' && business.kind !== 'services';
-        const data = { description: p.description ?? null, priceMinor: p.priceMinor, ...(counted ? { stockQty: p.stockQty!, trackStock: true } : {}), variants: p.variants?.length ? (p.variants.map((name) => ({ name })) as Prisma.InputJsonValue) : undefined };
+        const data = { description: p.description ?? null, ...(p.category ? { category: p.category } : {}), priceMinor: p.priceMinor, ...(counted ? { stockQty: p.stockQty!, trackStock: true } : {}), variants: p.variants?.length ? (p.variants.map((name) => ({ name })) as Prisma.InputJsonValue) : undefined };
         const existing = await tx.product.findFirst({ where: { businessId, name: { equals: p.name, mode: 'insensitive' } } });
         if (existing) { await tx.product.update({ where: { id: existing.id }, data }); touchedProducts.push(existing.id); counts.productsUpdated++; }
         else { touchedProducts.push((await tx.product.create({ data: { businessId, name: p.name, trackStock: false, ...data } })).id); counts.productsAdded++; }

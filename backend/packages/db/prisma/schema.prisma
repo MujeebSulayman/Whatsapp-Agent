@@ -171,6 +171,8 @@ model Product {
   businessId  String   @map("business_id")
   name        String
   description String?
+  /// Group the owner uses, e.g. "Massage Therapy". Lets customers ask "what massages do you have?"
+  category    String?
   priceMinor   Int      @map("price_minor")
   variants    Json?
   stockQty    Int      @default(0) @map("stock_qty")

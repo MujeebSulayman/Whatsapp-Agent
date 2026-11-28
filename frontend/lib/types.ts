@@ -14,7 +14,7 @@ export interface BusinessDetail {
   setup: { whatsapp: boolean; products: boolean; zones: boolean; faqs: boolean };
 }
 
-export interface Product { id: string; name: string; description: string | null; priceMinor: number; stockQty: number; trackStock: boolean; variants: { name: string; stockQty?: number | null; image?: string | null }[] | null; restockNote: string | null; allowPreorder: boolean; imageUrls: string[]; active: boolean }
+export interface Product { id: string; name: string; category?: string | null; description: string | null; priceMinor: number; stockQty: number; trackStock: boolean; variants: { name: string; stockQty?: number | null; image?: string | null }[] | null; restockNote: string | null; allowPreorder: boolean; imageUrls: string[]; active: boolean }
 export interface Zone { id: string; areaName: string; feeMinor: number; etaText: string }
 export interface Faq { id: string; question: string; answer: string }
 
@@ -49,7 +49,7 @@ export interface Analytics {
 export interface TeamMember { userId: string; role: 'owner' | 'agent'; email: string; name: string | null }
 
 /* ---- AI setup assistant ---- */
-export interface ProposedProduct { name: string; description: string | null; priceMinor: number | null; variants: string[]; stockQty: number | null; issue: string | null }
+export interface ProposedProduct { name: string; category?: string | null; description: string | null; priceMinor: number | null; variants: string[]; stockQty: number | null; issue: string | null }
 export interface ProposedZone { areaName: string; feeMinor: number | null; etaText: string | null; issue: string | null }
 export interface ProposedFaq { question: string; answer: string }
 export interface ImportProposal { products: ProposedProduct[]; zones: ProposedZone[]; faqs: ProposedFaq[]; warnings: string[]; detected?: { businessName: string | null; phone: string | null } }

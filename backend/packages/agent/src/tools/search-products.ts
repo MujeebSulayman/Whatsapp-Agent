@@ -26,7 +26,7 @@ export const searchProducts = defineTool({
         businessId: ctx.businessId,
         active: true,
         ...(terms.length
-          ? { OR: terms.flatMap((t) => [{ name: { contains: t, mode: 'insensitive' as const } }, { description: { contains: t, mode: 'insensitive' as const } }]) }
+          ? { OR: terms.flatMap((t) => [{ name: { contains: t, mode: 'insensitive' as const } }, { description: { contains: t, mode: 'insensitive' as const } }, { category: { contains: t, mode: 'insensitive' as const } }]) }
           : {})
       },
       take: 5,
@@ -41,6 +41,7 @@ export const searchProducts = defineTool({
       results: products.map((p) => ({
         product_id: p.id,
         name: p.name,
+        ...(p.category ? { category: p.category } : {}),
         description: p.description,
         price: formatMoney(p.priceMinor, ctx.currency),
         ...stockInfo(p, reserved)

@@ -9,7 +9,7 @@ const amount = z.union([z.string(), z.number()]).nullish();
 
 /** What the model may return when reading a price list. Deliberately forgiving: bad rows are flagged, not fatal. */
 export const ImportOut = z.object({
-  products: z.array(z.object({ name: str(120), description: maybe(500), price: amount, variants: z.array(str(60)).max(30).nullish(), stock: amount })).max(300).default([]),
+  products: z.array(z.object({ name: str(120), category: maybe(60), description: maybe(500), price: amount, variants: z.array(str(60)).max(30).nullish(), stock: amount })).max(300).default([]),
   zones: z.array(z.object({ area: str(80), fee: amount, eta: maybe(60) })).max(100).default([]),
   faqs: z.array(z.object({ question: str(200), answer: str(1000) })).max(60).default([]),
   detected: z.object({ businessName: maybe(120), phone: maybe(40) }).nullish()
@@ -57,6 +57,7 @@ export const ApplyBody = z.object({
   products: z.array(z.object({
     name: z.string().trim().min(1).max(120),
     description: z.string().max(500).nullish(),
+    category: z.string().trim().max(60).nullish(),
     priceMinor: z.number().int().min(0).max(2_000_000_000),
     /** Leave out when the owner does not count this item: it is then always available. */
     stockQty: z.number().int().min(0).max(1_000_000).nullish(),

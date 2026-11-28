@@ -12,7 +12,7 @@ export const listCatalog = defineTool({
     limit: z.number().int().min(1).max(30).default(20),
     /** name = A to Z (default). price_low = cheapest first, price_high = most expensive first. */
     sort: z.enum(['name', 'price_low', 'price_high']).default('name'),
-    /** Optional word to narrow the list, e.g. "drinks" or "oil". */
+    /** Optional word to narrow the list, e.g. "drinks", "oil" or a category such as "massage". */
     match: z.string().trim().max(60).optional()
   }),
   async run(ctx, { offset: askedOffset, limit, match, sort }) {
@@ -20,7 +20,7 @@ export const listCatalog = defineTool({
     const where = {
       businessId: ctx.businessId,
       active: true,
-      ...(match ? { OR: [{ name: { contains: match, mode: 'insensitive' as const } }, { description: { contains: match, mode: 'insensitive' as const } }] } : {})
+      ...(match ? { OR: [{ name: { contains: match, mode: 'insensitive' as const } }, { description: { contains: match, mode: 'insensitive' as const } }, { category: { contains: match, mode: 'insensitive' as const } }] } : {})
     };
     const [total, rows, reserved] = await Promise.all([
       ctx.db.product.count({ where }),
@@ -34,7 +34,7 @@ export const listCatalog = defineTool({
     const items = page.map((p) => {
       const info = stockInfo(p, reserved);
       const options = variantList(p.variants).map((v) => v.name);
-      return { product_id: p.id, name: p.name, price: formatMoney(p.priceMinor, ctx.currency), available: info.in_stock, ...(info.in_stock ? {} : { sold_out: true }), ...(options.length ? { options } : {}) };
+      return { product_id: p.id, name: p.name, ...(p.category ? { category: p.category } : {}), price: formatMoney(p.priceMinor, ctx.currency), available: info.in_stock, ...(info.in_stock ? {} : { sold_out: true }), ...(options.length ? { options } : {}) };
     });
     const next = offset + items.length;
     return {

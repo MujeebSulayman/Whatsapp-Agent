@@ -11,7 +11,7 @@ import { useLabels } from '@/lib/use-labels';
 import { useMoney } from '@/lib/use-money';
 import { cn } from '@/lib/utils';
 
-interface PRow { id: string; check: boolean; on: boolean; name: string; description: string; price: string; stock: string; variants: string; flagged: boolean }
+interface PRow { id: string; check: boolean; on: boolean; name: string; category: string; description: string; price: string; stock: string; variants: string; flagged: boolean }
 interface ZRow { id: string; check: boolean; on: boolean; area: string; fee: string; eta: string; flagged: boolean }
 interface FRow { id: string; on: boolean; question: string; answer: string }
 interface Counts { productsAdded: number; productsUpdated: number; zones: number; faqs: number }
@@ -54,7 +54,7 @@ export function ImportPanel() {
     try {
       const r = await api.post<ImportProposal>('setup-ai/import', { text: text.trim() || undefined, images: photos.map((p) => p.url) });
       setReview({
-        p: r.products.map((x) => ({ id: uid(), check: x.priceMinor === null, on: true, name: x.name, description: x.description ?? '', price: x.priceMinor === null ? '' : money.toInput(x.priceMinor), stock: x.stockQty === null ? '' : String(x.stockQty), variants: x.variants.join(', '), flagged: x.priceMinor === null })),
+        p: r.products.map((x) => ({ id: uid(), check: x.priceMinor === null, on: true, name: x.name, category: x.category ?? '', description: x.description ?? '', price: x.priceMinor === null ? '' : money.toInput(x.priceMinor), stock: x.stockQty === null ? '' : String(x.stockQty), variants: x.variants.join(', '), flagged: x.priceMinor === null })),
         z: r.zones.map((x) => ({ id: uid(), check: x.feeMinor === null, on: true, area: x.areaName, fee: x.feeMinor === null ? '' : money.toInput(x.feeMinor), eta: x.etaText ?? '', flagged: x.feeMinor === null })),
         f: r.faqs.map((x) => ({ id: uid(), on: true, question: x.question, answer: x.answer })),
         warnings: r.warnings,
@@ -91,7 +91,7 @@ export function ImportPanel() {
     try {
       const counts = await api.post<Counts>('setup-ai/apply', {
         products: review.p.filter((x) => x.on).map((x) => ({
-          name: x.name.trim(), description: x.description.trim() || null, priceMinor: money.parse(x.price)!,
+          name: x.name.trim(), category: x.category.trim() || null, description: x.description.trim() || null, priceMinor: money.parse(x.price)!,
           // Only send a stock number the owner typed. Blank means "I don't count this": always available.
           ...(labels.showStock && x.stock.trim() ? { stockQty: Number(x.stock) } : {}), variants: x.variants.split(',').map((v) => v.trim()).filter(Boolean)
         })),
@@ -208,7 +208,7 @@ export function ImportPanel() {
                 {review.p.filter((x) => x.check || showAll.p).map((x) => (
                   <div key={x.id} className={cn('grid items-start gap-2 px-4 py-3 transition-opacity sm:grid-cols-[auto_1.4fr_1fr_0.7fr_1.2fr_auto]', !x.on && 'opacity-45')}>
                     <Checkbox checked={x.on} onChange={(e) => upP(x.id, { on: e.target.checked })} aria-label={`Include ${x.name}`} className="mt-2" />
-                    <div className="space-y-1.5"><Input className={cell} value={x.name} onChange={(e) => upP(x.id, { name: e.target.value })} aria-label="Name" /><Input className={cn(cell, 'text-muted-foreground')} value={x.description} onChange={(e) => upP(x.id, { description: e.target.value })} placeholder="Description (optional)" aria-label="Description" /></div>
+                    <div className="space-y-1.5"><Input className={cell} value={x.name} onChange={(e) => upP(x.id, { name: e.target.value })} aria-label="Name" /><Input className={cn(cell, 'text-muted-foreground')} value={x.category} onChange={(e) => upP(x.id, { category: e.target.value })} placeholder="Category (optional)" aria-label="Category" /><Input className={cn(cell, 'text-muted-foreground')} value={x.description} onChange={(e) => upP(x.id, { description: e.target.value })} placeholder="Description (optional)" aria-label="Description" /></div>
                     <div><Input className={cn(cell, 'tabular-nums', x.on && money.parse(x.price) === null && bad)} inputMode="decimal" value={x.price} onChange={(e) => upP(x.id, { price: e.target.value, flagged: false })} placeholder={`Price (${money.currency})`} aria-label="Price" />{x.flagged && <div className="mt-1 flex items-center gap-1 text-[11px] text-warning"><AlertTriangle className="size-3" />Check</div>}</div>
                     {labels.showStock ? <Input className={cn(cell, 'tabular-nums', x.on && x.stock.trim() && !/^\d+$/.test(x.stock.trim()) && bad)} inputMode="numeric" value={x.stock} onChange={(e) => upP(x.id, { stock: e.target.value })} placeholder="Not counted" aria-label="Stock (leave blank if you do not count it)" /> : <span />}
                     <Input className={cell} value={x.variants} onChange={(e) => upP(x.id, { variants: e.target.value })} placeholder="Options" aria-label="Options" />

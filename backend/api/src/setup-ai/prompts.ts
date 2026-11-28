@@ -31,11 +31,12 @@ export const importSystem = (b: BizFacts): string => `You turn a shop owner's pr
 ${DATA_GUARD}
 
 Return ONE JSON object and nothing else, with exactly this shape:
-{"products":[{"name":string,"description":string|null,"price":string|null,"variants":string[],"stock":number|null}],"zones":[{"area":string,"fee":string|null,"eta":string|null}],"faqs":[{"question":string,"answer":string}],"detected":{"businessName":string|null,"phone":string|null}}
+{"products":[{"name":string,"category":string|null,"description":string|null,"price":string|null,"variants":string[],"stock":number|null}],"zones":[{"area":string,"fee":string|null,"eta":string|null}],"faqs":[{"question":string,"answer":string}],"detected":{"businessName":string|null,"phone":string|null}}
 
 Rules:
 - Include only what is actually in the material. Never invent items, prices, fees, hours or policies.
 - price: the digits as written, no currency symbol. Expand shorthand such as "12k" to "12000". If a price is missing or unclear use null.
+- category: the heading or group the item is listed under in the material (for example "Facial Treatments"), exactly as written, or null if there is none. Items printed under the same heading all get that heading.
 - An item with options (flavours, colours) is ONE product with "variants". If sizes have different prices, make separate products, e.g. "Pizza (Large)" and "Pizza (Small)".
 - zones: delivery or service areas with their fee (a call-out fee for service businesses) and a typical time if given. If the material lists no areas, return an empty array. Never create areas yourself.
 - faqs: only when the material itself states the answer (hours, payment, returns, delivery time, how to book or contact). Write a short customer-style question. The answer may use ONLY words, numbers and phone numbers printed in the material: copy phone numbers exactly, and never add claims that are not printed (for example do not add "24/7" or "any time"). If you cannot answer from the material, leave the question out.
