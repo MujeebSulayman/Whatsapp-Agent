@@ -8,7 +8,10 @@ const createOrderSchema = z.object({
   items: z.array(z.object({ product_id: z.string(), quantity: z.number().int().min(1).max(100), variant: z.string().optional() })).min(1).max(20),
   /** Delivery area or service area. Optional only for service businesses that have not set up areas. */
   delivery_area: z.string().min(1).optional(),
-  address: z.string().min(5).max(300),
+  /** Where it goes or where the job is. Not needed when collect_in_store is true. */
+  address: z.string().min(5).max(300).optional(),
+  /** True when the customer will come to the business themselves (pickup, or coming in for a service). No delivery or call-out fee applies. Only if the business's Facts and rules allow it. */
+  collect_in_store: z.boolean().optional(),
   /** Services: when the customer wants the work done, in their own words (e.g. "Thursday morning"). */
   preferred_time: z.string().max(120).optional(),
   notes: z.string().max(300).optional()
@@ -74,9 +77,15 @@ async function place(ctx: ToolContext, db: PrismaClient, args: Args): Promise<un
     const zones = await db.deliveryZone.findMany({ where: { businessId: ctx.businessId } });
     const isService = ctx.kind === 'services';
     let zone: (typeof zones)[number] | undefined;
+    // Customers who come in themselves: only when the owner's setup says they can. Then there is no delivery or call-out fee.
+    const biz = await db.business.findUnique({ where: { id: ctx.businessId }, select: { fulfilment: true, address: true } });
+    const collect = args.collect_in_store === true;
+    if (collect && !['pickup', 'both', 'onsite'].includes(biz?.fulfilment ?? '')) return { error: 'This business does not have customers come in (see Facts and rules). Tell the customer plainly, and offer what it does offer (delivery, or coming to them). Do not hand off for this.' };
+    if (!collect && !args.address) return { error: 'Ask the customer for the full address first.' };
+    const address = collect ? (biz?.address ?? 'Customer collects in person') : args.address!;
     // No areas set up yet (a new shop that has only added products): still take the order. The shop confirms the delivery cost.
-    const deliveryTbc = zones.length === 0 && !isService;
-    if (zones.length === 0) {
+    const deliveryTbc = !collect && zones.length === 0 && !isService;
+    if (collect || zones.length === 0) {
       zone = undefined;
     } else {
       if (!args.delivery_area) return { error: isService ? 'Ask the customer which area the job is in.' : 'Ask the customer for their delivery area.' };
@@ -89,7 +98,12 @@ async function place(ctx: ToolContext, db: PrismaClient, args: Args): Promise<un
     const subtotalMinor = lines.reduce((s, l) => s + l.line_total_minor, 0);
     const totalMinor = subtotalMinor + feeMinor;
     const notes = [deliveryTbc && 'DELIVERY FEE NOT SET UP: confirm the delivery cost with the customer before dispatch', preorderLines.length && `PRE-ORDER (not in stock yet): ${preorderLines.map((l) => l.name + (l.variant ? ` (${l.variant})` : '')).join(', ')}`, args.preferred_time && `Preferred time: ${args.preferred_time}`, args.notes].filter(Boolean).join('\n') || undefined;
-    const order = await db.order.create({
+    // The same request twice in a short time (the assistant retrying) must not create two orders.
+    const sig = (ls: { product_id?: string; variant?: string | null; quantity?: number }[]) => ls.map((l) => `${l.product_id}|${l.variant ?? ''}|${l.quantity}`).sort().join(',');
+    const lineKey = sig(lines);
+    const recent = await db.order.findMany({ where: { businessId: ctx.businessId, customerId: ctx.customerId, status: 'pending', createdAt: { gte: new Date(Date.now() - 15 * 60_000) } }, orderBy: { createdAt: 'desc' }, take: 5 });
+    const duplicate = recent.find((o) => sig(o.items as { product_id?: string; variant?: string | null; quantity?: number }[]) === lineKey && o.address === address && o.deliveryFeeMinor === feeMinor);
+    const order = duplicate ?? await db.order.create({
       data: {
         businessId: ctx.businessId,
         customerId: ctx.customerId,
@@ -97,7 +111,7 @@ async function place(ctx: ToolContext, db: PrismaClient, args: Args): Promise<un
         subtotalMinor,
         deliveryFeeMinor: feeMinor,
         totalMinor,
-        address: args.address,
+        address,
         notes
       }
     });
@@ -107,7 +121,8 @@ async function place(ctx: ToolContext, db: PrismaClient, args: Args): Promise<un
       status: isService ? 'booking request recorded, awaiting confirmation' : 'draft, awaiting payment',
       items: lines.map((l) => `${l.quantity} x ${l.name}${l.variant ? ` (${l.variant})` : ''} = ${formatMoney(l.line_total_minor, ctx.currency)}`),
       subtotal: formatMoney(subtotalMinor, ctx.currency),
-      [isService ? 'call_out_fee' : 'delivery_fee']: deliveryTbc ? 'to be confirmed by the shop' : formatMoney(feeMinor, ctx.currency),
+      [isService ? 'call_out_fee' : 'delivery_fee']: collect ? 'none, the customer comes in themselves' : deliveryTbc ? 'to be confirmed by the shop' : formatMoney(feeMinor, ctx.currency),
+      ...(collect ? { collect_at: address } : {}),
       total: formatMoney(totalMinor, ctx.currency),
       ...(deliveryTbc ? { total_note: 'This total is for the items only. Delivery will be added once the shop confirms the fee: tell the customer that.' } : {}),
       ...(args.preferred_time ? { preferred_time: args.preferred_time } : {}),

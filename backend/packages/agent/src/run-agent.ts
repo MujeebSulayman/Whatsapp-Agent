@@ -40,7 +40,11 @@ export function toWhatsAppText(text: string): string {
     .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '$1: $2')
     .replace(/\*\*(.+?)\*\*/g, '*$1*')
     .replace(/^\s{0,3}#{1,6}\s+/gm, '')
-    .replace(/__(.+?)__/g, '_$1_');
+    .replace(/__(.+?)__/g, '_$1_')
+    // Never send em or en dashes: a plain hyphen before a number or price, a comma everywhere else.
+    .replace(/(?<=[\p{L}\d])[—–](?=[\p{L}\d])/gu, '-')
+    .replace(/[ \t]*[—–][ \t]*(?=[\d₦$£€])/g, ' - ')
+    .replace(/[ \t]*[—–][ \t]*/g, ', ');
 }
 
 /** The reply with any sentence that mentions one of these amounts taken out. If nothing useful is left, ask what they want to know instead of stalling. */

@@ -9,7 +9,7 @@ export const listCatalog = defineTool({
     'Browse the whole catalogue (this is not a search). Sorted A to Z by default; use sort price_low for the cheapest and price_high for the most expensive. Use it when the customer asks what you sell, for the menu or price list, "list them all" or "what else". Returns real prices and whether each item is available. If has_more is true, say how many there are in total and offer to show the rest. Use offset 0 to start from the top (also when they ask to see the list again); use a higher offset only to continue a list you have just shown.',
   schema: z.object({
     offset: z.number().int().min(0).default(0),
-    limit: z.number().int().min(1).max(30).default(20),
+    limit: z.number().int().min(1).max(30).default(30),
     /** name = A to Z (default). price_low = cheapest first, price_high = most expensive first. */
     sort: z.enum(['name', 'price_low', 'price_high']).default('name'),
     /** Optional word to narrow the list, e.g. "drinks", "oil" or a category such as "massage". */
