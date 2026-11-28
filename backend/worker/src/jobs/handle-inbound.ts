@@ -125,7 +125,7 @@ async function turn(deps: Deps, job: InboundJob, tokenEnc: string, log: (m: stri
         }
       : undefined;
     const result = await runAgent({
-      llm: deps.llm, model, system: ctx.system, history: ctx.history, keepCustomers: ctx.keepCustomers, escalateKeywords: ctx.escalateKeywords,
+      llm: deps.llm, model, system: ctx.system, history: ctx.history, escalateKeywords: ctx.escalateKeywords,
       ctx: { db, businessId: job.businessId, currency: business.currency, kind: business.kind, conversationId: job.conversationId, customerId: job.customerId, sendImage, embed: deps.embedQuery, payments: deps.paystack && ctx.onlinePayments ? createPaymentsPort({ db, paystack: deps.paystack, businessId: job.businessId, customerId: job.customerId }) : undefined }
     });
 

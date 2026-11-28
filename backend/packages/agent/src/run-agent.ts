@@ -150,8 +150,6 @@ export async function runAgent(o: {
   history: ChatMessage[];
   ctx: Omit<ToolContext, 'state'>;
   tools?: Tool[];
-  /** Owner choice. false = never nudge the model to win back a customer who says no. Default true. */
-  keepCustomers?: boolean;
   /** The owner's "call me in when they say" words. A customer message containing one always ends with a handoff. */
   escalateKeywords?: string[];
 }): Promise<AgentResult> {
@@ -224,7 +222,7 @@ export async function runAgent(o: {
       if (nudge('catalog', needsCatalogCall(o.history, result.toolCalls) ? 'The customer asked to see the list. Do not answer from memory or just give a count: call list_catalog now (limit 30), then write out every item with its price as a numbered list, and say how many there are in total.' : null)) continue;
       if (nudge('show', listNotShown(text, result.toolCalls))) continue;
       if (nudge('full', incompleteFullList(text, result.toolCalls))) continue;
-      if (o.keepCustomers !== false && !unbacked && nudge('save', needsSaveAttempt(o.history, text) ? 'The customer just said no for the first time. Do not say goodbye yet. Send ONE short, warm message that asks what held them back (price, size, timing, something else) OR offers one relevant alternative. Any alternative MUST come from search_products or suggest_alternatives in this turn: call it first and name only what it returns, never a product or price from memory. No pressure, no invented offers or deadlines. If they say no again later, let them go gracefully.' : null)) continue;
+      if (!unbacked && nudge('save', needsSaveAttempt(o.history, text) ? 'The customer just said no for the first time. Do not say goodbye yet. Send ONE short, warm message that asks what held them back (price, size, timing, something else) OR offers one relevant alternative. Any alternative MUST come from search_products or suggest_alternatives in this turn: call it first and name only what it returns, never a product or price from memory. No pressure, no invented offers or deadlines. If they say no again later, let them go gracefully.' : null)) continue;
       if (unbacked && nudge(unbacked.tool, unbacked.nudge)) continue;
       let clean = stripArtifacts(text);
       if (!checkedPayment && claimsPaymentReceived(clean)) clean = dropSentences(clean, PAYMENT_CLAIM) || 'The shop will confirm your payment as soon as it arrives.';

@@ -23,8 +23,6 @@ export interface PromptInput {
   escalateKeywords?: string[];
   /** Names of the areas this business delivers to or serves (fees and times come from tools). */
   areas?: string[];
-  /** Owner choice: false = let customers who say no go politely, with no attempt to change their mind. Default true. */
-  keepCustomers?: boolean;
   /** True when this business has online payments set up (the assistant can send Paystack links). */
   onlinePayments?: boolean;
   /** Items and delivery fees this assistant already looked up in this conversation. */
@@ -54,10 +52,7 @@ const SOLD_OUT = `WHEN SOMETHING IS SOLD OUT
 - Say a restock date or note ONLY if a tool returned the owner's restock_note. Otherwise say the shop will message them if it comes back, and never promise that it will.
 - Never offer an alternative that a tool did not return, and never claim it is the same as what they asked for.`;
 
-const declineSection = (p: PromptInput) => p.keepCustomers === false
-  ? `WHEN A CUSTOMER SAYS NO
-- The owner wants customers to be let go gracefully. If a customer says no, "not interested" or "too expensive", accept it warmly, thank them, say they are welcome back any time, and stop. Do not ask why, do not offer alternatives or discounts, and do not try to change their mind. If they then ask about something else, just help.`
-  : `WHEN A CUSTOMER SAYS NO
+const declineSection = (p: PromptInput) => `WHEN A CUSTOMER SAYS NO
 - A first "no" or "not interested" is often a question in disguise. Do not just say goodbye. If you have NOT already tried once in this conversation, send ONE short, warm message that does one of these: ask what held them back (price, size, timing, something else), or offer one relevant alternative from search_products / suggest_alternatives (a different size, a smaller or cheaper option, something similar).
 - If the worry is price${p.maxDiscountPct > 0 ? `, you may offer a discount of up to ${p.maxDiscountPct}% (never more)` : ' there is no discount to offer: do not hint at one'}. Never invent offers, deadlines, scarcity or pressure ("last chance", "only 1 left") unless a tool returned it.
 - If they say no again, say stop or leave me alone, show annoyance, or the first message already tried: thank them warmly, say they are welcome back any time, and stop. Never ask a third time and never guilt them. Respect a clear no completely.
