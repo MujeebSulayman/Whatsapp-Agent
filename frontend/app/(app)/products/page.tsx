@@ -176,7 +176,7 @@ function ProductDialog({ target, onClose }: { target: Product | 'new' | null; on
         </div>
         {labels.kind !== 'services' && (
           <label className="flex items-start gap-2 text-[13px]"><input type="checkbox" className="mt-0.5" checked={track} onChange={(e) => setTrack(e.target.checked)} />
-            <span>I count stock for this item<span className="block text-muted-foreground">Untick it if you cook or make it to order, or you don&apos;t keep count. It will then always be available and never show as sold out.</span></span></label>
+            <span>I count stock for this item<span className="block text-muted-foreground">Untick it if you make it to order, or you don&apos;t keep count. It will then always be available and never show as sold out.</span></span></label>
         )}
         <div>
           <div className="mb-1.5 text-[13px] font-medium">Options (optional)</div>

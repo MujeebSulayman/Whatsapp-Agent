@@ -198,7 +198,7 @@ export function ImportPanel() {
               <ul className="space-y-0.5">{review.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>
             </Notice>
           )}
-          {labels.showStock && review.p.length > 0 && <p className="text-[13px] text-muted-foreground">Leave <span className="font-medium text-foreground">Stock</span> blank for anything you cook or make to order, or don&apos;t count. It will always be available and never show as sold out.</p>}
+          {labels.showStock && review.p.length > 0 && <p className="text-[13px] text-muted-foreground">Leave <span className="font-medium text-foreground">Stock</span> blank for anything you make to order, or don&apos;t count. It will always be available and never show as sold out.</p>}
           {review.p.length === 0 && review.z.length === 0 && review.f.length === 0 && <ErrorNote>We couldn&apos;t find anything to add. Try a clearer photo, or type the items out.</ErrorNote>}
 
           {review.p.length > 0 && (
