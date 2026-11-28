@@ -4,7 +4,7 @@ import { defineTool } from './types.js';
 
 export const handoffToHuman = defineTool({
   name: 'handoff_to_human',
-  description: 'Pause the AI and alert the owner. Use for complaints, refunds, threats, legal issues, unknown delivery areas, or when unsure after one clarifying question.',
+  description: 'Pause the AI and alert the owner. ONLY for: the customer asks for a person; a complaint, refund, wrong or damaged order; a legal, safety or abuse issue; a payment problem or dispute; a custom, bulk or catering request only the owner can price; or you tried twice to understand and still cannot help. Never for product questions, prices, budgets, availability, areas you do not cover, or unclear messages: solve those yourself.',
   schema: z.object({ reason: z.string().min(1).max(200), summary: z.string().min(1).max(600) }),
   async run(ctx, args) {
     // Scoped update: only this business's conversation.

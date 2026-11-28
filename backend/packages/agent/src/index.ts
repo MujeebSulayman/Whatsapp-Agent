@@ -21,3 +21,4 @@ export { listCatalog } from './tools/list-catalog.js';
 export { listDeliveryAreas } from './tools/list-delivery-areas.js';
 export { moneyIn } from './grounding.js';
 export { recentLookups } from './memory.js';
+export { suggestWithinBudget } from './tools/suggest-within-budget.js';

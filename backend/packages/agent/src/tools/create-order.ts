@@ -61,7 +61,7 @@ export const createOrder = defineTool({
       if (!args.delivery_area) return { error: isService ? 'Ask the customer which area the job is in.' : 'Ask the customer for their delivery area.' };
       const q = args.delivery_area.toLowerCase();
       zone = zones.find((z) => z.areaName.toLowerCase() === q) ?? zones.find((z) => q.includes(z.areaName.toLowerCase()));
-      if (!zone) return { error: `${isService ? 'Service' : 'Delivery'} area not covered. Ask the customer for a covered area or hand off to the owner.` };
+      if (!zone) return { error: `${isService ? 'Service' : 'Delivery'} area not covered. Say so kindly, list the covered areas with list_delivery_areas, and ask whether another address works. Do not hand off unless they insist on an exception.` };
     }
 
     const feeMinor = zone?.feeMinor ?? 0;
