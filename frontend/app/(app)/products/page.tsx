@@ -36,16 +36,17 @@ export default function ProductsPage() {
 
   return (
     <>
-      <PageHeader title={labels.items} description={labels.kind === 'services' ? 'The assistant only quotes the services and starting prices you set here.' : 'The assistant only quotes the prices and stock you set here.'}
+      <PageHeader title={labels.items}
         actions={<><Button variant="secondary" onClick={() => setImporting(true)}><Upload className="size-4" />Import CSV</Button><Button onClick={() => setEditing('new')}><Plus className="size-4" />{labels.addItem}</Button></>} />
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <SearchInput className="w-full sm:w-72" placeholder={`Search ${labels.items.toLowerCase()}`} value={search} onChange={(e) => setSearch(e.target.value)} />
         {products && products.length > 0 && <span className="text-xs text-muted-foreground tabular-nums">{products.filter((p) => p.active).length} of {products.length} available</span>}
       </div>
       <WaitlistCard />
+      <StockBanner products={products ?? []} />
       <Card className="overflow-hidden">
         {isLoading ? <Loading /> : !products?.length ? (
-          <EmptyState icon={<Package />} title={`No ${labels.items.toLowerCase()} yet`} description={`Add your first ${labels.item}, or import many at once from a spreadsheet.`}
+          <EmptyState icon={<Package />} title={`No ${labels.items.toLowerCase()} yet`} 
             action={<div className="flex gap-2"><Button variant="secondary" onClick={() => setImporting(true)}>Import CSV</Button><Button onClick={() => setEditing('new')}>{labels.addItem}</Button></div>} />
         ) : (
           <Table>
@@ -168,17 +169,18 @@ function ProductDialog({ target, onClose }: { target: Product | 'new' | null; on
       <form id="product-form" onSubmit={submit} className="space-y-4">
         {err && <ErrorNote>{err}</ErrorNote>}
         <Field label="Name"><Input required value={f.name} onChange={set('name')} /></Field>
-        <Field label="Description" hint={`Shown to the assistant so it can describe the ${labels.item}.`}><Textarea rows={2} value={f.description} onChange={set('description')} /><SuggestButton field="product_description" text={f.description || f.name} context={f.name} onUse={(v) => setF({ ...f, description: v })} /></Field>
+        <Field label="Description"><Textarea rows={2} value={f.description} onChange={set('description')} /><SuggestButton field="product_description" text={f.description || f.name} context={f.name} onUse={(v) => setF({ ...f, description: v })} /></Field>
         <div className="grid grid-cols-2 gap-3">
-          <Field label={`${labels.priceLabel} (${money.currency})`} hint={labels.kind === 'services' ? 'The "from" price. The final price can be confirmed after the job is assessed.' : undefined}><Input required inputMode="decimal" placeholder={money.example} value={f.price} onChange={set('price')} /></Field>
+          <Field label={`${labels.priceLabel} (${money.currency})`} hint={labels.kind === 'services' ? 'Starting price' : undefined}><Input required inputMode="decimal" placeholder={money.example} value={f.price} onChange={set('price')} /></Field>
           {track && !(perOption && opts.some((o) => o.name.trim())) && <Field label="In stock"><Input required inputMode="numeric" value={f.stock} onChange={set('stock')} /></Field>}
         </div>
-        {labels.kind === 'both' && (
-          <label className="flex items-center gap-2 text-[13px]"><input type="checkbox" checked={track} onChange={(e) => setTrack(e.target.checked)} />Track stock for this item <span className="text-muted-foreground">(untick for services or made-to-order items)</span></label>
+        {labels.kind !== 'services' && (
+          <label className="flex items-start gap-2 text-[13px]"><input type="checkbox" className="mt-0.5" checked={track} onChange={(e) => setTrack(e.target.checked)} />
+            <span>I count stock for this item<span className="block text-muted-foreground">Untick it if you cook or make it to order, or you don&apos;t keep count. It will then always be available and never show as sold out.</span></span></label>
         )}
         <div>
           <div className="mb-1.5 text-[13px] font-medium">Options (optional)</div>
-          <p className="mb-2 text-xs text-muted-foreground">Sizes, colours or flavours. Add one row for each.</p>
+          
           <div className="space-y-2">
             {opts.map((o) => (
               <div key={o.id} className="flex gap-2">
@@ -201,13 +203,13 @@ function ProductDialog({ target, onClose }: { target: Product | 'new' | null; on
         {track && (
           <div className="space-y-3 rounded-lg border p-3">
             <div className="text-[13px] font-medium">When it is sold out</div>
-            <Field label="Note for customers (optional)" hint="Shown only when sold out, e.g. “Back around 20 Dec”. The assistant never makes up a restock date."><Input maxLength={120} value={f.restock} onChange={set('restock')} /></Field>
+            <Field label="Note for customers (optional)" hint="Shown when sold out"><Input maxLength={120} value={f.restock} onChange={set('restock')} /></Field>
             <label className="flex items-center gap-2 text-[13px]"><input type="checkbox" checked={preorder} onChange={(e) => setPreorder(e.target.checked)} />Let customers pre-order it <span className="text-muted-foreground">(you confirm each one)</span></label>
           </div>
         )}
         <div>
           <div className="mb-1.5 text-[13px] font-medium">Photos (optional)</div>
-          <p className="mb-2 text-xs text-muted-foreground">The assistant sends these when a customer asks to see it. The first one is the main photo. Up to 8.</p>
+          <p className="mb-2 text-xs text-muted-foreground">Up to 8. The first is the main photo.</p>
           <div className="flex flex-wrap gap-2">
             {photos.map((u, i) => (
               <div key={u} className="relative size-20 overflow-hidden rounded-lg border">
@@ -246,7 +248,7 @@ function ImportDialog({ open, onClose }: { open: boolean; onClose: () => void })
     catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
   }
   return (
-    <Dialog open={open} onClose={() => { reset(); onClose(); }} title="Import products from CSV" description="Existing products with the same name are updated."
+    <Dialog open={open} onClose={() => { reset(); onClose(); }} title="Import products from CSV"
       footer={result ? <Button onClick={() => { reset(); onClose(); }}>Done</Button> : <><Button variant="ghost" onClick={() => { reset(); onClose(); }}>Cancel</Button><Button onClick={run} loading={busy} disabled={!csv}>Import</Button></>}>
       <div className="space-y-4">
         {err && <ErrorNote>{err}</ErrorNote>}
@@ -323,6 +325,36 @@ function WaitlistCard() {
           </div>
         ))}
       </div>
+    </Card>
+  );
+}
+
+/** Items with no stock number used to be saved as "0 in stock". If several show as sold out, ask whether they are simply not counted. */
+function StockBanner({ products }: { products: Product[] }) {
+  const toast = useToast();
+  const [hidden, setHidden] = useState(() => { try { return localStorage.getItem('stock-banner-dismissed') === '1'; } catch { return false; } });
+  const [busy, setBusy] = useState(false);
+  const stuck = products.filter((p) => p.trackStock && p.active && p.stockQty === 0);
+  if (hidden || stuck.length < 3) return null;
+
+  async function fix() {
+    setBusy(true);
+    try {
+      await api.post('products/stop-tracking', { ids: stuck.map((p) => p.id) });
+      await mutate(KEY);
+      toast(`${stuck.length} items are now always available`);
+    } catch (e) { toast((e as Error).message, 'error'); } finally { setBusy(false); }
+  }
+  function dismiss() { try { localStorage.setItem('stock-banner-dismissed', '1'); } catch { /* ignore */ } setHidden(true); }
+
+  return (
+    <Card className="mb-4 flex flex-wrap items-center gap-3 p-4">
+      <div className="min-w-0 flex-1 text-[13px]">
+        <div className="font-medium">{stuck.length} items show as sold out</div>
+        <p className="mt-0.5 text-muted-foreground">If you cook to order or don&apos;t count these, customers shouldn&apos;t be told they&apos;re sold out. You can still add a stock number to any item later.</p>
+      </div>
+      <Button size="sm" onClick={fix} loading={busy}>They&apos;re always available</Button>
+      <Button size="sm" variant="ghost" onClick={dismiss}>They really are sold out</Button>
     </Card>
   );
 }

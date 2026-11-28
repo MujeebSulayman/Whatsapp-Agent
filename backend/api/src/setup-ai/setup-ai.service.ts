@@ -216,10 +216,12 @@ export class SetupAiService {
 
     await this.db.$transaction(async (tx) => {
       for (const p of body.products) {
-        const data = { description: p.description ?? null, priceMinor: p.priceMinor, stockQty: p.stockQty, variants: p.variants?.length ? (p.variants.map((name) => ({ name })) as Prisma.InputJsonValue) : undefined };
+        // Stock is only counted when the owner gave a number (and the business sells stocked goods). No number = always available, never "sold out".
+        const counted = typeof p.stockQty === 'number' && business.kind !== 'services';
+        const data = { description: p.description ?? null, priceMinor: p.priceMinor, ...(counted ? { stockQty: p.stockQty!, trackStock: true } : {}), variants: p.variants?.length ? (p.variants.map((name) => ({ name })) as Prisma.InputJsonValue) : undefined };
         const existing = await tx.product.findFirst({ where: { businessId, name: { equals: p.name, mode: 'insensitive' } } });
         if (existing) { await tx.product.update({ where: { id: existing.id }, data }); touchedProducts.push(existing.id); counts.productsUpdated++; }
-        else { touchedProducts.push((await tx.product.create({ data: { businessId, name: p.name, trackStock: business.kind !== 'services', ...data } })).id); counts.productsAdded++; }
+        else { touchedProducts.push((await tx.product.create({ data: { businessId, name: p.name, trackStock: false, ...data } })).id); counts.productsAdded++; }
       }
       for (const z of body.zones) {
         const existing = await tx.deliveryZone.findFirst({ where: { businessId, areaName: { equals: z.areaName, mode: 'insensitive' } } });

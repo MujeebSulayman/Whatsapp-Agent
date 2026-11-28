@@ -92,6 +92,16 @@ export class CatalogController {
     return { ...product, waitingNow: await this.waitlist.notifiableCount(a.businessId, id) };
   }
 
+  /** "I don't count these": stop limiting the given items by stock, so they are always available. Only this business's own items. */
+  @Post('products/stop-tracking')
+  @HttpCode(200)
+  async stopTracking(@Auth() a: AuthCtx, @Body() body: unknown) {
+    const { ids } = parse(z.object({ ids: z.array(z.string()).min(1).max(500) }), body);
+    const res = await this.db.product.updateMany({ where: { id: { in: ids }, businessId: a.businessId }, data: { trackStock: false } });
+    await this.db.auditLog.create({ data: { businessId: a.businessId, actor: a.userId, action: 'products.stop_tracking', payload: { count: res.count } } });
+    return { updated: res.count };
+  }
+
   @Delete('products/:id')
   @HttpCode(204)
   async deleteProduct(@Auth() a: AuthCtx, @Param('id') id: string) {
@@ -112,13 +122,15 @@ export class CatalogController {
     const touched: string[] = [];
     for (const r of rows) {
       const existing = await this.db.product.findFirst({ where: { businessId: a.businessId, name: { equals: r.name, mode: 'insensitive' } } });
-      const data = { name: r.name, description: r.description, priceMinor: r.priceMinor, stockQty: r.stockQty, trackStock: biz.kind !== 'services', variants: (r.variants ?? undefined) as Prisma.InputJsonValue | undefined };
+      // A stock number counts the item; a blank cell means "not counted": always available, never "sold out".
+      const counted = r.stockQty !== null && biz.kind !== 'services';
+      const data = { name: r.name, description: r.description, priceMinor: r.priceMinor, ...(counted ? { stockQty: r.stockQty!, trackStock: true } : {}), variants: (r.variants ?? undefined) as Prisma.InputJsonValue | undefined };
       if (existing) {
         await this.db.product.update({ where: { id: existing.id }, data });
         touched.push(existing.id);
         updated++;
       } else {
-        touched.push((await this.db.product.create({ data: { businessId: a.businessId, ...data } })).id);
+        touched.push((await this.db.product.create({ data: { businessId: a.businessId, trackStock: false, ...data } })).id);
         created++;
       }
     }

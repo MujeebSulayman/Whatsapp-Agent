@@ -58,7 +58,8 @@ export const ApplyBody = z.object({
     name: z.string().trim().min(1).max(120),
     description: z.string().max(500).nullish(),
     priceMinor: z.number().int().min(0).max(2_000_000_000),
-    stockQty: z.number().int().min(0).max(1_000_000).default(0),
+    /** Leave out when the owner does not count this item: it is then always available. */
+    stockQty: z.number().int().min(0).max(1_000_000).nullish(),
     variants: z.array(z.string().trim().min(1).max(60)).max(30).optional()
   })).max(300).default([]),
   zones: z.array(z.object({ areaName: z.string().trim().min(2).max(80), feeMinor: z.number().int().min(0).max(100_000_000), etaText: z.string().trim().min(1).max(60).default('ask us') })).max(100).default([]),

@@ -75,7 +75,8 @@ export function ImportPanel() {
       const counts = await api.post<Counts>('setup-ai/apply', {
         products: review.p.filter((x) => x.on).map((x) => ({
           name: x.name.trim(), description: x.description.trim() || null, priceMinor: money.parse(x.price)!,
-          stockQty: labels.showStock && x.stock.trim() ? Number(x.stock) : 0, variants: x.variants.split(',').map((v) => v.trim()).filter(Boolean)
+          // Only send a stock number the owner typed. Blank means "I don't count this": always available.
+          ...(labels.showStock && x.stock.trim() ? { stockQty: Number(x.stock) } : {}), variants: x.variants.split(',').map((v) => v.trim()).filter(Boolean)
         })),
         zones: review.z.filter((x) => x.on).map((x) => ({ areaName: x.area.trim(), feeMinor: money.parse(x.fee)!, etaText: x.eta.trim() || 'ask us' })),
         faqs: review.f.filter((x) => x.on).map((x) => ({ question: x.question.trim(), answer: x.answer.trim() }))
@@ -159,7 +160,7 @@ export function ImportPanel() {
                     <input type="checkbox" checked={x.on} onChange={(e) => upP(x.id, { on: e.target.checked })} aria-label={`Include ${x.name}`} className="mt-2.5 size-4" />
                     <div className="space-y-1.5"><input className={cell} value={x.name} onChange={(e) => upP(x.id, { name: e.target.value })} aria-label="Name" /><input className={cn(cell, 'text-muted-foreground')} value={x.description} onChange={(e) => upP(x.id, { description: e.target.value })} placeholder="Description (optional)" aria-label="Description" /></div>
                     <div><input className={cn(cell, x.on && money.parse(x.price) === null && 'border-danger')} inputMode="decimal" value={x.price} onChange={(e) => upP(x.id, { price: e.target.value, flagged: false })} placeholder={`Price (${money.currency})`} aria-label="Price" />{x.flagged && <div className="mt-1 text-[11px] text-warning">Check the price</div>}</div>
-                    {labels.showStock ? <input className={cn(cell, x.on && x.stock.trim() && !/^\d+$/.test(x.stock.trim()) && 'border-danger')} inputMode="numeric" value={x.stock} onChange={(e) => upP(x.id, { stock: e.target.value })} placeholder="Stock" aria-label="Stock" /> : <span />}
+                    {labels.showStock ? <input className={cn(cell, x.on && x.stock.trim() && !/^\d+$/.test(x.stock.trim()) && 'border-danger')} inputMode="numeric" value={x.stock} onChange={(e) => upP(x.id, { stock: e.target.value })} placeholder="Not counted" aria-label="Stock (leave blank if you do not count it)" /> : <span />}
                     <input className={cell} value={x.variants} onChange={(e) => upP(x.id, { variants: e.target.value })} placeholder="Options, comma separated" aria-label="Options" />
                     <button type="button" aria-label={`Remove ${x.name}`} onClick={() => setReview((r) => r && { ...r, p: r.p.filter((y) => y.id !== x.id) })} className="mt-1.5 rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"><Trash2 className="size-4" /></button>
                   </div>

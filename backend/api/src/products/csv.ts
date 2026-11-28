@@ -27,7 +27,7 @@ export function parseCsv(text: string): string[][] {
   return rows;
 }
 
-export interface CsvProduct { name: string; description: string | null; priceMinor: number; stockQty: number; variants: { name: string }[] | null }
+export interface CsvProduct { name: string; description: string | null; priceMinor: number; /** null = not counted (always available) */ stockQty: number | null; variants: { name: string }[] | null }
 
 export function productsFromCsv(rows: string[][], currency: string): { rows: CsvProduct[]; errors: { row: number; message: string }[] } {
   const [header, ...body] = rows;
@@ -41,11 +41,11 @@ export function productsFromCsv(rows: string[][], currency: string): { rows: Csv
     const line = idx + 2;
     const name = (r[iName] ?? '').trim();
     const priceMinor = parseMoney(r[iPrice] ?? '', currency);
-    const stockRaw = iStock >= 0 ? (r[iStock] ?? '').trim() : '0';
-    const stock = stockRaw === '' ? 0 : Number(stockRaw);
+    const stockRaw = iStock >= 0 ? (r[iStock] ?? '').trim() : '';
+    const stock = stockRaw === '' ? null : Number(stockRaw);
     if (!name) return void errors.push({ row: line, message: 'Missing name' });
     if (priceMinor === null) return void errors.push({ row: line, message: `Invalid price "${r[iPrice] ?? ''}"` });
-    if (!Number.isInteger(stock) || stock < 0) return void errors.push({ row: line, message: `Invalid stock "${stockRaw}"` });
+    if (stock !== null && (!Number.isInteger(stock) || stock < 0)) return void errors.push({ row: line, message: `Invalid stock "${stockRaw}"` });
     const variants = iVar >= 0 ? (r[iVar] ?? '').split('|').map((v) => v.trim()).filter(Boolean).map((name) => ({ name })) : [];
     out.push({ name, description: iDesc >= 0 ? (r[iDesc] ?? '').trim() || null : null, priceMinor, stockQty: stock, variants: variants.length ? variants : null });
   });
