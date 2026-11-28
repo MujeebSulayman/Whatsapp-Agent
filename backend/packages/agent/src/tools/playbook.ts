@@ -25,7 +25,12 @@ export const startPlaybook = defineTool({
   async run(ctx, { playbook_id }) {
     const pb = await find(ctx, playbook_id);
     if (!pb) return { error: 'Unknown playbook_id. Use only the ids listed in the PLAYBOOKS section.' };
-    const run = (await activeRun(ctx, pb.id)) ?? (await ctx.db.playbookRun.create({ data: { businessId: ctx.businessId, playbookId: pb.id, customerId: ctx.customerId, conversationId: ctx.conversationId } }));
+    // Two messages at the same instant can both try to start it: the database allows one, and the loser simply picks that one up.
+    let run = await activeRun(ctx, pb.id);
+    if (!run) {
+      try { run = await ctx.db.playbookRun.create({ data: { businessId: ctx.businessId, playbookId: pb.id, customerId: ctx.customerId, conversationId: ctx.conversationId } }); }
+      catch (e) { if ((e as { code?: string }).code !== 'P2002') throw e; run = await activeRun(ctx, pb.id); if (!run) throw e; }
+    }
     return { playbook: pb.name, ...view(parseSteps(pb.steps), answersOf(run.answers)), note: 'Ask ONE step at a time in your own words. Save each answer with record_answer.' };
   }
 });

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import type { ChatMessage, LlmClient } from '@wa/ai';
-import { needsSaveAttempt, runAgent, toWhatsAppText, ungroundedAmounts, withoutAmounts, type Tool } from '@wa/agent';
+import { claimsPaymentReceived, dropSentences, escalationHit, hasModelArtifacts, needsSaveAttempt, runAgent, stripArtifacts, toWhatsAppText, ungroundedAmounts, wantsHuman, withoutAmounts, type Tool } from '@wa/agent';
 import type { PrismaClient } from '@wa/db';
 
 const usage = { inputTokens: 1, outputTokens: 1, costUsd: 0 };
@@ -185,5 +185,153 @@ describe('WhatsApp formatting is fixed in code', () => {
   it('is applied to what the customer receives', async () => {
     const { llm } = scripted([say('Here is **the list**:\n## Rice')]);
     expect((await go(llm)).reply).toBe('Here is *the list*:\nRice');
+  });
+});
+
+describe('the owner\'s "call me in when they say" words', () => {
+  const u = (content: string): ChatMessage => ({ role: 'user', content });
+  it('are found as whole words, in any case, including several words and symbols', () => {
+    expect(escalationHit('I want a REFUND now', ['refund', 'lawyer'])).toBe('refund');
+    expect(escalationHit('my lawyer will call you', ['refund', 'lawyer'])).toBe('lawyer');
+    expect(escalationHit('I will report to NAFDAC.', ['nafdac'])).toBe('nafdac');
+    expect(escalationHit('this is food poisoning!', ['food poisoning'])).toBe('food poisoning');
+    expect(escalationHit('call the C++ police (now)', ['c++', 'police'])).toBe('c++');
+  });
+  it('are not found inside other words, or when there are none', () => {
+    expect(escalationHit('the refunded amount', ['refund'])).toBeNull();
+    expect(escalationHit('I love your suede shoes', ['sue'])).toBeNull();
+    expect(escalationHit('hello', [])).toBeNull();
+    expect(escalationHit('hello', ['', '  '])).toBeNull();
+  });
+
+  it('a message containing one is sent back until the owner is called in, with the model doing it properly', async () => {
+    ran.length = 0;
+    const { llm, seen } = scripted([say('Sure, here is our menu.'), call('handoff_to_human', { reason: 'refund', summary: 'wants a refund' }), say('I am so sorry. The team will reply shortly.')]);
+    const r = await runAgent({ llm, model: 'm', system: 's', history: [u('I want a refund')], ctx: { ...base }, tools: [search, handoff], escalateKeywords: ['refund'] });
+    expect(ran).toEqual(['handoff']);
+    expect(r.handedOff).toBe(true);
+    expect(r.reply).toMatch(/sorry/);
+    expect(seen[1]!.messages.at(-1)).toMatchObject({ role: 'system', content: expect.stringMatching(/contains "refund".*call handoff_to_human now/s) });
+  });
+
+  it('and if the model still will not, the handoff is done for the owner', async () => {
+    ran.length = 0;
+    const { llm } = scripted([say('Here is our menu.')]);
+    const r = await runAgent({ llm, model: 'm', system: 's', history: [u('I will sue you')], ctx: { ...base }, tools: [search, handoff], escalateKeywords: ['sue'] });
+    expect(ran).toEqual(['handoff']);
+    expect(r.handedOff).toBe(true);
+  });
+
+  it('the handoff still happens when the reply also had to be cleaned of a price it could not back', async () => {
+    ran.length = 0;
+    const { llm } = scripted([say('Refunds take 3 days. Meanwhile Swift Step is ₦30,000.')]);
+    const r = await runAgent({ llm, model: 'm', system: 's', history: [u('I want a refund')], ctx: { ...base }, tools: [search, handoff], escalateKeywords: ['refund'] });
+    expect(ran).toEqual(['handoff']);
+    expect(r.handedOff).toBe(true);
+    expect(r.reply).not.toMatch(/30,000/);
+  });
+
+  it('nothing happens without a keyword, or when the model already handed over', async () => {
+    ran.length = 0;
+    const a = scripted([say('Rice is ₦85,000.')]);
+    expect((await runAgent({ llm: a.llm, model: 'm', system: 's', history: [u('price of rice? ₦85,000?')], ctx: { ...base }, tools: [search, handoff], escalateKeywords: ['refund'] })).handedOff).toBe(false);
+    const b = scripted([call('handoff_to_human', { reason: 'r', summary: 's' }), say('Sorry, the team will reply.')]);
+    await runAgent({ llm: b.llm, model: 'm', system: 's', history: [u('refund please')], ctx: { ...base }, tools: [search, handoff], escalateKeywords: ['refund'] });
+    expect(ran).toEqual(['handoff']); // once
+  });
+});
+
+describe('asking for a person', () => {
+  it('is recognised in the ways people say it', () => {
+    for (const t of ['I want to speak to a human', 'agent please', 'customer care please', 'can I talk to someone', 'put me through to the owner', 'let me chat with a real person', 'connect me to a manager', 'I need the owner', 'human', 'Customer service!']) expect(wantsHuman(t), t).toBe(true);
+  });
+  it('is not triggered by ordinary shopping talk', () => {
+    for (const t of ['how much is rice?', 'is the agent fee included', 'my husband is the owner of this card', 'call me tomorrow with the price list', 'hi', 'I want 2 garri']) expect(wantsHuman(t), t).toBe(false);
+  });
+  it('makes the model hand over, or does it itself', async () => {
+    ran.length = 0;
+    const { llm } = scripted([say('How can I help?')]);
+    const r = await runAgent({ llm, model: 'm', system: 's', history: [{ role: 'user', content: 'agent please' }], ctx: { ...base }, tools: [search, handoff] });
+    expect(ran).toEqual(['handoff']);
+    expect(r.handedOff).toBe(true);
+  });
+});
+
+describe('a model\'s internal notes never reach a customer', () => {
+  it('spots special tokens, think blocks and "The customer asked..." narration', () => {
+    expect(hasModelArtifacts('<｜place▁holder▁no▁0｜>The customer asked what we sell')).toBe(true);
+    expect(hasModelArtifacts('<think>they want rice</think>Rice is ₦85,000')).toBe(true);
+    expect(hasModelArtifacts('The customer asked "what do you sell?" and then "what else?"')).toBe(true);
+    expect(hasModelArtifacts('Customer wants a refund, I should hand over.')).toBe(true);
+    expect(hasModelArtifacts('Rice is ₦85,000. Would you like one?')).toBe(false);
+    expect(hasModelArtifacts('Our customer service team will reply.')).toBe(false);
+  });
+  it('removes tokens and think blocks and keeps the real message', () => {
+    expect(stripArtifacts('<think>hmm</think><｜tok｜>Rice is ₦85,000.')).toBe('Rice is ₦85,000.');
+  });
+  it('a reply with notes in it is sent back, then cleaned, and never shown as it was', async () => {
+    const a = scripted([say('<｜place▁holder▁no▁0｜>The customer asked for rice.'), say('Rice is ₦85,000.')]);
+    expect((await go(a.llm, {}, [{ role: 'user', content: 'rice?' }, { role: 'assistant', content: 'Rice is ₦85,000.' }, { role: 'user', content: 'ok' }])).reply).toBe('Rice is ₦85,000.');
+    const b = scripted([say('The customer asked for rice and I should reply.')]);
+    const r = await go(b.llm, {}, [{ role: 'user', content: 'rice?' }]);
+    expect(r.reply).toBe('Sorry, could you tell me a little more about what you need?');
+  });
+});
+
+describe('someone who may hurt themselves', () => {
+  const u = (content: string): ChatMessage => ({ role: 'user', content });
+  it('gets care, not a sales pitch, and the owner is told', async () => {
+    ran.length = 0;
+    const { llm, seen } = scripted([say('Would you like to order some groceries? Rice is ₦85,000.'), say('I am so sorry you feel this way. You are not alone: please talk to someone you trust or a local emergency line. I am here for you.')]);
+    const r = await runAgent({ llm, model: 'm', system: 's', history: [u('I do not want to live anymore')], ctx: { ...base }, tools: [search, handoff] });
+    expect(r.reply).toMatch(/sorry.*not alone/);
+    expect(r.reply).not.toMatch(/rice|order|₦/i);
+    expect(ran).toEqual(['handoff']); // done for the owner when the model did not
+    expect(r.handedOff).toBe(true);
+    expect(seen[1]!.messages.at(-1)).toMatchObject({ role: 'system', content: expect.stringMatching(/may be in distress.*Do not sell/s) });
+  });
+  it('is recognised in several wordings, and not from ordinary talk', async () => {
+    for (const t of ['I want to kill myself', 'sometimes I think I should end my life', 'I don\'t want to be alive', 'better off dead', 'thinking about suicide']) {
+      ran.length = 0;
+      const { llm } = scripted([say('I am sorry you are going through this. You are not alone, please talk to someone you trust.')]);
+      await runAgent({ llm, model: 'm', system: 's', history: [u(t)], ctx: { ...base }, tools: [search, handoff] });
+      expect(ran, t).toEqual(['handoff']);
+    }
+    ran.length = 0;
+    const { llm } = scripted([say('Sure, rice is ₦85,000.')]);
+    await runAgent({ llm, model: 'm', system: 's', history: [u('this price is killing me, is there a discount on rice?')], ctx: { ...base }, tools: [search, handoff] });
+    expect(ran).toEqual([]);
+  });
+});
+
+describe('saying a payment arrived', () => {
+  it('is spotted, but "the shop will confirm once it arrives" is not', () => {
+    for (const t of ['Your payment has been confirmed.', 'Payment received, thank you!', 'We have received your payment.', 'Transfer was successful.']) expect(claimsPaymentReceived(t), t).toBe(true);
+    for (const t of ['The shop will confirm once your payment is received.', 'I cannot confirm that your payment has been received.', 'Only our system can verify when payment has been received.', 'Please pay to GTBank 0123456789.', 'Once the transfer is confirmed we will dispatch.']) expect(claimsPaymentReceived(t), t).toBe(false);
+  });
+  it('is sent back, and removed if it persists', async () => {
+    const a = scripted([say('Payment confirmed! Your order is on the way.'), say('The shop will confirm as soon as your payment arrives.')]);
+    expect((await go(a.llm, {}, [{ role: 'user', content: 'I have paid' }])).reply).toBe('The shop will confirm as soon as your payment arrives.');
+    const b = scripted([say('Payment confirmed.')]);
+    expect((await go(b.llm, {}, [{ role: 'user', content: 'I have paid' }])).reply).toBe('The shop will confirm your payment as soon as it arrives.');
+  });
+  it('is allowed when the order status was actually checked this turn', async () => {
+    const check: Tool = { name: 'check_order_status', description: 'x', schema: z.object({}), async run() { return { status: 'paid' }; } };
+    const { llm } = scripted([call('check_order_status', {}), say('Your payment has been confirmed. Your order is being prepared.')]);
+    const r = await runAgent({ llm, model: 'm', system: 's', history: [{ role: 'user', content: 'did my payment go through?' }], ctx: { ...base }, tools: [check] });
+    expect(r.reply).toBe('Your payment has been confirmed. Your order is being prepared.');
+  });
+  it('dropSentences keeps the rest', () => {
+    expect(dropSentences('Hi! Payment confirmed. Anything else?', /payment confirmed/i)).toBe('Hi! Anything else?');
+  });
+});
+
+describe('an empty answer from the model', () => {
+  it('is sent back once, then replaced by something honest, never by "give me one moment"', async () => {
+    const a = scripted([say(''), say('Rice is ₦85,000.')]);
+    expect((await go(a.llm, {}, [{ role: 'assistant', content: 'Rice is ₦85,000.' }, { role: 'user', content: 'price of rice?' }])).reply).toBe('Rice is ₦85,000.');
+    expect(a.seen).toHaveLength(2);
+    const b = scripted([say('   ')]);
+    expect((await go(b.llm, {}, [{ role: 'user', content: 'price of rice?' }])).reply).toBe("Sorry, I didn't catch that. Could you say it again?");
   });
 });

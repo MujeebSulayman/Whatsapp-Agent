@@ -34,6 +34,27 @@ describe('openrouter client', () => {
     await expect(bad.chat({ model: 'm', messages: [] })).rejects.toThrow(/401/);
     expect(c2).toBe(1);
   });
+
+  it('waits and retries when OpenRouter says "not enough credits given your in-flight requests", but not for a real out-of-credits', async () => {
+    let calls = 0;
+    const busy = createOpenRouterClient({
+      apiKey: 'k', backoffMs: 1,
+      fetchImpl: (async () => (++calls < 3 ? new Response('{"error":{"message":"This request would exceed your available credits given your current in-flight requests. Retry after in-flight requests settle","code":402}}', { status: 402 }) : ok({ choices: [{ message: { content: 'ok' } }] }))) as unknown as typeof fetch
+    });
+    expect((await busy.chat({ model: 'm', messages: [] })).message.content).toBe('ok');
+    expect(calls).toBe(3);
+
+    let c2 = 0;
+    const broke = createOpenRouterClient({ apiKey: 'k', backoffMs: 1, fetchImpl: (async () => (c2++, new Response('{"error":{"message":"Insufficient credits","code":402}}', { status: 402 }))) as unknown as typeof fetch });
+    await expect(broke.chat({ model: 'm', messages: [] })).rejects.toThrow(/402/);
+    expect(c2).toBe(1);
+  });
+
+  it('retries a timeout (408) too', async () => {
+    let calls = 0;
+    const c = createOpenRouterClient({ apiKey: 'k', backoffMs: 1, fetchImpl: (async () => (++calls < 2 ? new Response('', { status: 408 }) : ok({ choices: [{ message: { content: 'ok' } }] }))) as unknown as typeof fetch });
+    expect((await c.chat({ model: 'm', messages: [] })).message.content).toBe('ok');
+  });
 });
 
 describe('pickModel', () => {

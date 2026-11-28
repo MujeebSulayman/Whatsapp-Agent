@@ -6,6 +6,8 @@ import type { Tool, ToolContext } from './tools/types.js';
 export { ungroundedAmounts, unknownNames };
 
 export const MAX_STEPS = 8;
+/** Room for a 30-item list with prices, and no more. */
+export const MAX_REPLY_TOKENS = 1200;
 
 /**
  * The model sometimes says it did something without calling the tool. For actions that are safe to repeat we catch that and make it do
@@ -82,6 +84,37 @@ export function listNotShown(reply: string, calls: { name: string; result: unkno
   return named >= Math.ceil(items.length * 0.6) ? null : `You looked up the catalogue but did not show it. Write out the items from list_catalog as a numbered list with each price (${items.length} items), then the total count. Do not just say how many there are.`;
 }
 
+/** The first owner "call me in" word found in the customer's message (whole words, any case), or null. */
+export function escalationHit(text: string, keywords: string[]): string | null {
+  for (const raw of keywords) {
+    const k = raw.trim();
+    if (!k) continue;
+    const esc = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
+    if (new RegExp(`(^|[^\\p{L}\\p{N}])${esc}([^\\p{L}\\p{N}]|$)`, 'iu').test(text)) return k;
+  }
+  return null;
+}
+
+/** The customer is asking for a person ("I want to speak to a human", "customer care please", "put me through to the owner"). */
+const WANTS_HUMAN = /^\s*(?:an?\s+)?(?:agent|human|person|representative|manager|owner|attendant|someone)\s*(?:please|pls|now|abeg)?[\s.!?]*$|\b(speak|talk|chat|connect|transfer|put\s+me\s+(through|on)|get\s+me|call)\b.{0,30}\b(human|person|someone|somebody|agent|representative|manager|owner|staff|attendant|customer\s+(care|service|support)|real\s+(person|human))\b|\b(human|real\s+person|live\s+agent|customer\s+(care|service|support)|an?\s+agent|the\s+owner|the\s+manager)\b[\s,.!?]*(please|pls|now|abeg)?[\s,.!?]*$/i;
+export const wantsHuman = (text: string) => WANTS_HUMAN.test(text);
+
+/** Things a customer must never be shown: a model's internal notes, special tokens, or its reasoning. */
+const SPECIAL_TOKEN = /<[｜|][^<>]{0,80}[｜|]>/g;
+export const hasModelArtifacts = (text: string) => /<[｜|][^<>]{0,80}[｜|]>|<\/?think>/i.test(text) || /^\s*(the\s+customer|customer)\s+(asked|said|wants|is\s+asking|has\s+asked|wrote)\b/i.test(text);
+export const stripArtifacts = (text: string) => text.replace(/<think>[\s\S]*?<\/think>/gi, '').replace(SPECIAL_TOKEN, '').trim();
+
+/** Someone saying they may hurt themselves. They get care, never a sales pitch. */
+const SELF_HARM = /\b(kill\s+myself|end\s+my\s+life|take\s+my\s+(own\s+)?life|suicid\w*|(don'?t|do\s+not|no\s+longer)\s+want\s+to\s+(live|be\s+alive)|want\s+to\s+die|better\s+off\s+dead|hurt\s+myself|harm\s+myself|self[-\s]?harm)\b/i;
+const CARING = /\b(sorry|care|support|talk|someone|not\s+alone|emergency|crisis|trusted|here\s+for\s+you)\b/i;
+const SALESY = /(₦|\$|€|£)\s?\d|\b(order|buy|price|delivery|discount|catalog(ue)?|menu|party|groceries)\b/i;
+
+/** Claiming a payment arrived. "The shop will confirm once it is received" is fine: that is a promise about later, not a claim. */
+export const PAYMENT_CLAIM = /(?<!\b(?:once|when|until|after|if|verify|verifies|whether|can(?:no|')t|unable|will)\b[^.!?\n]{0,70})(?:(?:payment|transfer)\s+(?:has\s+been|was|is\s+now)\s+(?:confirmed|received|successful)|\bpayment\s+(?:confirmed|received|successful)\b|(?:i|we)(?:'ve|\s+have)\s+(?:confirmed|received)\s+your\s+(?:payment|transfer))/i;
+export const claimsPaymentReceived = (text: string) => PAYMENT_CLAIM.test(text);
+/** The reply without any sentence matching `re`. */
+export const dropSentences = (text: string, re: RegExp) => text.split('\n').map((line) => line.split(/(?<=[.!?])\s+/).filter((sent) => !re.test(sent)).join(' ').trim()).filter(Boolean).join('\n').trim();
+
 /** A customer turning something down ("not interested", "too expensive", "no thanks"). */
 const DECLINE = /(not\s+interested|no,?\s+thanks?|no\s+thank\s+you|i'?m\s+good|i\s+don'?t\s+(want|need)|too\s+(expensive|costly|much|pricey)|maybe\s+later|never\s?mind|forget\s+it|leave\s+it)|^\s*no[.!\s]*$/i;
 /** They want it to stop. Never pushed back on. */
@@ -119,6 +152,8 @@ export async function runAgent(o: {
   tools?: Tool[];
   /** Owner choice. false = never nudge the model to win back a customer who says no. Default true. */
   keepCustomers?: boolean;
+  /** The owner's "call me in when they say" words. A customer message containing one always ends with a handoff. */
+  escalateKeywords?: string[];
 }): Promise<AgentResult> {
   // The payment-link tool is only offered when this business actually has online payments set up.
   const tools = (o.tools ?? TOOLS).filter((t) => t.name !== 'create_payment_link' || !!o.ctx.payments);
@@ -131,7 +166,9 @@ export async function runAgent(o: {
   const nudged = new Set<string>();
   let groundingNudges = 0;
   for (let step = 0; step < MAX_STEPS; step++) {
-    const { message, usage } = await o.llm.chat({ model: o.model, messages, tools: defs });
+    // A reply is short, so cap it. Without a cap the provider reserves credit for the model's largest possible answer on every call,
+    // which makes bursts of customers fail with "not enough credits" long before the money is really spent.
+    const { message, usage } = await o.llm.chat({ model: o.model, messages, tools: defs, maxTokens: MAX_REPLY_TOKENS });
     result.inputTokens += usage.inputTokens;
     result.outputTokens += usage.outputTokens;
     result.costUsd += usage.costUsd;
@@ -139,6 +176,33 @@ export async function runAgent(o: {
     if (!message.tool_calls?.length) {
       const text = (message.content ?? '').trim();
       const unbacked = CLAIM_CHECKS.find((c) => claims(c.claim, text) && !result.toolCalls.some((t) => (c.satisfiedBy ?? [c.tool]).includes(t.name) && !(t.result as { error?: unknown } | null)?.error) && !nudged.has(c.tool));
+      const lastUser = [...o.history].reverse().find((m) => m.role === 'user')?.content ?? '';
+      const hit = escalationHit(lastUser, o.escalateKeywords ?? []);
+      const distress = SELF_HARM.test(lastUser);
+      const mustHandOff = (hit || wantsHuman(lastUser) || distress) && !state.handedOff;
+      /** Send the model back once with a correction. True means "go round again". */
+      const nudge = (key: string, why: string | null): boolean => {
+        if (!why || nudged.has(key) || step >= MAX_STEPS - 1) return false;
+        nudged.add(key);
+        messages.push(message, { role: 'system', content: why });
+        return true;
+      };
+      /** The owner asked to be told, so if the model did not call them in, we do it for them. */
+      const autoHandoff = async () => {
+        if (!mustHandOff || state.handedOff) return;
+        const handoff = tools.find((t) => t.name === 'handoff_to_human');
+        if (handoff) await handoff.run(ctx, { reason: distress ? 'Customer may be in distress' : hit ? `Customer mentioned "${hit}"` : 'Customer asked for a person', summary: lastUser.slice(0, 500) });
+      };
+      const knownText = [o.system, ...o.history.map((m) => m.content ?? ''), ...result.toolCalls.map((t) => JSON.stringify(t.result))];
+      const invented = unknownNames(text, knownText);
+      const checkedPayment = result.toolCalls.some((t) => t.name === 'check_order_status');
+
+      if (nudge('empty', !text.trim() ? 'Your reply was empty. Reply to the customer now with a short, helpful message in their language.' : null)) continue;
+      if (nudge('artifacts', hasModelArtifacts(text) ? 'Your reply contained internal notes or analysis. Reply ONLY with the message to send to the customer, in their language, with no mention of what you did or what the customer asked.' : null)) continue;
+      if (nudge('distress', distress && !(CARING.test(text) && !SALESY.test(text)) ? "The customer may be in distress. Reply with warmth and care only: say you are sorry they feel this way, that they are not alone, and encourage them to talk to someone they trust or a local emergency or crisis line. Do not sell, quote prices or mention orders or products. Then call handoff_to_human with the summary 'Customer may be in distress' so the owner sees it." : null)) continue;
+      if (nudge('handoff', mustHandOff && !distress ? (hit
+        ? `The customer's message contains "${hit}", a word the owner wants to be called in for. Acknowledge them kindly (apologise if they are unhappy), then call handoff_to_human now with a short summary of what they said. Do not ask them to repeat details: the team will follow up.`
+        : 'The customer asked for a person. Call handoff_to_human now with a short summary, and tell them a team member will reply shortly.') : null)) continue;
       // The assistant's own instructions (owner notes, FAQs, what it looked up earlier) are legitimate sources too.
       const madeUp = ungroundedAmounts(text, [...o.history, { content: o.system }], result.toolCalls.map((t) => t.result));
       if (madeUp.length) {
@@ -151,43 +215,23 @@ export async function runAgent(o: {
         // Still not backed. Never send a made-up price, but never abandon the customer either: take out the sentences with the unbacked
         // amounts and keep the rest. No hand-off.
         result.reply = toWhatsAppText(withoutAmounts(text, madeUp));
+        await autoHandoff();
         result.handedOff = state.handedOff;
         return result;
       }
-      const invented = unknownNames(text, [o.system, ...o.history.map((m) => m.content ?? ''), ...result.toolCalls.map((t) => JSON.stringify(t.result))]);
-      if (invented.length && !nudged.has('names') && step < MAX_STEPS - 1) {
-        nudged.add('names');
-        messages.push(message, { role: 'system', content: `Your reply names "${invented.join('", "')}", which is not in the catalogue results, the chat or the business info. Never name a product, service or brand you did not get from a tool. Call search_products or list_catalog now and name only real items from the results, or say you will check with the team.` });
-        continue;
-      }
-      if (needsCatalogCall(o.history, result.toolCalls) && !nudged.has('catalog') && step < MAX_STEPS - 1) {
-        nudged.add('catalog');
-        messages.push(message, { role: 'system', content: 'The customer asked to see the list. Do not answer from memory or just give a count: call list_catalog now (limit 30), then write out every item with its price as a numbered list, and say how many there are in total.' });
-        continue;
-      }
-      const notShown = listNotShown(text, result.toolCalls);
-      if (notShown && !nudged.has('show') && step < MAX_STEPS - 1) {
-        nudged.add('show');
-        messages.push(message, { role: 'system', content: notShown });
-        continue;
-      }
-      const partial = incompleteFullList(text, result.toolCalls);
-      if (partial && !nudged.has('full') && step < MAX_STEPS - 1) {
-        nudged.add('full');
-        messages.push(message, { role: 'system', content: partial });
-        continue;
-      }
-      if (o.keepCustomers !== false && !unbacked && !nudged.has('save') && step < MAX_STEPS - 1 && needsSaveAttempt(o.history, text)) {
-        nudged.add('save');
-        messages.push(message, { role: 'system', content: 'The customer just said no for the first time. Do not say goodbye yet. Send ONE short, warm message that asks what held them back (price, size, timing, something else) OR offers one relevant alternative. Any alternative MUST come from search_products or suggest_alternatives in this turn: call it first and name only what it returns, never a product or price from memory. No pressure, no invented offers or deadlines. If they say no again later, let them go gracefully.' });
-        continue;
-      }
-      if (unbacked && step < MAX_STEPS - 1) {
-        nudged.add(unbacked.tool);
-        messages.push(message, { role: 'system', content: unbacked.nudge });
-        continue;
-      }
-      result.reply = toWhatsAppText(text);
+      if (nudge('names', invented.length ? `Your reply names "${invented.join('", "')}", which is not in the catalogue results, the chat or the business info. Never name a product, service or brand you did not get from a tool. Call search_products or list_catalog now and name only real items from the results, or say you will check with the team.` : null)) continue;
+      if (nudge('paid', !checkedPayment && claimsPaymentReceived(text) ? 'Your reply says a payment was received or confirmed. You cannot know that: only the payment system confirms it. Say instead that the shop will confirm as soon as the payment arrives. If they ask about an order, call check_order_status first.' : null)) continue;
+      if (nudge('catalog', needsCatalogCall(o.history, result.toolCalls) ? 'The customer asked to see the list. Do not answer from memory or just give a count: call list_catalog now (limit 30), then write out every item with its price as a numbered list, and say how many there are in total.' : null)) continue;
+      if (nudge('show', listNotShown(text, result.toolCalls))) continue;
+      if (nudge('full', incompleteFullList(text, result.toolCalls))) continue;
+      if (o.keepCustomers !== false && !unbacked && nudge('save', needsSaveAttempt(o.history, text) ? 'The customer just said no for the first time. Do not say goodbye yet. Send ONE short, warm message that asks what held them back (price, size, timing, something else) OR offers one relevant alternative. Any alternative MUST come from search_products or suggest_alternatives in this turn: call it first and name only what it returns, never a product or price from memory. No pressure, no invented offers or deadlines. If they say no again later, let them go gracefully.' : null)) continue;
+      if (unbacked && nudge(unbacked.tool, unbacked.nudge)) continue;
+      let clean = stripArtifacts(text);
+      if (!checkedPayment && claimsPaymentReceived(clean)) clean = dropSentences(clean, PAYMENT_CLAIM) || 'The shop will confirm your payment as soon as it arrives.';
+      if (hasModelArtifacts(clean)) clean = 'Sorry, could you tell me a little more about what you need?';
+      if (!clean.trim()) clean = "Sorry, I didn't catch that. Could you say it again?";
+      result.reply = toWhatsAppText(clean);
+      await autoHandoff();
       result.handedOff = state.handedOff;
       return result;
     }

@@ -46,6 +46,14 @@ describe('list_catalog', () => {
     expect(rest.note).toMatch(/then say that is everything/);
   });
 
+  it('can list cheapest first or most expensive first, so those questions are answered by the tool', async () => {
+    const low = await list({ limit: 3, sort: 'price_low' } as never);
+    expect(low.items.map((i) => i.price)).toEqual(['₦1,000', '₦2,000', '₦3,000']);
+    const high = await list({ limit: 2, sort: 'price_high' } as never);
+    expect(high.items[0]!.price).toBe('₦35,000'); // Item 35 is the dearest of the 34 active items
+    expect(Number(high.items[0]!.price.replace(/[^\d]/g, ''))).toBeGreaterThan(Number(high.items[1]!.price.replace(/[^\d]/g, '')));
+  });
+
   it('asking for a page past the end starts again from the top instead of returning nothing', async () => {
     const r = await list({ offset: 100, limit: 5 });
     expect(r.items).toHaveLength(5);
@@ -139,7 +147,7 @@ describe('what the assistant is told about serving customers', () => {
     expect(p).toMatch(/call list_delivery_areas/);
     expect(p).toMatch(/my budget is 100k.*call suggest_within_budget.*Never add prices up yourself/s);
     expect(p).toMatch(/your first action is a search_products call/);
-    expect(p).toMatch(/never say "we can't" to a custom, bulk, catering/);
+    expect(p).toMatch(/never say "we can" or "we can't" to a custom, bulk, catering/);
     expect(p).toMatch(/No dead ends/);
     expect(p).toMatch(/call list_catalog, not search_products/);
     expect(p).toMatch(/Never call a partial list "the full list"/);

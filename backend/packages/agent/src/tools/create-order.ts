@@ -1,29 +1,48 @@
 import { z } from 'zod';
-import type { Prisma } from '@wa/db';
+import type { Prisma, PrismaClient } from '@wa/db';
 import { availableQty, findVariant, formatMoney, isVariantTracked, variantList } from '@wa/shared';
 import { loadReserved } from './availability.js';
-import { defineTool } from './types.js';
+import { defineTool, type ToolContext } from './types.js';
+
+const createOrderSchema = z.object({
+  items: z.array(z.object({ product_id: z.string(), quantity: z.number().int().min(1).max(100), variant: z.string().optional() })).min(1).max(20),
+  /** Delivery area or service area. Optional only for service businesses that have not set up areas. */
+  delivery_area: z.string().min(1).optional(),
+  address: z.string().min(5).max(300),
+  /** Services: when the customer wants the work done, in their own words (e.g. "Thursday morning"). */
+  preferred_time: z.string().max(120).optional(),
+  notes: z.string().max(300).optional()
+});
 
 export const createOrder = defineTool({
   name: 'create_order',
   description:
     'Create a draft order (for products) or a booking request (for services) once you have what the customer wants, the full address (delivery address, or where the job is), and the area. For services also pass preferred_time. Totals are calculated by the server; never compute or quote totals yourself.',
-  schema: z.object({
-    items: z.array(z.object({ product_id: z.string(), quantity: z.number().int().min(1).max(100), variant: z.string().optional() })).min(1).max(20),
-    /** Delivery area or service area. Optional only for service businesses that have not set up areas. */
-    delivery_area: z.string().min(1).optional(),
-    address: z.string().min(5).max(300),
-    /** Services: when the customer wants the work done, in their own words (e.g. "Thursday morning"). */
-    preferred_time: z.string().max(120).optional(),
-    notes: z.string().max(300).optional()
-  }),
+  schema: createOrderSchema,
   async run(ctx, args) {
     const ids = [...new Set(args.items.map((i) => i.product_id))];
+    const db = ctx.db as PrismaClient;
+    // Practice mode already runs inside one rolled-back transaction, which cannot be nested.
+    if (typeof db.$transaction !== 'function') return place(ctx, db, args);
+    // Checking the stock and creating the order must be ONE step. Locking the products first makes simultaneous buyers queue up, so
+    // the last item can only be sold once.
+    return db.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM products WHERE business_id = ${ctx.businessId} AND id = ANY(${ids}) ORDER BY id FOR UPDATE`;
+      return place(ctx, tx as unknown as PrismaClient, args);
+    }, { timeout: 15_000, maxWait: 10_000 });
+  }
+});
+
+type Args = z.infer<typeof createOrderSchema>;
+
+async function place(ctx: ToolContext, db: PrismaClient, args: Args): Promise<unknown> {
+
+    const ids = [...new Set(args.items.map((i) => i.product_id))];
     // business_id scoping: a product id from another business simply isn't found.
-    const products = await ctx.db.product.findMany({ where: { id: { in: ids }, businessId: ctx.businessId, active: true } });
+    const products = await db.product.findMany({ where: { id: { in: ids }, businessId: ctx.businessId, active: true } });
     const byId = new Map(products.map((p) => [p.id, p]));
 
-    const reserved = await loadReserved(ctx.db, ctx.businessId);
+    const reserved = await loadReserved(db, ctx.businessId);
     const lines = [];
     const wanted = new Map<string, number>(); // quantity per product+option across lines
     for (const item of args.items) {
@@ -52,7 +71,7 @@ export const createOrder = defineTool({
     }
     const preorderLines = lines.filter((l) => 'preorder' in l);
 
-    const zones = await ctx.db.deliveryZone.findMany({ where: { businessId: ctx.businessId } });
+    const zones = await db.deliveryZone.findMany({ where: { businessId: ctx.businessId } });
     const isService = ctx.kind === 'services';
     let zone: (typeof zones)[number] | undefined;
     if (zones.length === 0 && isService) {
@@ -68,7 +87,7 @@ export const createOrder = defineTool({
     const subtotalMinor = lines.reduce((s, l) => s + l.line_total_minor, 0);
     const totalMinor = subtotalMinor + feeMinor;
     const notes = [preorderLines.length && `PRE-ORDER (not in stock yet): ${preorderLines.map((l) => l.name + (l.variant ? ` (${l.variant})` : '')).join(', ')}`, args.preferred_time && `Preferred time: ${args.preferred_time}`, args.notes].filter(Boolean).join('\n') || undefined;
-    const order = await ctx.db.order.create({
+    const order = await db.order.create({
       data: {
         businessId: ctx.businessId,
         customerId: ctx.customerId,
@@ -98,5 +117,4 @@ export const createOrder = defineTool({
           ? 'Tell the customer the items, delivery fee and total exactly as returned. Then call create_payment_link with this order_id and send the link.'
           : 'Tell the customer the items, delivery fee and total exactly as returned. Then give the payment details from BUSINESS INFO and say the shop will confirm once payment is received.'
     };
-  }
-});
+}

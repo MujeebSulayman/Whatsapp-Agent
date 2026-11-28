@@ -75,6 +75,7 @@ You get the owner's plain description of how they handle a kind of customer. Ret
 {"name":string,"whenToUse":string,"steps":[{"ask":string,"required":boolean}],"finish":"handoff"|"message","finishMessage":string|null}
 
 Rules:
+- The owner's description is the subject. Write the playbook for what THEY describe, even when it has nothing to do with the products or services the business usually sells (a food shop may also run classes). Never write about the business's usual products unless the description is about them.
 - name: 2 to 5 words, for example "New student enquiry" or "Quote request".
 - whenToUse: one sentence about the customer's need that should start this playbook.
 - steps: 3 to 8 steps IN THE ORDER the owner would ask. Each "ask" is what to find out (for example "Which service do they need?"), not a script. Mark a step required only if the owner needs it before they can act; keep personal or optional details optional.

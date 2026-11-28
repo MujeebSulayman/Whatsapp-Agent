@@ -221,6 +221,7 @@ describe('interview, field help and corrections', () => {
     expect(res.body).toMatchObject({ name: 'New student enquiry', finish: 'handoff' });
     expect(res.body.steps).toHaveLength(3); // the empty step is dropped
     expect(await prisma.playbook.count({ where: { businessId: A.businessId } })).toBe(0);
+    expect(JSON.stringify(calls.at(-1)!.messages[0])).toMatch(/owner's description is the subject/); // the draft follows what the owner described, not the shop's usual products
     expect((await http().post('/setup-ai/playbook').set(as(A)).send({ description: 'short' })).status).toBe(400);
   });
 

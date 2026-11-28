@@ -53,13 +53,21 @@ export class WaitlistController {
     for (const e of ready) {
       const conv = await this.db.conversation.findFirst({ where: { businessId: a.businessId, customerId: e.customerId }, orderBy: { lastMessageAt: 'desc' } });
       if (!conv || !conv.windowExpiresAt || conv.windowExpiresAt.getTime() < Date.now()) { outsideWindow++; continue; }
+      // Claim the entry first: if the owner taps twice at once, only one request gets to message this person.
+      const claimed = await this.db.waitlistEntry.updateMany({ where: { id: e.id, businessId: a.businessId, status: 'waiting' }, data: { status: 'notified', notifiedAt: new Date() } });
+      if (claimed.count === 0) continue;
       const text = `Good news! ${product.name}${e.variant ? ` (${e.variant})` : ''} is back in stock. Reply here if you'd like one and I'll set it up for you.`;
-      const sent = await this.messenger.send(a.businessId, e.customer.waId, text);
-      await this.db.$transaction([
-        this.db.message.create({ data: { businessId: a.businessId, conversationId: conv.id, direction: 'outbound', type: 'text', body: text, waMessageId: sent.waId, status: sent.dryRun ? 'dry_run' : 'sent', sentBy: 'ai' } }),
-        this.db.conversation.update({ where: { id: conv.id }, data: { lastMessageAt: new Date() } }),
-        this.db.waitlistEntry.update({ where: { id: e.id }, data: { status: 'notified', notifiedAt: new Date() } })
-      ]);
+      try {
+        const sent = await this.messenger.send(a.businessId, e.customer.waId, text);
+        await this.db.$transaction([
+          this.db.message.create({ data: { businessId: a.businessId, conversationId: conv.id, direction: 'outbound', type: 'text', body: text, waMessageId: sent.waId, status: sent.dryRun ? 'dry_run' : 'sent', sentBy: 'ai' } }),
+          this.db.conversation.update({ where: { id: conv.id }, data: { lastMessageAt: new Date() } })
+        ]);
+      } catch (err) {
+        // It was not delivered: put them back on the list so they are not silently dropped.
+        await this.db.waitlistEntry.updateMany({ where: { id: e.id, businessId: a.businessId }, data: { status: 'waiting', notifiedAt: null } });
+        throw err;
+      }
       notified++;
     }
     await this.db.auditLog.create({ data: { businessId: a.businessId, actor: a.userId, action: 'waitlist.notify', payload: { productId, variant: variant ?? null, notified, outsideWindow } } });

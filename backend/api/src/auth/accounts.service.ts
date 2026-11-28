@@ -42,7 +42,7 @@ export class AccountsService {
         data: {
           name: input.profile.businessName, slug, category: input.profile.category, kind: input.profile.kind, city: input.profile.city,
           country: input.profile.country, currency, timezone: input.profile.timezone, trialEndsAt, plan: 'trial',
-          aiRules: { create: { maxDiscountPct: 0, escalateKeywords: ['refund', 'complaint', 'lawyer', 'police'], forbiddenTopics: [] } },
+          aiRules: { create: { maxDiscountPct: 0, escalateKeywords: ['refund', 'money back', 'complaint', 'lawyer', 'police', 'scam', 'fraud', 'wrong item', 'damaged', 'missing', 'charged twice'], forbiddenTopics: [] } },
           memberships: { create: { userId: user.id, role: 'owner' } }
         }
       });

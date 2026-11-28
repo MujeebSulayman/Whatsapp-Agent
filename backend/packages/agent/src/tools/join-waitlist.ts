@@ -24,10 +24,14 @@ export const joinWaitlist = defineTool({
     if ((availableQty(p, chosen, await loadReserved(ctx.db, ctx.businessId)) ?? 1) > 0) return { error: 'It is in stock right now. Offer to take the order instead.' };
 
     const existing = await ctx.db.waitlistEntry.findFirst({ where: { businessId: ctx.businessId, customerId: ctx.customerId, productId: p.id, variant: chosen, status: 'waiting' } });
-    if (!existing) await ctx.db.waitlistEntry.create({ data: { businessId: ctx.businessId, customerId: ctx.customerId, productId: p.id, variant: chosen } });
+    let already = !!existing;
+    if (!existing) {
+      try { await ctx.db.waitlistEntry.create({ data: { businessId: ctx.businessId, customerId: ctx.customerId, productId: p.id, variant: chosen } }); }
+      catch (e) { if ((e as { code?: string }).code !== 'P2002') throw e; already = true; } // a double-click: they are on the list
+    }
     return {
       on_waitlist: true,
-      already_listed: !!existing,
+      already_listed: already,
       item: `${p.name}${chosen ? ` (${chosen})` : ''}`,
       next: 'Tell the customer the shop will message them when it is back. Do not promise a date or that it will return.' + (p.restockNote ? ` You may repeat the owner note: "${p.restockNote}".` : '')
     };

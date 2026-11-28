@@ -33,6 +33,8 @@ export interface OpenRouterOptions {
   /** Shown on openrouter.ai rankings; optional. */
   appTitle?: string;
   maxAttempts?: number;
+  /** Base wait between retries in ms (default 500, doubling each time; 3x longer when the provider is just busy). */
+  backoffMs?: number;
   fetchImpl?: typeof fetch;
 }
 
@@ -67,9 +69,13 @@ export function createOpenRouterClient(opts: OpenRouterOptions): LlmClient {
             })
           });
           if (res.status === 429 || res.status >= 500) throw new Error(`OpenRouter ${res.status}`);
+          if (res.status === 408) throw new Error('OpenRouter 408');
           if (!res.ok) {
-            // 4xx other than 429 will not succeed on retry.
-            throw Object.assign(new Error(`OpenRouter ${res.status}: ${(await res.text()).slice(0, 200)}`), { fatal: true });
+            const text = (await res.text()).slice(0, 300);
+            // "Not enough credits given your in-flight requests" clears as soon as other requests finish, so it is worth a short wait.
+            // Any other 4xx (a real out-of-credits, a bad key, a bad request) will not succeed on retry.
+            const busy = res.status === 402 && /in-?flight/i.test(text);
+            throw Object.assign(new Error(`OpenRouter ${res.status}: ${text}`), busy ? { slow: true } : { fatal: true });
           }
           const data = (await res.json()) as {
             choices?: { message?: ChatMessage }[];
@@ -88,7 +94,7 @@ export function createOpenRouterClient(opts: OpenRouterOptions): LlmClient {
         } catch (e) {
           lastErr = e as Error;
           if ((e as { fatal?: boolean }).fatal || attempt === maxAttempts) break;
-          await sleep(500 * 2 ** (attempt - 1));
+          await sleep((opts.backoffMs ?? 500) * ((e as { slow?: boolean }).slow ? 3 : 1) * 2 ** (attempt - 1));
         }
       }
       throw lastErr;
@@ -104,8 +110,8 @@ export interface ModelConfig {
 
 export function modelConfigFromEnv(env: Record<string, string | undefined> = process.env): ModelConfig {
   return {
-    fast: env.OPENROUTER_MODEL_FAST ?? 'openai/gpt-4o-mini',
-    smart: env.OPENROUTER_MODEL_SMART ?? 'openai/gpt-4o'
+    fast: env.OPENROUTER_MODEL_FAST ?? 'deepseek/deepseek-v4.1-flash',
+    smart: env.OPENROUTER_MODEL_SMART ?? 'deepseek/deepseek-v4.1-flash'
   };
 }
 

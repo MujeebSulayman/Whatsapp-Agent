@@ -13,6 +13,8 @@ export interface AgentContext {
   onlinePayments: boolean;
   /** Owner choice: try once to keep a customer who says no (true, the default) or let them go. */
   keepCustomers: boolean;
+  /** The owner's "call me in when they say" words. */
+  escalateKeywords: string[];
 }
 
 /** business + rules + customer + last 20 messages + open order. All reads are scoped by businessId. */
@@ -49,6 +51,7 @@ export async function buildContext(db: PrismaClient, o: { businessId: string; co
   const system = buildSystemPrompt({
     onlinePayments: !!business.paystackSubaccountCode,
     keepCustomers: rules?.keepCustomers ?? true,
+    escalateKeywords: rules?.escalateKeywords ?? [],
     areas: zones.map((z) => z.areaName),
     recentLookups: recentLookups(lookupRuns),
     playbooks: playbooks.map((b) => ({ id: b.id, name: b.name, whenToUse: b.whenToUse, steps: parseSteps(b.steps) })).filter((b) => b.steps.length),
@@ -73,5 +76,5 @@ export async function buildContext(db: PrismaClient, o: { businessId: string; co
     openOrder: openOrder ? `${openOrder.id} total ${formatMoney(openOrder.totalMinor, business.currency)} (${openOrder.paymentStatus})` : null
   });
 
-  return { system, history, hasOpenOrder: !!openOrder, lastCustomerText, onlinePayments: !!business.paystackSubaccountCode, keepCustomers: rules?.keepCustomers ?? true };
+  return { system, history, hasOpenOrder: !!openOrder, lastCustomerText, onlinePayments: !!business.paystackSubaccountCode, keepCustomers: rules?.keepCustomers ?? true, escalateKeywords: rules?.escalateKeywords ?? [] };
 }

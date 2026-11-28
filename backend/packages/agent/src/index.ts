@@ -1,5 +1,5 @@
 export { buildContext, type AgentContext } from './context-builder.js';
-export { runAgent, MAX_STEPS, needsSaveAttempt, ungroundedAmounts, unknownNames, incompleteFullList, withoutAmounts, listNotShown, needsCatalogCall, type AgentResult } from './run-agent.js';
+export { runAgent, MAX_STEPS, needsSaveAttempt, ungroundedAmounts, unknownNames, incompleteFullList, withoutAmounts, escalationHit, wantsHuman, hasModelArtifacts, stripArtifacts, claimsPaymentReceived, dropSentences, PAYMENT_CLAIM, listNotShown, needsCatalogCall, type AgentResult } from './run-agent.js';
 export { buildSystemPrompt, type PromptInput } from './system-prompt.js';
 export { TOOLS, toolDefs } from './tools/index.js';
 export type { Tool, ToolContext } from './tools/types.js';

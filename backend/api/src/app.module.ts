@@ -1,4 +1,5 @@
 import { Controller, Get, Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { createOpenRouterClient, createOpenRouterEmbedder, embeddingModelFromEnv } from '@wa/ai';
 import { createPaystackClient } from '@wa/shared';
 import { AnalyticsController } from './analytics/analytics.controller.js';
@@ -9,6 +10,7 @@ import { SocialAuthController } from './auth/social.controller.js';
 import { BusinessController } from './businesses/business.controller.js';
 import { EmbeddingService } from './common/embedding.js';
 import { Messenger } from './common/messenger.js';
+import { NoNulGuard } from './common/no-nul.guard.js';
 import { ConversationsController } from './conversations/conversations.controller.js';
 import { CustomersController } from './customers/customers.controller.js';
 import { InfraModule } from './infra.module.js';
@@ -38,7 +40,7 @@ class HealthController {
 @Module({
   imports: [InfraModule],
   controllers: [HealthController, WhatsappController, AuthController, SocialAuthController, SetupAiController, BusinessController, CatalogController, WaitlistController, MediaController, PaymentsController, PaystackWebhookController, PlaybooksController, ConversationsController, OrdersController, CustomersController, AnalyticsController, TeamController],
-  providers: [WhatsappService, Messenger, { provide: PAYSTACK_CLIENT, useFactory: () => (process.env.PAYSTACK_SECRET_KEY ? createPaystackClient(process.env.PAYSTACK_SECRET_KEY) : null) }, WaitlistService, MediaService, EmbeddingService, AccountsService, { provide: GOOGLE_CLIENT, useFactory: () => new GoogleClient() },
+  providers: [{ provide: APP_GUARD, useClass: NoNulGuard }, WhatsappService, Messenger, { provide: PAYSTACK_CLIENT, useFactory: () => (process.env.PAYSTACK_SECRET_KEY ? createPaystackClient(process.env.PAYSTACK_SECRET_KEY) : null) }, WaitlistService, MediaService, EmbeddingService, AccountsService, { provide: GOOGLE_CLIENT, useFactory: () => new GoogleClient() },
     SetupAiService,
     { provide: LLM_CLIENT, useFactory: () => createOpenRouterClient({ apiKey: process.env.OPENROUTER_API_KEY ?? '', appTitle: 'Converso' }) },
     {
