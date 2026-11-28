@@ -13,15 +13,30 @@ export const listCatalog = defineTool({
     /** name = A to Z (default). price_low = cheapest first, price_high = most expensive first. */
     sort: z.enum(['name', 'price_low', 'price_high']).default('name'),
     /** Optional word to narrow the list, e.g. "drinks", "oil" or a category such as "massage". */
-    match: z.string().trim().max(60).optional()
+    match: z.string().trim().max(60).optional(),
+    /** categories = an overview of the groups (name, how many, lowest price) with no items. Use it when the customer asks broadly what you offer and the catalogue is big. */
+    view: z.enum(['items', 'categories']).default('items')
   }),
-  async run(ctx, { offset: askedOffset, limit, match, sort }) {
+  async run(ctx, { offset: askedOffset, limit, match, sort, view }) {
     const orderBy = sort === 'price_low' ? [{ priceMinor: 'asc' as const }, { name: 'asc' as const }] : sort === 'price_high' ? [{ priceMinor: 'desc' as const }, { name: 'asc' as const }] : [{ name: 'asc' as const }];
     const where = {
       businessId: ctx.businessId,
       active: true,
       ...(match ? { OR: [{ name: { contains: match, mode: 'insensitive' as const } }, { description: { contains: match, mode: 'insensitive' as const } }, { category: { contains: match, mode: 'insensitive' as const } }] } : {})
     };
+    if (view === 'categories') {
+      const groups = await ctx.db.product.groupBy({ by: ['category'], where, _count: { _all: true }, _min: { priceMinor: true }, _max: { priceMinor: true } });
+      const named = groups.filter((g) => g.category);
+      if (named.length >= 2) {
+        const other = groups.filter((g) => !g.category).reduce((n, g) => n + g._count._all, 0);
+        return {
+          total: groups.reduce((n, g) => n + g._count._all, 0),
+          categories: named.sort((a, b) => a.category!.localeCompare(b.category!)).map((g) => ({ name: g.category, count: g._count._all, from: formatMoney(g._min.priceMinor ?? 0, ctx.currency), to: formatMoney(g._max.priceMinor ?? 0, ctx.currency) })),
+          ...(other ? { other_items: other } : {}),
+          note: 'Give a short overview: each category with how many items and the starting price, then ask which they want to see. Do not list the items yet.'
+        };
+      }
+    }
     const [total, rows, reserved] = await Promise.all([
       ctx.db.product.count({ where }),
       ctx.db.product.findMany({ where, orderBy, skip: askedOffset, take: limit }),
