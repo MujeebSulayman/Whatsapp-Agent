@@ -137,7 +137,7 @@ describe('what the assistant is told about serving customers', () => {
     expect(p).toMatch(/do not answer, even if you know the answer/);
     expect(p).toMatch(/never reply "I already listed them"/);
     expect(p).toMatch(/call list_delivery_areas/);
-    expect(p).toMatch(/my budget is 100k.*suggest 2 to 4 items.*Never reply with only a question/s);
+    expect(p).toMatch(/my budget is 100k.*call suggest_within_budget.*Never add prices up yourself/s);
     expect(p).toMatch(/your first action is a search_products call/);
     expect(p).toMatch(/never say "we can't" to a custom, bulk, catering/);
     expect(p).toMatch(/No dead ends/);

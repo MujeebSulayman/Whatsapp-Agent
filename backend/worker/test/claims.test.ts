@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import type { ChatMessage, LlmClient } from '@wa/ai';
-import { needsSaveAttempt, runAgent, ungroundedAmounts, type Tool } from '@wa/agent';
+import { needsSaveAttempt, runAgent, toWhatsAppText, ungroundedAmounts, withoutAmounts, type Tool } from '@wa/agent';
 import type { PrismaClient } from '@wa/db';
 
 const usage = { inputTokens: 1, outputTokens: 1, costUsd: 0 };
@@ -146,13 +146,44 @@ describe('prices the assistant makes up', () => {
     expect(seen[1]!.messages.at(-1)).toMatchObject({ role: 'system', content: expect.stringMatching(/states an amount \(30,000\) that no tool returned/) });
   });
 
-  it('never sends a price it could not back: a holding message goes out and the owner is called in', async () => {
+  it('never sends a price it could not back, and never abandons the customer: that sentence is removed, no handoff', async () => {
+    ran.length = 0;
+    const { llm, seen } = scripted([say('Swift Step Sneakers are ₦30,000. The Air Runner is ₦45,000 and ready to order.')]);
+    const r = await go(llm, {}, [{ role: 'assistant', content: 'The Air Runner is ₦45,000.' }, { role: 'user', content: 'cheaper one?' }]);
+    expect(seen).toHaveLength(3); // the first answer plus two corrections
+    expect(r.reply).toBe('The Air Runner is ₦45,000 and ready to order.');
+    expect(r.reply).not.toMatch(/30,000|Swift/);
+    expect(ran).not.toContain('handoff');
+    expect(r.handedOff).toBe(false);
+  });
+
+  it('if nothing usable is left it asks what they want, rather than stalling or handing over', async () => {
     ran.length = 0;
     const { llm } = scripted([say('Swift Step Sneakers are ₦30,000.')]);
     const r = await go(llm, {}, [{ role: 'user', content: 'cheaper one?' }]);
-    expect(r.reply).toMatch(/double-check that price/);
-    expect(r.reply).not.toMatch(/30,000/);
-    expect(ran).toEqual(['handoff']);
-    expect(r.handedOff).toBe(true);
+    expect(r.reply).toBe('Tell me which item you would like and I will get you the exact price right away.');
+    expect(ran).not.toContain('handoff');
+    expect(r.handedOff).toBe(false);
+  });
+});
+
+describe('removing sentences with unbacked amounts', () => {
+  it('keeps everything else, line by line', () => {
+    expect(withoutAmounts('Rice is ₦85,000. Garri is ₦99,999. Want both?', ['99,999'])).toBe('Rice is ₦85,000. Want both?');
+    expect(withoutAmounts('1. Rice - ₦85,000\n2. Fake - ₦1,234\n3. Salt - ₦1,500', ['1,234'])).toBe('1. Rice - ₦85,000\n3. Salt - ₦1,500');
+    expect(withoutAmounts('That is 30k.', ['30k'])).toMatch(/exact price right away/);
+  });
+});
+
+describe('WhatsApp formatting is fixed in code', () => {
+  it('turns markdown into what WhatsApp shows', () => {
+    expect(toWhatsAppText('1. **Closest to your budget:** Rice')).toBe('1. *Closest to your budget:* Rice');
+    expect(toWhatsAppText('## Menu\nRice')).toBe('Menu\nRice');
+    expect(toWhatsAppText('Pay here [Pay Now](https://checkout.paystack.com/abc)')).toBe('Pay here Pay Now: https://checkout.paystack.com/abc');
+    expect(toWhatsAppText('Plain text ₦5,000 stays as it is.')).toBe('Plain text ₦5,000 stays as it is.');
+  });
+  it('is applied to what the customer receives', async () => {
+    const { llm } = scripted([say('Here is **the list**:\n## Rice')]);
+    expect((await go(llm)).reply).toBe('Here is *the list*:\nRice');
   });
 });

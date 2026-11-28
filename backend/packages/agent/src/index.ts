@@ -1,5 +1,5 @@
 export { buildContext, type AgentContext } from './context-builder.js';
-export { runAgent, MAX_STEPS, needsSaveAttempt, ungroundedAmounts, unknownNames, incompleteFullList, listNotShown, needsCatalogCall, type AgentResult } from './run-agent.js';
+export { runAgent, MAX_STEPS, needsSaveAttempt, ungroundedAmounts, unknownNames, incompleteFullList, withoutAmounts, listNotShown, needsCatalogCall, type AgentResult } from './run-agent.js';
 export { buildSystemPrompt, type PromptInput } from './system-prompt.js';
 export { TOOLS, toolDefs } from './tools/index.js';
 export type { Tool, ToolContext } from './tools/types.js';
@@ -22,3 +22,4 @@ export { listDeliveryAreas } from './tools/list-delivery-areas.js';
 export { moneyIn } from './grounding.js';
 export { recentLookups } from './memory.js';
 export { suggestWithinBudget } from './tools/suggest-within-budget.js';
+export { toWhatsAppText } from './run-agent.js';

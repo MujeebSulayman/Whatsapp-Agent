@@ -32,6 +32,27 @@ export function claims(re: RegExp, text: string): boolean {
   return text.split(/(?<=[.!?])\s+/).some((sentence) => re.test(sentence) && !/\?\s*$/.test(sentence) && !OFFER.test(sentence));
 }
 
+/** WhatsApp's own formatting: *bold* (single asterisks), no headings, and links written out. The model sometimes writes markdown. */
+export function toWhatsAppText(text: string): string {
+  return text
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '$1: $2')
+    .replace(/\*\*(.+?)\*\*/g, '*$1*')
+    .replace(/^\s{0,3}#{1,6}\s+/gm, '')
+    .replace(/__(.+?)__/g, '_$1_');
+}
+
+/** The reply with any sentence that mentions one of these amounts taken out. If nothing useful is left, ask what they want to know instead of stalling. */
+export function withoutAmounts(reply: string, amounts: string[]): string {
+  const bare = (a: string) => a.replace(/[^\d.,kKmM]/g, '');
+  const mentions = (line: string) => amounts.some((a) => line.includes(a) || line.includes(bare(a)));
+  const kept = reply.split(/\n/).map((line) => {
+    if (/^\s*(\d+[.)]|[-*•])\s/.test(line)) return mentions(line) ? '' : line; // a list item goes whole
+    return line.split(/(?<=[.!?])\s+/).filter((sentence) => !mentions(sentence)).join(' ').trim();
+  }).filter(Boolean);
+  const text = kept.join('\n').trim();
+  return text.length >= 20 ? text : 'Tell me which item you would like and I will get you the exact price right away.';
+}
+
 /** Calling a list "the full list" when only part of it was shown. */
 const FULL_LIST = /\b(full|complete|entire|whole)\s+(list|menu|catalog(ue)?|price\s?list)|\beverything\s+we\s+(sell|have|offer)|\ball\s+(of\s+)?(our|the)\s+(items|products)\b/i;
 export function incompleteFullList(reply: string, calls: { name: string; result: unknown }[]): string | null {
@@ -108,6 +129,7 @@ export async function runAgent(o: {
   const result: AgentResult = { reply: '', model: o.model, inputTokens: 0, outputTokens: 0, costUsd: 0, toolCalls: [], handedOff: false, hitStepCap: false };
 
   const nudged = new Set<string>();
+  let groundingNudges = 0;
   for (let step = 0; step < MAX_STEPS; step++) {
     const { message, usage } = await o.llm.chat({ model: o.model, messages, tools: defs });
     result.inputTokens += usage.inputTokens;
@@ -120,15 +142,15 @@ export async function runAgent(o: {
       // The assistant's own instructions (owner notes, FAQs, what it looked up earlier) are legitimate sources too.
       const madeUp = ungroundedAmounts(text, [...o.history, { content: o.system }], result.toolCalls.map((t) => t.result));
       if (madeUp.length) {
-        if (!nudged.has('grounding') && step < MAX_STEPS - 1) {
-          nudged.add('grounding');
-          messages.push(message, { role: 'system', content: `Your reply states an amount (${madeUp.join(', ')}) that no tool returned. Never state a price or amount from memory or guess one, and never name a product a tool did not return. Never work out totals or prices yourself. If the customer has given the item, area and address, call create_order now and quote only its total; if details are missing, ask for the next missing detail instead of quoting a total. For a price or alternative, call search_products (or the right tool) and use ONLY the exact products and amounts it returns. If you cannot find it, say you will check with the team.` });
+        // Two chances to look it up properly. The nudge gets firmer the second time.
+        if (groundingNudges < 2 && step < MAX_STEPS - 1) {
+          groundingNudges++;
+          messages.push(message, { role: 'system', content: `Your reply states an amount (${madeUp.join(', ')}) that no tool returned. Never state a price or amount from memory or guess one, and never name a product a tool did not return. Never work out totals or prices yourself. ${groundingNudges === 1 ? '' : 'This is your last chance: '}If the customer has given the item, area and address, call create_order now and quote only its total; if they gave a budget, call suggest_within_budget; if details are missing, ask for the next missing detail instead of quoting a total. For a price or alternative, call search_products or list_catalog and use ONLY the exact products and amounts they return.` });
           continue;
         }
-        // Still not backed after one correction: never send a made-up price. Hold the customer and call the owner in.
-        const handoff = tools.find((t) => t.name === 'handoff_to_human');
-        if (handoff) await handoff.run(ctx, { reason: 'The assistant could not confirm a price', summary: `The assistant could not back an amount it was about to quote (${madeUp.join(', ')}). Please check the last message and reply.` });
-        result.reply = "I'd like to double-check that price for you. Let me confirm with the team and get back to you shortly.";
+        // Still not backed. Never send a made-up price, but never abandon the customer either: take out the sentences with the unbacked
+        // amounts and keep the rest. No hand-off.
+        result.reply = toWhatsAppText(withoutAmounts(text, madeUp));
         result.handedOff = state.handedOff;
         return result;
       }
@@ -165,7 +187,7 @@ export async function runAgent(o: {
         messages.push(message, { role: 'system', content: unbacked.nudge });
         continue;
       }
-      result.reply = text;
+      result.reply = toWhatsAppText(text);
       result.handedOff = state.handedOff;
       return result;
     }

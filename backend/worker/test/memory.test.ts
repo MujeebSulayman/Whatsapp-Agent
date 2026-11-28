@@ -78,6 +78,15 @@ describe('it reaches the assistant for a real conversation, and only that one', 
   });
   afterAll(async () => { await prisma.business.deleteMany({ where: { slug: 'mem-a' } }); await prisma.$disconnect(); });
 
+  it('tells the assistant which areas are covered, so it can say at once when one is not', async () => {
+    await prisma.deliveryZone.createMany({ data: [{ businessId: a.id, areaName: 'Lekki', feeMinor: 200000, etaText: '1 hour' }, { businessId: a.id, areaName: 'Ikeja', feeMinor: 250000, etaText: '2 hours' }] });
+    const { system } = await buildContext(prisma, { businessId: a.id, conversationId: a.conv, customerId: a.cust });
+    expect(system).toContain('Delivery areas (names only; fees and times come from tools): Ikeja, Lekki.');
+    expect(system).toMatch(/not in this list, tell them kindly right away that you do not deliver there yet/);
+    const line = system.split('\n').find((l) => l.startsWith('Delivery areas'))!;
+    expect(line).not.toMatch(/₦|\d/); // the areas line has names only: fees and times come from tools
+  });
+
   it('puts this conversation’s lookups in the instructions', async () => {
     const { system } = await buildContext(prisma, { businessId: a.id, conversationId: a.conv, customerId: a.cust });
     expect(system).toContain('Rice (50kg) | id=p-rice | ₦85,000');

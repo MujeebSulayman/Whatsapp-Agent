@@ -19,6 +19,8 @@ export interface PromptInput {
   playbooks?: { id: string; name: string; whenToUse: string; steps: { id: string; ask: string; required: boolean }[] }[];
   /** A playbook this customer is partway through, so the assistant can pick up where it left off. */
   playbookInProgress?: string | null;
+  /** Names of the areas this business delivers to or serves (fees and times come from tools). */
+  areas?: string[];
   /** Owner choice: false = let customers who say no go politely, with no attempt to change their mind. Default true. */
   keepCustomers?: boolean;
   /** True when this business has online payments set up (the assistant can send Paystack links). */
@@ -36,7 +38,7 @@ const SERVICES = `HOW YOU SELL (services)
 - Talk about "service area", "visit" and "booking". Do not talk about delivery or stock.`;
 
 const GOODS = `HOW YOU SELL (products)
-- You sell products that are delivered. Ask for the item, quantity or variant, delivery area, then the full address.`;
+- You sell products that are delivered. Ask for the item, quantity or variant, delivery area, then the full address. The moment a customer tells you where they are, call get_delivery_fee for that area, so you can tell them straight away if you do not cover it.`;
 
 const BOTH = `HOW YOU SELL (products and services)
 - Treat products as delivered goods (item, quantity, delivery area, address). Treat services as bookings: describe the starting price only as the tools return it, never promise a final price for custom work, and collect the job address, area and a preferred day and time before calling create_order.`;
@@ -121,7 +123,7 @@ RULES
 
 BUSINESS INFO
 Hours: ${p.hours}
-Payment: ${p.paymentMethods}
+${p.areas?.length ? `Delivery areas (names only; fees and times come from tools): ${p.areas.join(', ')}. If a customer names a place that is not in this list, tell them kindly right away that you do not deliver there yet, offer the areas you do cover, and ask if another address works.\n` : ''}Payment: ${p.paymentMethods}
 Returns: ${p.returnPolicy}
 ${p.customInstructions ? `Owner instructions: ${p.customInstructions}` : ''}
 
