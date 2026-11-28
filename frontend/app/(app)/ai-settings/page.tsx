@@ -9,13 +9,12 @@ import type { BusinessDetail } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
 type Tone = 'friendly' | 'professional' | 'playful' | 'formal';
-type Form = { tone: Tone; max: number; escalate: string[]; forbidden: string[]; instructions: string; keepCustomers: boolean };
+type Form = { tone: Tone; max: number; escalate: string[]; forbidden: string[]; instructions: string };
 const tones: { id: Tone; label: string }[] = [{ id: 'friendly', label: 'Friendly' }, { id: 'professional', label: 'Professional' }, { id: 'playful', label: 'Playful' }, { id: 'formal', label: 'Formal' }];
 
 const fromBiz = (b: BusinessDetail): Form => ({
   tone: (b.tone as Tone) ?? 'friendly', max: b.aiRules?.maxDiscountPct ?? 0,
-  escalate: b.aiRules?.escalateKeywords ?? [], forbidden: b.aiRules?.forbiddenTopics ?? [], instructions: b.aiRules?.customInstructions ?? '',
-  keepCustomers: b.aiRules?.keepCustomers ?? true
+  escalate: b.aiRules?.escalateKeywords ?? [], forbidden: b.aiRules?.forbiddenTopics ?? [], instructions: b.aiRules?.customInstructions ?? ''
 });
 
 export default function AiSettingsPage() {
@@ -40,7 +39,7 @@ export default function AiSettingsPage() {
     setBusy(true); setErr(null);
     try {
       await api.patch('business', { tone: f!.tone });
-      await api.put('business/ai-rules', { maxDiscountPct: f!.max, escalateKeywords: f!.escalate, forbiddenTopics: f!.forbidden, customInstructions: f!.instructions.trim() || null, keepCustomers: f!.keepCustomers });
+      await api.put('business/ai-rules', { maxDiscountPct: f!.max, escalateKeywords: f!.escalate, forbiddenTopics: f!.forbidden, customInstructions: f!.instructions.trim() || null });
       await refresh(); setBase(f); toast('Saved');
     } catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
   }
@@ -70,19 +69,6 @@ export default function AiSettingsPage() {
               <input type="range" min={0} max={50} step={1} value={f.max} disabled={!owner} aria-label="Maximum discount"
                 onChange={(e) => setF({ ...f, max: Number(e.target.value) })} className="w-full accent-brand disabled:opacity-60" />
               <div className="mt-1 flex justify-between text-[11px] text-muted-foreground tabular-nums"><span>0%</span><span>25%</span><span>50%</span></div>
-            </CardBody>
-          </Card>
-
-          <Card>
-            <CardHeader title="When a customer says no" />
-            <CardBody>
-              <div className="flex items-start justify-between gap-4">
-                <div className="text-[13px]">
-                  <div className="font-medium">Try once to keep them</div>
-                  <p className="mt-0.5 text-muted-foreground">If a customer says “no” or “not interested”, the assistant makes one friendly attempt: it asks what held them back or suggests something else. It never pushes after a second no. Turn this off to let them go politely.</p>
-                </div>
-                <Switch checked={f.keepCustomers} onChange={(keepCustomers) => owner && setF({ ...f, keepCustomers })} disabled={!owner} label="Try once to keep customers who say no" />
-              </div>
             </CardBody>
           </Card>
 
