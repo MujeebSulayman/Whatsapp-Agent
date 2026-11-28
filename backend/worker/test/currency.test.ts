@@ -66,6 +66,6 @@ describe('the prompt is not tied to one country', () => {
     expect(system).toContain('Austin, United States');
     expect(system).toContain('USD');
     expect(system).not.toMatch(/Nigerian|Nigeria|Pidgin|Naija|₦/);
-    expect(system).toMatch(/language and dialect the customer writes in/);
+    expect(system).toMatch(/mirror the customer's own language/);
   });
 });
